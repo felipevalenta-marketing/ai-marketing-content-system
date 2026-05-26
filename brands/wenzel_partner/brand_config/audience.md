@@ -1,8 +1,10 @@
 # Audience
 
-## Primary Audience
-### 1. High-Net-Worth Buyers
-Clients seeking exceptional residences, privacy, and long-term value.
+## Core Audience
+Wenzel & Partner serves a broad Mallorca real estate audience that values trust, local knowledge, and premium service.
+
+### 1. Luxury Buyers
+Clients seeking exceptional residences, privacy, design quality, and long-term value.
 
 Needs:
 - trust
@@ -10,37 +12,69 @@ Needs:
 - market clarity
 - access to premium inventory
 
-### 2. Luxury Property Sellers
-Owners of high-value homes and apartments who want strategic positioning and qualified exposure.
+### 2. First Residence Buyers
+Clients buying their primary home in Mallorca and looking for guidance through the local market.
+
+Needs:
+- trust
+- clarity
+- practical support
+- local market insight
+- process guidance
+
+### 3. Relocation Clients
+Families and professionals moving to Mallorca who need a smooth transition and local support.
+
+Needs:
+- relocation advice
+- neighborhood guidance
+- family-friendly options
+- practical property fit
+
+### 4. Property Reform Investors
+Buyers interested in renovation or reform opportunities with value-add potential.
+
+Needs:
+- opportunity analysis
+- realistic potential
+- budget awareness
+- location insight
+
+### 5. Second-Home Buyers
+Clients looking for a holiday home or flexible lifestyle property in Mallorca.
+
+Needs:
+- lifestyle appeal
+- convenience
+- maintenance considerations
+- access to the right areas
+
+### 6. Sellers
+Owners who need strategic property positioning, premium presentation, and qualified exposure.
 
 Needs:
 - premium presentation
 - pricing confidence
 - polished storytelling
-- global and local reach
+- local and international reach
 
-### 3. Investors and Relocation Clients
-Buyers comparing lifestyle, yield, and location quality.
-
-Needs:
-- data-backed guidance
-- local expertise
-- process clarity
-- responsive service
-
-## Secondary Audience
-- family offices
+## Additional Audience Segments
+- investors
 - international buyers
 - brokers and referral partners
 - developers launching high-end projects
 
 ## Audience Mindset
 The audience values:
-- privacy
+- trust
+- local expertise
+- market clarity
 - efficiency
-- sophistication
+- sophisticated but approachable communication
 - reliable guidance
-- calm expertise
+- lifestyle fit
+- long-term value
+- responsive service
 
 They respond best to messaging that signals:
 - access
@@ -48,12 +82,15 @@ They respond best to messaging that signals:
 - certainty
 - long-term value
 - effortless service
+- Mallorca lifestyle knowledge
+- practical support where needed
 
 ## Messaging Angles
-- "Curated opportunities, not mass-market listings."
-- "Private guidance for exceptional properties."
-- "Local expertise with an international standard of service."
-- "A refined process from discovery to closing."
+- "Trusted Mallorca real estate guidance for every stage of the journey."
+- "Local expertise for buyers, sellers, and relocating families."
+- "Premium service with a human, approachable approach."
+- "From first home to luxury property, from reform opportunity to second home."
+- "Mallorca lifestyle, market insight, and strategic property advice in one place."
 
 ## Multi-Brand Rule
 Audience definitions must remain configurable per brand, market, and segment.
