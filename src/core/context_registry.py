@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
 import fnmatch
 
 
@@ -48,22 +47,3 @@ class ContextRegistry:
             if fnmatch.fnmatch(normalized, pattern.lower()):
                 return entry
         return ContextRegistryEntry("general_knowledge", "low", ["prompting", "reference"])
-
-    def register(self, pattern: str, entry: ContextRegistryEntry) -> None:
-        """Register a new semantic mapping."""
-
-        self._entries.insert(0, (pattern, entry))
-
-    def describe(self, entries: Iterable[str] | None = None) -> dict[str, dict[str, object]]:
-        """Return a human-readable registry snapshot."""
-
-        snapshot: dict[str, dict[str, object]] = {}
-        for pattern, entry in self._entries:
-            if entries and pattern not in entries:
-                continue
-            snapshot[pattern] = {
-                "role": entry.role,
-                "priority": entry.priority,
-                "usage": entry.usage,
-            }
-        return snapshot

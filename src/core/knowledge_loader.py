@@ -15,9 +15,8 @@ from src.utils.file_utils import (
     normalize_markdown_content,
     read_markdown_file,
     recursive_markdown_files,
-    validate_path,
 )
-from src.utils.logger import get_logger, log_error, log_load, log_scan, log_warning
+from src.utils.logger import get_logger, log_context, log_error, log_load, log_scan, log_warning
 
 
 KNOWLEDGE_ROOT_NAME = "knowledge_base"
@@ -234,12 +233,9 @@ class KnowledgeLoader:
     def _log_summary(self, bundle: BrandKnowledge) -> None:
         """Log a concise ingestion summary for developer ergonomics."""
 
-        self.logger.info(
-            "[summary] brand=%s files=%s categories=%s warnings=%s",
-            bundle.brand,
-            len(bundle.files),
-            ", ".join(bundle.detected_categories),
-            len(bundle.warnings),
+        log_context(
+            self.logger,
+            f"Summary brand={bundle.brand} files={len(bundle.files)} categories={len(bundle.detected_categories)} warnings={len(bundle.warnings)}",
         )
 
 
@@ -257,10 +253,11 @@ if __name__ == "__main__":
     brands = loader.detect_brands()
     print("Detected brands:", brands)
 
-    if "wenzel_partner" in brands:
-        bundle = loader.load_brand("wenzel_partner")
+    if brands:
+        brand_name = brands[0]
+        bundle = loader.load_brand(brand_name)
+        print("Loaded brand:", brand_name)
         print("Detected categories:", bundle.detected_categories)
-        print("Context registry snapshot:", loader.registry.describe(["brand_config/tone.md", "brand_story/buyer_psychology.md"]))
         print("Structured output preview:")
         preview = {
             "brand": bundle.brand,
@@ -270,4 +267,4 @@ if __name__ == "__main__":
         }
         print(json.dumps(preview, indent=2, ensure_ascii=False)[:6000])
     else:
-        print("Wenzel brand folder not found.")
+        print("No brand folders found.")
