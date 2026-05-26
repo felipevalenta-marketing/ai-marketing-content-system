@@ -237,6 +237,26 @@ class ContextBuilder:
 
         return self._extract_path_text(bundle.knowledge_base, ["market"])
 
+    def get_tone_context(self, bundle: BrandKnowledge) -> str:
+        """Return the brand tone context."""
+
+        return self._extract_path_text(bundle.brand_config, ["tone"])
+
+    def get_positioning_context(self, bundle: BrandKnowledge) -> str:
+        """Return the brand positioning context."""
+
+        return self._extract_path_text(bundle.brand_config, ["positioning"])
+
+    def get_content_rules_context(self, bundle: BrandKnowledge) -> str:
+        """Return the brand content rules context."""
+
+        return self._extract_path_text(bundle.brand_config, ["content_rules"])
+
+    def get_examples_context(self, bundle: BrandKnowledge) -> str:
+        """Return reusable content examples context."""
+
+        return self._extract_path_text(bundle.knowledge_base, ["content_examples"])
+
     def get_neighborhood_context(self, bundle: BrandKnowledge, name: str) -> str:
         """Return a specific neighborhood context by filename key."""
 
