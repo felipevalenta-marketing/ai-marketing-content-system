@@ -31,6 +31,28 @@ from src.llm.model_registry import (
 from src.utils.logger import get_logger, log_context, log_error, log_warning
 
 
+MAX_OPENAI_METADATA_KEYS = 16
+MAX_METADATA_VALUE_LENGTH = 120
+PRIORITY_METADATA_FIELDS = (
+    "brand",
+    "platform",
+    "content_type",
+    "objective",
+    "model",
+    "provider",
+    "request_id",
+    "generation_mode",
+    "template_version",
+    "route",
+    "pipeline_stage",
+    "user_locale",
+    "target_audience",
+    "campaign_type",
+    "asset_type",
+    "timestamp",
+)
+
+
 @dataclass(frozen=True)
 class OpenAIClientConfig:
     """Runtime configuration for the OpenAI client."""
@@ -180,13 +202,14 @@ class OpenAIClient:
 
         start_time = time.perf_counter()
         try:
+            sanitized_metadata = self._sanitize_metadata(metadata)
             response = self._client.responses.create(  # type: ignore[union-attr]
                 model=model_name,
                 instructions=system_prompt,
                 input=user_prompt,
                 temperature=temp,
                 max_output_tokens=max_tokens,
-                metadata=self._safe_metadata(metadata),
+                metadata=sanitized_metadata,
             )
             content = self._extract_response_text(response)
             elapsed = time.perf_counter() - start_time
@@ -328,24 +351,85 @@ class OpenAIClient:
                 pass
         return {"repr": repr(response)}
 
-    def _safe_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
-        """Strip unsafe values before sending request metadata."""
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, str]:
+        """Reduce metadata to a Responses API-safe payload.
 
-        safe: dict[str, Any] = {}
-        for key, value in metadata.items():
-            if value is None:
+        The Responses API accepts a maximum of 16 metadata properties. This
+        helper preserves priority fields first, converts values to strings,
+        truncates long values, removes nested payloads, and drops any overflow.
+        """
+
+        safe_source = dict(metadata or {})
+        sanitized: dict[str, str] = {}
+        dropped_keys: list[str] = []
+
+        for key in PRIORITY_METADATA_FIELDS:
+            if key not in safe_source or safe_source[key] is None:
                 continue
-            if isinstance(value, (str, int, float, bool)):
-                safe[key] = value
-            elif isinstance(value, list):
-                safe[key] = [item for item in value if isinstance(item, (str, int, float, bool))]
-            elif isinstance(value, dict):
-                safe[key] = {
-                    str(inner_key): inner_value
-                    for inner_key, inner_value in value.items()
-                    if isinstance(inner_value, (str, int, float, bool))
-                }
-        return safe
+            sanitized[key] = self._sanitize_metadata_value(safe_source[key])
+
+        for key, value in safe_source.items():
+            if key in sanitized or key in PRIORITY_METADATA_FIELDS:
+                continue
+            if len(sanitized) >= MAX_OPENAI_METADATA_KEYS:
+                dropped_keys.append(str(key))
+                continue
+            sanitized[str(key)] = self._sanitize_metadata_value(value)
+
+        if len(sanitized) > MAX_OPENAI_METADATA_KEYS:
+            overflow_keys = list(sanitized.keys())[MAX_OPENAI_METADATA_KEYS:]
+            for key in overflow_keys:
+                dropped_keys.append(key)
+                sanitized.pop(key, None)
+
+        if dropped_keys:
+            log_warning(
+                self.logger,
+                f"OpenAI metadata trimmed to {MAX_OPENAI_METADATA_KEYS} keys; dropped={dropped_keys}",
+            )
+
+        return sanitized
+
+    def _sanitize_metadata_value(self, value: Any) -> str:
+        """Convert metadata values into safe flat strings."""
+
+        if value is None:
+            return ""
+        if isinstance(value, bool):
+            text = "true" if value else "false"
+        elif isinstance(value, (str, int, float)):
+            text = str(value)
+        else:
+            text = self._stringify_complex_value(value)
+
+        text = " ".join(text.split())
+        if len(text) > MAX_METADATA_VALUE_LENGTH:
+            text = text[: MAX_METADATA_VALUE_LENGTH - 3].rstrip() + "..."
+        return text
+
+    def _stringify_complex_value(self, value: Any) -> str:
+        """Stringify non-primitive metadata without leaking nested payloads."""
+
+        if isinstance(value, dict):
+            return json.dumps({str(k): self._simplify_scalar(v) for k, v in value.items() if self._is_simple_value(v)}, ensure_ascii=False)
+        if isinstance(value, (list, tuple, set)):
+            simplified = [self._simplify_scalar(item) for item in value if self._is_simple_value(item)]
+            return json.dumps(simplified, ensure_ascii=False)
+        return str(value)
+
+    def _simplify_scalar(self, value: Any) -> Any:
+        """Return a scalar-friendly representation for JSON conversion."""
+
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (str, int, float)):
+            return value
+        return str(value)
+
+    def _is_simple_value(self, value: Any) -> bool:
+        """Return whether a value is a supported primitive-like metadata item."""
+
+        return isinstance(value, (str, int, float, bool))
 
     def _coerce_float(self, value: Any, fallback: float) -> float:
         """Convert a value to float safely."""
