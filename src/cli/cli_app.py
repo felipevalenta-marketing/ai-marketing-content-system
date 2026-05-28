@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
             "metadata": {},
         }
 
-    output_format = "json" if getattr(args, "json", False) else "markdown" if getattr(args, "markdown", False) else "terminal"
+    output_format = "json" if getattr(args, "json", False) or getattr(args, "report_json", False) else "markdown" if getattr(args, "markdown", False) or getattr(args, "report_markdown", False) else "terminal"
     print(render_cli_result(result, output_format=output_format))
     return 0 if bool(result.get("success")) else 1
 
@@ -109,6 +109,10 @@ def _add_common_flags(parser: ArgumentParser) -> None:
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument("--json", action="store_true", help="Render output as JSON.")
     output_group.add_argument("--markdown", action="store_true", help="Render output as markdown.")
+    report_group = parser.add_mutually_exclusive_group()
+    report_group.add_argument("--report", action="store_true", help="Generate an analytics report.")
+    report_group.add_argument("--report-json", action="store_true", help="Generate and prefer JSON report output.")
+    report_group.add_argument("--report-markdown", action="store_true", help="Generate and prefer markdown report output.")
     parser.add_argument("--verbose", action="store_true", help="Show full traceback on unexpected errors.")
 
 

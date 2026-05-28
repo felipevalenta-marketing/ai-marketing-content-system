@@ -46,6 +46,8 @@ class PipelineConfig:
     enable_campaign_export: bool = False
     enable_asset_coordination: bool = False
     enable_asset_export: bool = False
+    enable_reporting: bool = False
+    enable_report_export: bool = False
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
@@ -57,6 +59,8 @@ class PipelineConfig:
     export_formats: tuple[str, ...] = ("markdown", "json")
     output_root: str = "outputs"
     campaign_output_root: str = "outputs"
+    report_output_root: str = "outputs/reports"
+    report_formats: tuple[str, ...] = ("markdown", "json")
     default_campaign_type: str = "property_launch"
     generation_defaults: dict[str, Any] = field(
         default_factory=lambda: {

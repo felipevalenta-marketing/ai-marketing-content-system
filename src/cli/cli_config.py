@@ -56,6 +56,8 @@ def build_feature_flags() -> dict[str, Any]:
         "enable_campaign_export": pipeline_config.enable_campaign_export,
         "enable_asset_coordination": pipeline_config.enable_asset_coordination,
         "enable_asset_export": pipeline_config.enable_asset_export,
+        "enable_reporting": pipeline_config.enable_reporting,
+        "enable_report_export": pipeline_config.enable_report_export,
     }
 
 
@@ -72,6 +74,7 @@ def build_module_presence() -> dict[str, bool]:
         "src.governance",
         "src.campaigns",
         "src.assets",
+        "src.reporting",
         "src.pipeline",
         "openai",
         "dotenv",

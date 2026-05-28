@@ -38,6 +38,13 @@ class PipelineResult:
     asset_requirements: dict[str, Any]
     missing_assets: list[str]
     asset_export_paths: dict[str, str]
+    execution_report: dict[str, Any] | None
+    governance_report: dict[str, Any] | None
+    campaign_report: dict[str, Any] | None
+    asset_report: dict[str, Any] | None
+    export_report: dict[str, Any] | None
+    consolidated_report: dict[str, Any] | None
+    report_export_paths: dict[str, str]
     rendered_markdown: str | None
     rendered_text: str | None
     exported_files: dict[str, str]
@@ -78,6 +85,13 @@ class PipelineResult:
             "asset_requirements": self.asset_requirements,
             "missing_assets": self.missing_assets,
             "asset_export_paths": self.asset_export_paths,
+            "execution_report": self.execution_report,
+            "governance_report": self.governance_report,
+            "campaign_report": self.campaign_report,
+            "asset_report": self.asset_report,
+            "export_report": self.export_report,
+            "consolidated_report": self.consolidated_report,
+            "report_export_paths": self.report_export_paths,
             "rendered_markdown": self.rendered_markdown,
             "rendered_text": self.rendered_text,
             "exported_files": self.exported_files,
@@ -116,6 +130,13 @@ def build_success_result(
     asset_requirements: dict[str, Any] | None = None,
     missing_assets: list[str] | None = None,
     asset_export_paths: dict[str, str] | None = None,
+    execution_report: dict[str, Any] | None = None,
+    governance_report: dict[str, Any] | None = None,
+    campaign_report: dict[str, Any] | None = None,
+    asset_report: dict[str, Any] | None = None,
+    export_report: dict[str, Any] | None = None,
+    consolidated_report: dict[str, Any] | None = None,
+    report_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -154,6 +175,13 @@ def build_success_result(
         asset_requirements=asset_requirements or {},
         missing_assets=missing_assets or [],
         asset_export_paths=asset_export_paths or {},
+        execution_report=execution_report,
+        governance_report=governance_report,
+        campaign_report=campaign_report,
+        asset_report=asset_report,
+        export_report=export_report,
+        consolidated_report=consolidated_report,
+        report_export_paths=report_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},
@@ -194,6 +222,13 @@ def build_failure_result(
     asset_requirements: dict[str, Any] | None = None,
     missing_assets: list[str] | None = None,
     asset_export_paths: dict[str, str] | None = None,
+    execution_report: dict[str, Any] | None = None,
+    governance_report: dict[str, Any] | None = None,
+    campaign_report: dict[str, Any] | None = None,
+    asset_report: dict[str, Any] | None = None,
+    export_report: dict[str, Any] | None = None,
+    consolidated_report: dict[str, Any] | None = None,
+    report_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -231,6 +266,13 @@ def build_failure_result(
         asset_requirements=asset_requirements or {},
         missing_assets=missing_assets or [],
         asset_export_paths=asset_export_paths or {},
+        execution_report=execution_report,
+        governance_report=governance_report,
+        campaign_report=campaign_report,
+        asset_report=asset_report,
+        export_report=export_report,
+        consolidated_report=consolidated_report,
+        report_export_paths=report_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from time import perf_counter
 from typing import Any
 import json
 
@@ -15,6 +17,7 @@ from src.output.output_formatter import OutputFormatter
 from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
+from src.reporting.reporting_engine import ReportingEngine
 from src.adapters.platform_adapter import PlatformAdapter
 from src.assets.asset_coordinator import AssetCoordinator
 from src.assets.asset_contracts import normalize_asset_type
@@ -49,6 +52,7 @@ class ContentGenerationPipeline:
         governance_engine: ContentGovernanceEngine | None = None,
         campaign_composer: CampaignComposer | None = None,
         asset_coordinator: AssetCoordinator | None = None,
+        reporting_engine: ReportingEngine | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -66,6 +70,7 @@ class ContentGenerationPipeline:
         self.governance_engine = governance_engine or ContentGovernanceEngine(logger=self.logger)
         self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
         self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
+        self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -175,6 +180,13 @@ class ContentGenerationPipeline:
         asset_requirements: dict[str, Any] | None = None,
         missing_assets: list[str] | None = None,
         asset_export_paths: dict[str, str] | None = None,
+        execution_report: dict[str, Any] | None = None,
+        governance_report: dict[str, Any] | None = None,
+        campaign_report: dict[str, Any] | None = None,
+        asset_report: dict[str, Any] | None = None,
+        export_report: dict[str, Any] | None = None,
+        consolidated_report: dict[str, Any] | None = None,
+        report_export_paths: dict[str, str] | None = None,
         rendered_markdown: str | None = None,
         rendered_text: str | None = None,
         exported_files: dict[str, str] | None = None,
@@ -187,7 +199,7 @@ class ContentGenerationPipeline:
 
         normalized_request = self._normalize_request(request)
         if success:
-            return build_success_result(
+            result = build_success_result(
                 brand=normalized_request["brand"],
                 platform=normalized_request["platform"],
                 content_type=normalized_request["content_type"],
@@ -215,6 +227,13 @@ class ContentGenerationPipeline:
                 asset_requirements=asset_requirements or {},
                 missing_assets=missing_assets or [],
                 asset_export_paths=asset_export_paths or {},
+                execution_report=execution_report,
+                governance_report=governance_report,
+                campaign_report=campaign_report,
+                asset_report=asset_report,
+                export_report=export_report,
+                consolidated_report=consolidated_report,
+                report_export_paths=report_export_paths or {},
                 rendered_markdown=rendered_markdown,
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
@@ -222,52 +241,67 @@ class ContentGenerationPipeline:
                 metadata=metadata,
                 warnings=warnings or [],
             )
-        return build_failure_result(
-            brand=normalized_request["brand"],
-            platform=normalized_request["platform"],
-            content_type=normalized_request["content_type"],
-            input_request=normalized_request,
-            context_summary=context.get("summary", {}),
-            metadata=metadata,
-            error=error or "Pipeline failed.",
-            prompt_payload=prompt_payload,
-            ai_response=ai_response,
-            parsed_output=parsed_output,
-            formatted_output=formatted_output,
-            validation_result=validation_result,
-            adaptation_result=adaptation_result,
-            platform_variants=platform_variants or {},
-            governance_result=governance_result,
-            approval_status=approval_status,
-            overall_quality_score=overall_quality_score,
-            governance_warnings=governance_warnings or [],
-            governance_errors=governance_errors or [],
-            campaign_result=campaign_result,
-            campaign_strategy=campaign_strategy,
-            campaign_assets=campaign_assets or {},
-            campaign_governance_summary=campaign_governance_summary,
-            campaign_export_paths=campaign_export_paths or {},
-            asset_coordination_result=asset_coordination_result,
-            asset_plan=asset_plan or {},
-            asset_requirements=asset_requirements or {},
-            missing_assets=missing_assets or [],
-            asset_export_paths=asset_export_paths or {},
-            rendered_markdown=rendered_markdown,
-            rendered_text=rendered_text,
-            exported_files=exported_files or {},
-            output_metadata=output_metadata or {},
-            warnings=warnings or [],
-        )
+        else:
+            result = build_failure_result(
+                brand=normalized_request["brand"],
+                platform=normalized_request["platform"],
+                content_type=normalized_request["content_type"],
+                input_request=normalized_request,
+                context_summary=context.get("summary", {}),
+                metadata=metadata,
+                error=error or "Pipeline failed.",
+                prompt_payload=prompt_payload,
+                ai_response=ai_response,
+                parsed_output=parsed_output,
+                formatted_output=formatted_output,
+                validation_result=validation_result,
+                adaptation_result=adaptation_result,
+                platform_variants=platform_variants or {},
+                governance_result=governance_result,
+                approval_status=approval_status,
+                overall_quality_score=overall_quality_score,
+                governance_warnings=governance_warnings or [],
+                governance_errors=governance_errors or [],
+                campaign_result=campaign_result,
+                campaign_strategy=campaign_strategy,
+                campaign_assets=campaign_assets or {},
+                campaign_governance_summary=campaign_governance_summary,
+                campaign_export_paths=campaign_export_paths or {},
+                asset_coordination_result=asset_coordination_result,
+                asset_plan=asset_plan or {},
+                asset_requirements=asset_requirements or {},
+                missing_assets=missing_assets or [],
+                asset_export_paths=asset_export_paths or {},
+                execution_report=execution_report,
+                governance_report=governance_report,
+                campaign_report=campaign_report,
+                asset_report=asset_report,
+                export_report=export_report,
+                consolidated_report=consolidated_report,
+                report_export_paths=report_export_paths or {},
+                rendered_markdown=rendered_markdown,
+                rendered_text=rendered_text,
+                exported_files=exported_files or {},
+                output_metadata=output_metadata or {},
+                warnings=warnings or [],
+            )
+        return self._attach_reporting(result, request=normalized_request, context=context)
 
     def _generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Internal orchestration for a single content generation request."""
 
+        execution_started_at = datetime.now(timezone.utc)
+        stage_timings: dict[str, float] = {}
+
+        validation_started = perf_counter()
         is_valid, validation_error = self.validate_request(request)
+        stage_timings["validation"] = round(perf_counter() - validation_started, 6)
         normalized_request = self._normalize_request(request)
         base_metadata = self._base_metadata(normalized_request)
 
         if not is_valid:
             log_warning(self.logger, validation_error or "Request validation failed.")
+            base_metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="validation", error=validation_error or "Request validation failed.")
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -287,10 +321,13 @@ class ContentGenerationPipeline:
                 error=validation_error or "Request validation failed.",
             )
 
+        context_started = perf_counter()
         context = self.load_context(normalized_request["brand"])
+        stage_timings["context_loading"] = round(perf_counter() - context_started, 6)
         if not context.get("loaded"):
             error = context.get("error") or f"Brand context is missing for '{normalized_request['brand']}'."
             log_error(self.logger, error)
+            base_metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="context_loading", error=error)
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -311,10 +348,13 @@ class ContentGenerationPipeline:
                 warnings=context.get("warnings", []),
             )
 
+        prompt_started = perf_counter()
         prompt_result = self.build_prompt(normalized_request, context)
+        stage_timings["prompt_building"] = round(perf_counter() - prompt_started, 6)
         if prompt_result.get("errors"):
             error = "; ".join(prompt_result["errors"])
             log_error(self.logger, error)
+            base_metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="prompt_building", error=error)
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -356,6 +396,7 @@ class ContentGenerationPipeline:
         if not self._can_generate_live():
             error = "OpenAI API key missing or live generation disabled; skipping live generation."
             log_warning(self.logger, error)
+            metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="generation", error=error)
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -377,10 +418,13 @@ class ContentGenerationPipeline:
             )
 
         log_context(self.logger, f"Generating AI output for {normalized_request['brand']}/{normalized_request['content_type']}")
+        generation_started = perf_counter()
         ai_response = self.generate_ai_response(prompt_payload)
+        stage_timings["generation"] = round(perf_counter() - generation_started, 6)
         if not ai_response.get("success"):
             error = str(ai_response.get("error") or "OpenAI generation failed.")
             log_error(self.logger, error)
+            metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="generation", error=error)
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -402,10 +446,13 @@ class ContentGenerationPipeline:
             )
 
         try:
+            parsing_started = perf_counter()
             parsed_output = self.parse_response(ai_response)
+            stage_timings["parsing"] = round(perf_counter() - parsing_started, 6)
         except Exception as exc:  # pragma: no cover - defensive fallback
             error = f"Response parsing failed: {exc}"
             log_error(self.logger, error)
+            metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="parsing", error=error)
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -447,10 +494,13 @@ class ContentGenerationPipeline:
 
         if self.config.enable_output_formatting:
             try:
+                formatting_started = perf_counter()
                 formatted_output = self.formatter.format(parsed_output, normalized_request["content_type"])
+                stage_timings["formatting"] = round(perf_counter() - formatting_started, 6)
             except Exception as exc:  # pragma: no cover - defensive fallback
                 error = f"Output formatting failed: {exc}"
                 log_error(self.logger, error)
+                metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="formatting", error=error)
                 return self.build_result(
                     success=False,
                     request=normalized_request,
@@ -478,11 +528,14 @@ class ContentGenerationPipeline:
 
             if self.config.enable_rendering:
                 try:
+                    rendering_started = perf_counter()
                     rendered_markdown = self.renderer.render_markdown(formatted_output, normalized_request["content_type"])
                     rendered_text = self.renderer.render_text(formatted_output, normalized_request["content_type"])
+                    stage_timings["rendering"] = round(perf_counter() - rendering_started, 6)
                 except Exception as exc:  # pragma: no cover - defensive fallback
                     error = f"Output rendering failed: {exc}"
                     log_error(self.logger, error)
+                    metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="rendering", error=error)
                     return self.build_result(
                         success=False,
                         request=normalized_request,
@@ -513,6 +566,7 @@ class ContentGenerationPipeline:
             target_platforms = list(self.config.target_platforms or self.config.default_target_platforms)
             log_context(self.logger, f"Adapting content for platforms: {target_platforms}")
             try:
+                adaptation_started = perf_counter()
                 adaptation_request = {
                     "content_type": normalized_request["content_type"],
                     "formatted_output": formatted_output,
@@ -520,6 +574,7 @@ class ContentGenerationPipeline:
                 }
                 adaptation_result = self.adapter.adapt(adaptation_request, target_platforms)
                 platform_variants = dict(adaptation_result.get("platform_variants") or {})
+                stage_timings["adaptation"] = round(perf_counter() - adaptation_started, 6)
             except Exception as exc:  # pragma: no cover - defensive fallback
                 warning = f"Platform adaptation failed: {exc}"
                 log_warning(self.logger, warning)
@@ -552,7 +607,9 @@ class ContentGenerationPipeline:
                     "objective": normalized_request.get("objective", ""),
                 },
             }
+            governance_started = perf_counter()
             governance_result = self.governance_engine.evaluate(governance_payload)
+            stage_timings["governance"] = round(perf_counter() - governance_started, 6)
             approval_status = str(governance_result.get("status", "needs_review"))
             overall_quality_score = float(governance_result.get("overall_score", 0.0))
             governance_warnings = list(governance_result.get("warnings", []))
@@ -563,6 +620,7 @@ class ContentGenerationPipeline:
 
             if self.config.enable_export and approval_status in {"approved", "approved_with_warnings"}:
                 try:
+                    export_started = perf_counter()
                     exported_files = self.exporter.export(
                         brand=normalized_request["brand"],
                         content_type=normalized_request["content_type"],
@@ -571,6 +629,7 @@ class ContentGenerationPipeline:
                         validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
                         formats=list(self.config.export_formats),
                     )
+                    stage_timings["export"] = round(perf_counter() - export_started, 6)
                 except Exception as exc:  # pragma: no cover - defensive fallback
                     log_warning(self.logger, f"Export failed: {exc}")
                     exported_files = {}
@@ -579,14 +638,16 @@ class ContentGenerationPipeline:
 
             if self.config.enable_export and not self.config.enable_governance_validation:
                 try:
+                    export_started = perf_counter()
                     exported_files = self.exporter.export(
                         brand=normalized_request["brand"],
                         content_type=normalized_request["content_type"],
-                    output=formatted_output,
-                    metadata=metadata,
-                    validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
-                    formats=list(self.config.export_formats),
-                )
+                        output=formatted_output,
+                        metadata=metadata,
+                        validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
+                        formats=list(self.config.export_formats),
+                    )
+                    stage_timings["export"] = round(perf_counter() - export_started, 6)
                 except Exception as exc:  # pragma: no cover - defensive fallback
                     log_warning(self.logger, f"Export failed: {exc}")
                     exported_files = {}
@@ -598,6 +659,7 @@ class ContentGenerationPipeline:
         campaign_export_paths: dict[str, str] = {}
         if self.config.enable_campaign_composition:
             log_context(self.logger, "Composing campaign pack")
+            campaign_started = perf_counter()
             campaign_type = normalize_key(str(request.get("campaign_type") or self.config.default_campaign_type))
             campaign_contract = get_campaign_contract(campaign_type)
             campaign_request = {
@@ -617,6 +679,7 @@ class ContentGenerationPipeline:
             if isinstance(request_assets, dict):
                 seed_assets.update(request_assets)
             campaign_result = self.campaign_composer.compose(campaign_request, assets=seed_assets)
+            stage_timings["campaign_composition"] = round(perf_counter() - campaign_started, 6)
             campaign_strategy = campaign_result.get("strategy")
             campaign_assets = dict(campaign_result.get("assets") or seed_assets)
             campaign_governance_summary = campaign_result.get("governance_summary")
@@ -624,6 +687,7 @@ class ContentGenerationPipeline:
 
         if self.config.enable_asset_coordination:
             log_context(self.logger, "Coordinating asset plan")
+            asset_started = perf_counter()
             campaign_type = normalize_key(str((campaign_result or {}).get("campaign_type") or normalized_request.get("content_type") or self.config.default_campaign_type))
             asset_request = {
                 "brand": normalized_request["brand"],
@@ -652,6 +716,7 @@ class ContentGenerationPipeline:
             asset_request["assets"] = seed_assets
             try:
                 asset_coordination_result = self.asset_coordinator.coordinate(asset_request)
+                stage_timings["asset_coordination"] = round(perf_counter() - asset_started, 6)
             except Exception as exc:  # pragma: no cover - defensive fallback
                 warning = f"Asset coordination failed: {exc}"
                 log_warning(self.logger, warning)
@@ -688,6 +753,7 @@ class ContentGenerationPipeline:
             validation_status=validation_status,
             export_paths=exported_files,
         )
+        stage_timings.setdefault("export", 0.0)
 
         metadata.update(
             {
@@ -701,6 +767,7 @@ class ContentGenerationPipeline:
                 "overall_quality_score": overall_quality_score,
                 "campaign_composed": bool(campaign_result),
                 "asset_coordinated": bool(asset_coordination_result),
+                "execution": self._build_execution_metadata(execution_started_at, stage_timings, success=True, stage="completed", model=str(metadata.get("model", "")), provider=str(metadata.get("provider", ""))),
             }
         )
         asset_warnings = list(asset_coordination_result.get("warnings", [])) if isinstance(asset_coordination_result, dict) else []
@@ -761,6 +828,10 @@ class ContentGenerationPipeline:
         normalized.setdefault("location", "")
         normalized.setdefault("property_type", "")
         normalized.setdefault("extra_notes", "")
+        normalized["report"] = bool(normalized.get("report", False))
+        normalized["report_json"] = bool(normalized.get("report_json", False))
+        normalized["report_markdown"] = bool(normalized.get("report_markdown", False))
+        normalized["report_export"] = bool(normalized.get("report_export", False))
         return normalized
 
     def _build_extra_context(self, context: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
@@ -913,6 +984,74 @@ class ContentGenerationPipeline:
                 "status": self._campaign_asset_status(governance_result),
             }
         }
+
+    def _build_execution_metadata(
+        self,
+        started_at: datetime,
+        stage_timings: dict[str, float],
+        *,
+        success: bool,
+        stage: str,
+        error: str | None = None,
+        model: str = "",
+        provider: str = "",
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Build execution metadata for reporting and diagnostics."""
+
+        ended_at = datetime.now(timezone.utc)
+        total_duration = round((ended_at - started_at).total_seconds(), 6)
+        return {
+            "started_at": started_at.isoformat(),
+            "ended_at": ended_at.isoformat(),
+            "duration_seconds": total_duration,
+            "stages": dict(stage_timings),
+            "completed_stage": stage,
+            "success": success,
+            "error": error,
+            "model": model,
+            "provider": provider,
+            "dry_run": dry_run,
+        }
+
+    def _attach_reporting(self, result: dict[str, Any], request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        """Attach optional reporting payloads to a pipeline result."""
+
+        if not self._should_generate_reports(request):
+            return result
+
+        report_bundle = self.reporting_engine.generate(
+            result,
+            export=bool(self.config.enable_report_export or request.get("report_export")),
+            formats=list(self.config.report_formats),
+            render_format="json" if request.get("report_json") else "markdown" if request.get("report_markdown") else "terminal",
+            report_name=f"{request.get('brand', '')}_{request.get('content_type', '')}",
+        )
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        report_metadata = report_bundle.get("metadata", {})
+        result.update(
+            {
+                "execution_report": report_bundle.get("execution_report"),
+                "governance_report": report_bundle.get("governance_report"),
+                "campaign_report": report_bundle.get("campaign_report"),
+                "asset_report": report_bundle.get("asset_report"),
+                "export_report": report_bundle.get("export_report"),
+                "consolidated_report": report_bundle.get("consolidated_report"),
+                "report_export_paths": report_bundle.get("exported_files", {}),
+                "metadata": {**metadata, "reporting": report_metadata},
+            }
+        )
+        return result
+
+    def _should_generate_reports(self, request: dict[str, Any]) -> bool:
+        """Return whether reporting should be generated for a request."""
+
+        return bool(
+            self.config.enable_reporting
+            or request.get("report")
+            or request.get("report_json")
+            or request.get("report_markdown")
+        )
 
 
 if __name__ == "__main__":

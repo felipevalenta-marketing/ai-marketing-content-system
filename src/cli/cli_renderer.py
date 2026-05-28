@@ -48,6 +48,7 @@ def render_markdown(result: dict[str, Any]) -> str:
             lines.append(f"- **{key.replace('_', ' ').title()}**: {value}")
 
     lines.extend(_render_summary_markdown(clean))
+    lines.extend(_render_report_markdown(clean.get("payload")))
     lines.extend(_render_kv_markdown("Warnings", clean.get("warnings", [])))
     lines.extend(_render_kv_markdown("Errors", clean.get("errors", [])))
     return "\n".join(lines).strip()
@@ -78,6 +79,9 @@ def render_terminal(result: dict[str, Any]) -> str:
     payload_lines = _render_payload_lines(payload, terminal=True)
     if payload_lines:
         lines.extend(payload_lines)
+    report_lines = _render_report_terminal(payload)
+    if report_lines:
+        lines.extend(report_lines)
 
     lines.extend(_render_kv_terminal("Warnings", clean.get("warnings", [])))
     lines.extend(_render_kv_terminal("Errors", clean.get("errors", [])))
@@ -176,6 +180,14 @@ def _render_payload_lines(payload: Any, terminal: bool) -> list[str]:
         "content_sequence",
         "missing_assets",
         "export_paths",
+        "report_export_paths",
+        "execution_report",
+        "governance_report",
+        "campaign_report",
+        "asset_report",
+        "export_report",
+        "consolidated_report",
+        "reporting",
         "campaign_name",
         "campaign_type",
         "status",
@@ -197,4 +209,34 @@ def _render_payload_lines(payload: Any, terminal: bool) -> list[str]:
     if terminal and lines:
         lines.insert(0, "")
         lines.insert(1, "Payload:")
+    return lines
+
+
+def _render_report_markdown(payload: Any) -> list[str]:
+    """Render an attached report bundle as markdown when available."""
+
+    if not isinstance(payload, dict):
+        return []
+    reporting = payload.get("reporting")
+    if not isinstance(reporting, dict):
+        return []
+    report_markdown = reporting.get("rendered_markdown")
+    if not isinstance(report_markdown, str) or not report_markdown.strip():
+        return []
+    return ["", "## Report", "", report_markdown.strip()]
+
+
+def _render_report_terminal(payload: Any) -> list[str]:
+    """Render an attached report bundle as a terminal preview when available."""
+
+    if not isinstance(payload, dict):
+        return []
+    reporting = payload.get("reporting")
+    if not isinstance(reporting, dict):
+        return []
+    report_text = reporting.get("rendered_text")
+    if not isinstance(report_text, str) or not report_text.strip():
+        return []
+    lines = ["", "Report Preview:"]
+    lines.extend(f"  {line}" for line in report_text.strip().splitlines()[:20])
     return lines

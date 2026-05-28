@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 from importlib.util import find_spec
 from typing import Any
+from time import perf_counter
 
 from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
 from src.adapters.platform_adapter import PlatformAdapter
 from src.cli.cli_config import build_safe_config_summary, parse_csv_list
+from src.reporting.reporting_engine import ReportingEngine
 from src.governance.content_governance import ContentGovernanceEngine
 from src.llm.openai_client import OpenAIClient
 from src.output.output_contracts import list_supported_output_types, normalize_output_content_type
@@ -35,6 +38,7 @@ def handle_generate(args: Any) -> dict[str, Any]:
     """Handle the generate command."""
 
     logger = get_logger("cli.generate")
+    command_started = perf_counter()
     pipeline_config = _build_pipeline_config(args, enable_live_generation=not bool(getattr(args, "dry_run", False)))
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     request = _build_generation_request(args)
@@ -42,10 +46,16 @@ def handle_generate(args: Any) -> dict[str, Any]:
     export_requested = bool(getattr(args, "export", False)) and not dry_run
 
     if dry_run:
-        return _run_generate_dry_run(pipeline, request, export_requested)
+        dry_run_result = _run_generate_dry_run(pipeline, request, export_requested, args=args, logger=logger)
+        return dry_run_result
 
     pipeline.config = _replace_pipeline_config(pipeline.config, enable_export=export_requested)
     result = pipeline.generate(request)
+    result = _attach_cli_execution_metadata(result, command_started, "generate")
+    if not result.get("consolidated_report"):
+        report_bundle = _maybe_build_report_bundle(result, args, command="generate", logger=logger)
+        if report_bundle:
+            result = _inject_report_bundle(result, report_bundle)
     return _wrap_command_result(
         command="generate",
         success=bool(result.get("success")),
@@ -65,6 +75,7 @@ def handle_campaign(args: Any) -> dict[str, Any]:
     """Handle the campaign command."""
 
     logger = get_logger("cli.campaign")
+    command_started = perf_counter()
     composer = CampaignComposer(output_root=PipelineConfig().campaign_output_root, logger=logger)
     request = _build_campaign_request(args)
     dry_run = bool(getattr(args, "dry_run", False))
@@ -72,6 +83,11 @@ def handle_campaign(args: Any) -> dict[str, Any]:
         request["enable_export"] = True
 
     result = composer.compose(request, assets={})
+    result = _attach_cli_execution_metadata(result, command_started, "campaign")
+    if not result.get("consolidated_report"):
+        report_bundle = _maybe_build_report_bundle(result, args, command="campaign", logger=logger)
+        if report_bundle:
+            result = _inject_report_bundle(result, report_bundle)
     return _wrap_command_result(
         command="campaign",
         success=bool(result.get("success")),
@@ -93,6 +109,7 @@ def handle_assets(args: Any) -> dict[str, Any]:
     """Handle the assets command."""
 
     logger = get_logger("cli.assets")
+    command_started = perf_counter()
     coordinator = AssetCoordinator(output_root=PipelineConfig().asset_output_root, logger=logger)
     request = _build_asset_request(args)
     dry_run = bool(getattr(args, "dry_run", False))
@@ -100,6 +117,11 @@ def handle_assets(args: Any) -> dict[str, Any]:
         request["enable_export"] = True
 
     result = coordinator.coordinate(request)
+    result = _attach_cli_execution_metadata(result, command_started, "assets")
+    if not result.get("consolidated_report"):
+        report_bundle = _maybe_build_report_bundle(result, args, command="assets", logger=logger)
+        if report_bundle:
+            result = _inject_report_bundle(result, report_bundle)
     return _wrap_command_result(
         command="assets",
         success=bool(result.get("success")),
@@ -121,6 +143,7 @@ def handle_validate(args: Any) -> dict[str, Any]:
     """Handle the validate command."""
 
     logger = get_logger("cli.validate")
+    command_started = perf_counter()
     content_type = normalize_output_content_type(str(getattr(args, "content_type", "") or "instagram_post"))
     supported_types = set(list_supported_output_types())
     if content_type not in supported_types:
@@ -162,7 +185,42 @@ def handle_validate(args: Any) -> dict[str, Any]:
         },
     }
     governance_result = governance.evaluate(governance_payload)
+    report_bundle = None
+    if not governance_result.get("consolidated_report"):
+        report_bundle = _maybe_build_report_bundle(
+            {
+                "brand": brand,
+                "platform": platform,
+                "content_type": content_type,
+                "formatted_output": formatted_output,
+                "validation_result": validation_result,
+                "governance_result": governance_result,
+                "metadata": {
+                    "brand": brand,
+                    "platform": platform,
+                    "content_type": content_type,
+                    "objective": "validation",
+                    "audience": "general",
+                    "report_source": "validate",
+                },
+                "warnings": list(validation_result.get("warnings", [])) + list(governance_result.get("warnings", [])),
+                "errors": list(validation_result.get("errors", [])) + list(governance_result.get("errors", [])),
+                "success": bool(governance_result.get("approved", False)),
+            },
+            args,
+            command="validate",
+            logger=logger,
+        )
+    if report_bundle:
+        governance_result = _inject_report_bundle(governance_result, report_bundle)
 
+    payload = {
+        "formatted_output": formatted_output,
+        "validation_result": validation_result,
+        "governance_result": governance_result,
+        **({"reporting": report_bundle} if report_bundle else {}),
+    }
+    payload = _attach_cli_execution_metadata(payload, command_started, "validate")
     return _wrap_command_result(
         command="validate",
         success=True,
@@ -179,11 +237,7 @@ def handle_validate(args: Any) -> dict[str, Any]:
             "platform_score": governance_result.get("platform_score", 0.0),
             "factual_safety_score": governance_result.get("factual_safety_score", 0.0),
         },
-        payload={
-            "formatted_output": formatted_output,
-            "validation_result": validation_result,
-            "governance_result": governance_result,
-        },
+        payload=payload,
         warnings=list(validation_result.get("warnings", [])) + list(governance_result.get("warnings", [])),
         errors=list(validation_result.get("errors", [])) + list(governance_result.get("errors", [])),
     )
@@ -204,6 +258,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "src.governance": find_spec("src.governance") is not None,
         "src.campaigns": find_spec("src.campaigns") is not None,
         "src.assets": find_spec("src.assets") is not None,
+        "src.reporting": find_spec("src.reporting") is not None,
     }
     pipeline = ContentGenerationPipeline(logger=logger)
     openai_client = OpenAIClient(logger=logger)
@@ -246,6 +301,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
     governance = ContentGovernanceEngine(logger=logger)
     composer = CampaignComposer(logger=logger)
     coordinator = AssetCoordinator(logger=logger)
+    reporting_engine = ReportingEngine(logger=logger)
 
     sample_formatted = formatter.format(
         {
@@ -296,6 +352,15 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "platforms": ["instagram", "facebook"],
         "creative_direction": "Smoke test",
     })[0])
+    checks["reporting_ready"] = bool(reporting_engine.build_consolidated_report({
+        "success": True,
+        "brand": sample_brand or "sample_brand",
+        "platform": "instagram",
+        "content_type": "instagram_post",
+        "metadata": {"brand": sample_brand or "sample_brand", "platform": "instagram", "content_type": "instagram_post", "execution": {"started_at": "2026-01-01T00:00:00+00:00", "ended_at": "2026-01-01T00:00:01+00:00", "duration_seconds": 1.0, "stages": {"validation": 0.1}}},
+        "warnings": [],
+        "errors": [],
+    }))
 
     success = all(
         checks[key]
@@ -318,6 +383,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
             "governance_ready",
             "campaign_ready",
             "asset_ready",
+            "reporting_ready",
         )
     )
 
@@ -377,6 +443,10 @@ def _build_generation_request(args: Any) -> dict[str, Any]:
         "property_type": normalize_key(str(getattr(args, "property_type", "") or "").strip()),
         "extra_notes": str(getattr(args, "extra_notes", "") or "").strip(),
         "export": bool(getattr(args, "export", False)),
+        "report": bool(getattr(args, "report", False)),
+        "report_json": bool(getattr(args, "report_json", False)),
+        "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_export": bool(getattr(args, "report_export", False)),
     }
 
 
@@ -396,6 +466,10 @@ def _build_campaign_request(args: Any) -> dict[str, Any]:
         "assets_required": assets,
         "extra_notes": str(getattr(args, "extra_notes", "") or "").strip(),
         "enable_export": bool(getattr(args, "export", False)) and not bool(getattr(args, "dry_run", False)),
+        "report": bool(getattr(args, "report", False)),
+        "report_json": bool(getattr(args, "report_json", False)),
+        "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_export": bool(getattr(args, "report_export", False)),
     }
 
 
@@ -417,15 +491,27 @@ def _build_asset_request(args: Any) -> dict[str, Any]:
         "visual_style": str(getattr(args, "visual_style", "") or "").strip(),
         "extra_notes": str(getattr(args, "extra_notes", "") or "").strip(),
         "enable_export": bool(getattr(args, "export", False)) and not bool(getattr(args, "dry_run", False)),
+        "report": bool(getattr(args, "report", False)),
+        "report_json": bool(getattr(args, "report_json", False)),
+        "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_export": bool(getattr(args, "report_export", False)),
     }
 
 
-def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str, Any], export_requested: bool) -> dict[str, Any]:
+def _run_generate_dry_run(
+    pipeline: ContentGenerationPipeline,
+    request: dict[str, Any],
+    export_requested: bool,
+    *,
+    args: Any | None = None,
+    logger: Any | None = None,
+) -> dict[str, Any]:
     """Execute a generate dry-run without calling external APIs."""
 
+    command_started = perf_counter()
     valid, validation_error = pipeline.validate_request(request)
     if not valid:
-        return _wrap_command_result(
+        result = _wrap_command_result(
             command="generate",
             success=False,
             mode="dry_run",
@@ -439,10 +525,12 @@ def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str
             errors=[validation_error or "Invalid request."],
             metadata={"export_requested": export_requested},
         )
+        result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
+        return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
 
     context = pipeline.load_context(request["brand"])
     if not context.get("loaded"):
-        return _wrap_command_result(
+        result = _wrap_command_result(
             command="generate",
             success=False,
             mode="dry_run",
@@ -456,10 +544,12 @@ def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str
             errors=[str(context.get("error") or "Brand context is missing.")],
             metadata={"export_requested": export_requested},
         )
+        result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
+        return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
 
     prompt_result = pipeline.build_prompt(request, context)
     if prompt_result.get("errors"):
-        return _wrap_command_result(
+        result = _wrap_command_result(
             command="generate",
             success=False,
             mode="dry_run",
@@ -473,6 +563,8 @@ def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str
             errors=list(prompt_result.get("errors", [])),
             metadata={"export_requested": export_requested},
         )
+        result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
+        return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
 
     prompt_payload = prompt_result.get("prompt_payload", {})
     route = pipeline.router.route(
@@ -481,7 +573,7 @@ def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str
         preferred_model=str(pipeline.config.default_generation_setting("model", "")),
         platform=str(request.get("platform", "")),
     )
-    return _wrap_command_result(
+    result = _wrap_command_result(
         command="generate",
         success=True,
         mode="dry_run",
@@ -507,6 +599,8 @@ def _run_generate_dry_run(pipeline: ContentGenerationPipeline, request: dict[str
         errors=[],
         metadata={"export_requested": export_requested},
     )
+    result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
+    return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
 
 
 def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry_run: bool) -> dict[str, Any]:
@@ -556,6 +650,79 @@ def _build_asset_summary(result: dict[str, Any]) -> dict[str, Any]:
         "governance_summary": result.get("assets", {}).get("governance_summary", {}) if isinstance(result.get("assets"), dict) else {},
         "export_paths": result.get("export_paths", {}),
     }
+
+
+def _maybe_build_report_bundle(result: dict[str, Any], args: Any, *, command: str, logger: Any) -> dict[str, Any] | None:
+    """Build an analytics report bundle when the user requested one."""
+
+    if not any(bool(getattr(args, flag, False)) for flag in ("report", "report_json", "report_markdown")):
+        return None
+
+    report_engine = ReportingEngine(logger=logger)
+    report_format = "json" if bool(getattr(args, "report_json", False)) else "markdown" if bool(getattr(args, "report_markdown", False)) else "terminal"
+    report_bundle = report_engine.generate(
+        result,
+        export=False,
+        formats=["markdown", "json"],
+        render_format=report_format,
+        report_name=command,
+    )
+    return report_bundle
+
+
+def _inject_report_bundle(result: dict[str, Any], report_bundle: dict[str, Any]) -> dict[str, Any]:
+    """Inject report data into a result payload without mutating the original object."""
+
+    merged = dict(result)
+    merged.update(
+        {
+            "execution_report": report_bundle.get("execution_report"),
+            "governance_report": report_bundle.get("governance_report"),
+            "campaign_report": report_bundle.get("campaign_report"),
+            "asset_report": report_bundle.get("asset_report"),
+            "export_report": report_bundle.get("export_report"),
+            "consolidated_report": report_bundle.get("consolidated_report"),
+            "report_export_paths": report_bundle.get("exported_files", {}),
+            "reporting": report_bundle,
+        }
+    )
+    metadata = merged.get("metadata") if isinstance(merged.get("metadata"), dict) else {}
+    merged["metadata"] = {**metadata, "reporting": report_bundle.get("metadata", {})}
+    return merged
+
+
+def _maybe_attach_dry_run_report(result: dict[str, Any], request: dict[str, Any], *, args: Any | None, logger: Any | None) -> dict[str, Any]:
+    """Attach a report bundle to a dry-run command result when requested."""
+
+    if args is None:
+        return result
+    report_bundle = _maybe_build_report_bundle(result, args, command="generate_dry_run", logger=logger or get_logger("cli.generate"))
+    if not report_bundle:
+        return result
+    return _inject_report_bundle(result, report_bundle)
+
+
+def _attach_cli_execution_metadata(result: dict[str, Any], started_at: float, command_name: str) -> dict[str, Any]:
+    """Attach safe CLI execution timing metadata to a result payload."""
+
+    finished_at = perf_counter()
+    metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+    execution = dict(metadata.get("execution", {})) if isinstance(metadata.get("execution"), dict) else {}
+    stages = dict(execution.get("stages", {})) if isinstance(execution.get("stages"), dict) else {}
+    elapsed = round(finished_at - started_at, 6)
+    stages["cli"] = elapsed
+    execution.update(
+        {
+            "started_at": execution.get("started_at") or datetime.now(timezone.utc).isoformat(),
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+            "duration_seconds": elapsed,
+            "stages": stages,
+            "command": command_name,
+        }
+    )
+    merged = dict(result)
+    merged["metadata"] = {**metadata, "execution": execution}
+    return merged
 
 
 def _wrap_command_result(
