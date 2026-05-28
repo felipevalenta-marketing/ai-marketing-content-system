@@ -33,6 +33,11 @@ class PipelineResult:
     campaign_assets: dict[str, Any]
     campaign_governance_summary: dict[str, Any] | None
     campaign_export_paths: dict[str, str]
+    asset_coordination_result: dict[str, Any] | None
+    asset_plan: dict[str, Any]
+    asset_requirements: dict[str, Any]
+    missing_assets: list[str]
+    asset_export_paths: dict[str, str]
     rendered_markdown: str | None
     rendered_text: str | None
     exported_files: dict[str, str]
@@ -68,6 +73,11 @@ class PipelineResult:
             "campaign_assets": self.campaign_assets,
             "campaign_governance_summary": self.campaign_governance_summary,
             "campaign_export_paths": self.campaign_export_paths,
+            "asset_coordination_result": self.asset_coordination_result,
+            "asset_plan": self.asset_plan,
+            "asset_requirements": self.asset_requirements,
+            "missing_assets": self.missing_assets,
+            "asset_export_paths": self.asset_export_paths,
             "rendered_markdown": self.rendered_markdown,
             "rendered_text": self.rendered_text,
             "exported_files": self.exported_files,
@@ -101,6 +111,11 @@ def build_success_result(
     campaign_assets: dict[str, Any] | None = None,
     campaign_governance_summary: dict[str, Any] | None = None,
     campaign_export_paths: dict[str, str] | None = None,
+    asset_coordination_result: dict[str, Any] | None = None,
+    asset_plan: dict[str, Any] | None = None,
+    asset_requirements: dict[str, Any] | None = None,
+    missing_assets: list[str] | None = None,
+    asset_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -134,6 +149,11 @@ def build_success_result(
         campaign_assets=campaign_assets or {},
         campaign_governance_summary=campaign_governance_summary,
         campaign_export_paths=campaign_export_paths or {},
+        asset_coordination_result=asset_coordination_result,
+        asset_plan=asset_plan or {},
+        asset_requirements=asset_requirements or {},
+        missing_assets=missing_assets or [],
+        asset_export_paths=asset_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},
@@ -169,6 +189,11 @@ def build_failure_result(
     campaign_assets: dict[str, Any] | None = None,
     campaign_governance_summary: dict[str, Any] | None = None,
     campaign_export_paths: dict[str, str] | None = None,
+    asset_coordination_result: dict[str, Any] | None = None,
+    asset_plan: dict[str, Any] | None = None,
+    asset_requirements: dict[str, Any] | None = None,
+    missing_assets: list[str] | None = None,
+    asset_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -201,6 +226,11 @@ def build_failure_result(
         campaign_assets=campaign_assets or {},
         campaign_governance_summary=campaign_governance_summary,
         campaign_export_paths=campaign_export_paths or {},
+        asset_coordination_result=asset_coordination_result,
+        asset_plan=asset_plan or {},
+        asset_requirements=asset_requirements or {},
+        missing_assets=missing_assets or [],
+        asset_export_paths=asset_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},

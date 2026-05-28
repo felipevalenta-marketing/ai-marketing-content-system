@@ -44,12 +44,16 @@ class PipelineConfig:
     enable_governance_validation: bool = False
     enable_campaign_composition: bool = False
     enable_campaign_export: bool = False
+    enable_asset_coordination: bool = False
+    enable_asset_export: bool = False
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
     supported_content_types: tuple[str, ...] = DEFAULT_SUPPORTED_CONTENT_TYPES
     target_platforms: list[str] = field(default_factory=lambda: ["instagram"])
     default_target_platforms: list[str] = field(default_factory=lambda: ["instagram", "facebook", "linkedin"])
+    default_asset_types: list[str] = field(default_factory=lambda: ["text_caption", "image_prompt", "video_prompt"])
+    asset_output_root: str = "outputs"
     export_formats: tuple[str, ...] = ("markdown", "json")
     output_root: str = "outputs"
     campaign_output_root: str = "outputs"

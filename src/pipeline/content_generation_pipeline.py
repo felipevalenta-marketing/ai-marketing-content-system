@@ -16,6 +16,8 @@ from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
 from src.adapters.platform_adapter import PlatformAdapter
+from src.assets.asset_coordinator import AssetCoordinator
+from src.assets.asset_contracts import normalize_asset_type
 from src.governance.content_governance import ContentGovernanceEngine
 from src.campaigns.campaign_composer import CampaignComposer
 from src.campaigns.campaign_contracts import get_campaign_contract
@@ -46,6 +48,7 @@ class ContentGenerationPipeline:
         adapter: PlatformAdapter | None = None,
         governance_engine: ContentGovernanceEngine | None = None,
         campaign_composer: CampaignComposer | None = None,
+        asset_coordinator: AssetCoordinator | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -62,6 +65,7 @@ class ContentGenerationPipeline:
         self.adapter = adapter or PlatformAdapter(logger=self.logger)
         self.governance_engine = governance_engine or ContentGovernanceEngine(logger=self.logger)
         self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
+        self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -166,6 +170,11 @@ class ContentGenerationPipeline:
         campaign_assets: dict[str, Any] | None = None,
         campaign_governance_summary: dict[str, Any] | None = None,
         campaign_export_paths: dict[str, str] | None = None,
+        asset_coordination_result: dict[str, Any] | None = None,
+        asset_plan: dict[str, Any] | None = None,
+        asset_requirements: dict[str, Any] | None = None,
+        missing_assets: list[str] | None = None,
+        asset_export_paths: dict[str, str] | None = None,
         rendered_markdown: str | None = None,
         rendered_text: str | None = None,
         exported_files: dict[str, str] | None = None,
@@ -201,6 +210,11 @@ class ContentGenerationPipeline:
                 campaign_assets=campaign_assets or {},
                 campaign_governance_summary=campaign_governance_summary,
                 campaign_export_paths=campaign_export_paths or {},
+                asset_coordination_result=asset_coordination_result,
+                asset_plan=asset_plan or {},
+                asset_requirements=asset_requirements or {},
+                missing_assets=missing_assets or [],
+                asset_export_paths=asset_export_paths or {},
                 rendered_markdown=rendered_markdown,
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
@@ -233,6 +247,11 @@ class ContentGenerationPipeline:
             campaign_assets=campaign_assets or {},
             campaign_governance_summary=campaign_governance_summary,
             campaign_export_paths=campaign_export_paths or {},
+            asset_coordination_result=asset_coordination_result,
+            asset_plan=asset_plan or {},
+            asset_requirements=asset_requirements or {},
+            missing_assets=missing_assets or [],
+            asset_export_paths=asset_export_paths or {},
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files or {},
@@ -420,6 +439,11 @@ class ContentGenerationPipeline:
         output_metadata: dict[str, Any] = {}
         output_errors: list[str] = []
         output_warnings: list[str] = []
+        asset_coordination_result = None
+        asset_plan: dict[str, Any] = {}
+        asset_requirements: dict[str, Any] = {}
+        missing_assets: list[str] = []
+        asset_export_paths: dict[str, str] = {}
 
         if self.config.enable_output_formatting:
             try:
@@ -598,6 +622,59 @@ class ContentGenerationPipeline:
             campaign_governance_summary = campaign_result.get("governance_summary")
             campaign_export_paths = dict(campaign_result.get("export_paths") or {})
 
+        if self.config.enable_asset_coordination:
+            log_context(self.logger, "Coordinating asset plan")
+            campaign_type = normalize_key(str((campaign_result or {}).get("campaign_type") or normalized_request.get("content_type") or self.config.default_campaign_type))
+            asset_request = {
+                "brand": normalized_request["brand"],
+                "campaign_type": campaign_type,
+                "objective": normalized_request.get("objective", ""),
+                "audience": normalized_request.get("audience", ""),
+                "location": normalized_request.get("location", ""),
+                "property_type": normalized_request.get("property_type", ""),
+                "platforms": list((campaign_result or {}).get("platform_plan", {}).keys()) or list(self.config.default_target_platforms),
+                "assets_required": list((campaign_result or {}).get("asset_plan", {}).get("required_assets", [])) or list(normalized_request.get("assets_required", [])) or list(self.config.default_asset_types),
+                "creative_direction": normalized_request.get("extra_notes", ""),
+                "visual_style": normalized_request.get("visual_style", ""),
+                "extra_notes": normalized_request.get("extra_notes", ""),
+                "campaign_result": campaign_result or {},
+                "campaign_strategy": campaign_strategy or {},
+                "campaign_assets": campaign_assets or {},
+                "campaign_metadata": {
+                    "campaign_governance_summary": campaign_governance_summary or {},
+                    "campaign_export_paths": campaign_export_paths or {},
+                },
+                "enable_export": self.config.enable_asset_export,
+            }
+            seed_assets = self._build_asset_seed(normalized_request, formatted_output, platform_variants, governance_result)
+            if campaign_assets:
+                seed_assets.update(campaign_assets)
+            asset_request["assets"] = seed_assets
+            try:
+                asset_coordination_result = self.asset_coordinator.coordinate(asset_request)
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                warning = f"Asset coordination failed: {exc}"
+                log_warning(self.logger, warning)
+                asset_coordination_result = {
+                    "success": False,
+                    "brand": normalized_request["brand"],
+                    "campaign_type": campaign_type,
+                    "objective": normalized_request.get("objective", ""),
+                    "asset_plan": {},
+                    "asset_requirements": {},
+                    "assets": {},
+                    "missing_assets": [],
+                    "validation_result": {"valid": False, "warnings": [warning], "errors": [warning]},
+                    "metadata": {"brand": normalized_request["brand"], "campaign_type": campaign_type},
+                    "warnings": [warning],
+                    "errors": [warning],
+                    "export_paths": {},
+                }
+            asset_plan = dict(asset_coordination_result.get("asset_plan") or {})
+            asset_requirements = dict(asset_coordination_result.get("asset_requirements") or {})
+            missing_assets = list(asset_coordination_result.get("missing_assets") or [])
+            asset_export_paths = dict(asset_coordination_result.get("export_paths") or {})
+
         output_metadata = build_output_metadata(
             brand=normalized_request["brand"],
             platform=normalized_request["platform"],
@@ -623,8 +700,11 @@ class ContentGenerationPipeline:
                 "approval_status": approval_status,
                 "overall_quality_score": overall_quality_score,
                 "campaign_composed": bool(campaign_result),
+                "asset_coordinated": bool(asset_coordination_result),
             }
         )
+        asset_warnings = list(asset_coordination_result.get("warnings", [])) if isinstance(asset_coordination_result, dict) else []
+        asset_errors = list(asset_coordination_result.get("errors", [])) if isinstance(asset_coordination_result, dict) else []
         result = self.build_result(
             success=True,
             request=normalized_request,
@@ -646,13 +726,18 @@ class ContentGenerationPipeline:
             campaign_assets=campaign_assets,
             campaign_governance_summary=campaign_governance_summary,
             campaign_export_paths=campaign_export_paths,
+            asset_coordination_result=asset_coordination_result,
+            asset_plan=asset_plan,
+            asset_requirements=asset_requirements,
+            missing_assets=missing_assets,
+            asset_export_paths=asset_export_paths,
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files,
             output_metadata=output_metadata,
             metadata=metadata,
             error=None,
-            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors + governance_warnings + governance_errors,
+            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors + governance_warnings + governance_errors + asset_warnings + asset_errors,
         )
         log_context(self.logger, f"Final result ready for {normalized_request['brand']}/{normalized_request['content_type']}")
         return result
@@ -792,6 +877,42 @@ class ContentGenerationPipeline:
         if status in {"needs_review", "warning"}:
             return "warning"
         return "warning"
+
+    def _build_asset_seed(
+        self,
+        request: dict[str, Any],
+        formatted_output: dict[str, Any] | None,
+        platform_variants: dict[str, Any],
+        governance_result: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build deterministic seed assets for asset coordination."""
+
+        if not isinstance(formatted_output, dict) or not formatted_output:
+            return {}
+
+        asset_type = normalize_asset_type(str(request.get("content_type", "")))
+        platform_variant = {}
+        if isinstance(platform_variants, dict):
+            platform_variant = dict(platform_variants.get(normalize_key(str(request.get("platform", "")))) or {})
+        return {
+            asset_type: {
+                "asset_type": asset_type,
+                "platform": request.get("platform", ""),
+                "purpose": request.get("objective", ""),
+                "content": formatted_output,
+                "formatted_output": formatted_output,
+                "platform_variant": platform_variant,
+                "governance_result": governance_result or {},
+                "metadata": {
+                    "brand": request.get("brand", ""),
+                    "audience": request.get("audience", ""),
+                    "location": request.get("location", ""),
+                    "objective": request.get("objective", ""),
+                    "campaign_type": request.get("campaign_type", ""),
+                },
+                "status": self._campaign_asset_status(governance_result),
+            }
+        }
 
 
 if __name__ == "__main__":
