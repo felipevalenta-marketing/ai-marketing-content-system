@@ -7,7 +7,7 @@ from typing import Any
 from src.reporting.report_builder import ReportBuilder
 from src.reporting.report_exporter import ReportExporter
 from src.reporting.report_renderer import ReportRenderer
-from src.reporting.report_metrics import safe_dict, safe_list, safe_text
+from src.reporting.report_metrics import safe_dict, safe_float, safe_list, safe_text
 from src.utils.logger import get_logger, log_context, log_warning
 
 
@@ -54,6 +54,7 @@ class ReportingEngine:
             "asset_report": reports["asset_report"],
             "export_report": reports["export_report"],
             "consolidated_report": consolidated,
+            "image_prompt_report": self._build_image_prompt_report(payload, reports["asset_report"]),
             "rendered": rendered,
             "rendered_markdown": rendered_markdown,
             "rendered_text": rendered_text,
@@ -66,6 +67,7 @@ class ReportingEngine:
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),
                 "report_types": list(reports.keys()),
+                "image_prompt_metrics_present": self._has_image_prompt_data(payload),
             },
         }
         return bundle
@@ -112,3 +114,30 @@ class ReportingEngine:
             if isinstance(report, dict):
                 errors.extend(safe_list(report.get("errors")))
         return list(dict.fromkeys([safe_text(item, limit=240) for item in errors if safe_text(item, limit=240)]))
+
+    def _build_image_prompt_report(self, payload: dict[str, Any], asset_report: dict[str, Any]) -> dict[str, Any]:
+        """Build a safe image prompt analytics snapshot when available."""
+
+        image_prompt_result = safe_dict(payload.get("image_prompt_result"))
+        image_prompt_validation = safe_dict(payload.get("image_prompt_validation"))
+        if not image_prompt_result and not image_prompt_validation:
+            return {}
+        scores = safe_dict(image_prompt_validation.get("scores"))
+        return {
+            "image_type": safe_text(image_prompt_result.get("image_type") or payload.get("image_type") or "", limit=80),
+            "visual_style_used": safe_text(image_prompt_result.get("visual_style") or payload.get("visual_style") or "", limit=80),
+            "aspect_ratio": safe_text(image_prompt_result.get("aspect_ratio") or payload.get("aspect_ratio") or "", limit=80),
+            "cinematic_rules_count": len(safe_list(image_prompt_result.get("cinematic_rules_applied"))),
+            "negative_prompt_enabled": bool(image_prompt_result.get("negative_prompt")),
+            "validation_status": bool(image_prompt_validation.get("valid", False)) if image_prompt_validation else False,
+            "realism_score": safe_float(scores.get("realism"), 0.0),
+            "completeness_score": safe_float(scores.get("completeness"), 0.0),
+            "platform_fit_score": safe_float(scores.get("platform_fit"), 0.0),
+            "conciseness_score": safe_float(scores.get("conciseness"), 0.0),
+            "asset_report_reference": safe_dict(asset_report).get("summary", {}),
+        }
+
+    def _has_image_prompt_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes image prompt analytics data."""
+
+        return bool(safe_dict(payload.get("image_prompt_result")) or safe_dict(payload.get("image_prompt_validation")))

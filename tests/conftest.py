@@ -185,6 +185,27 @@ def sample_asset_request(sample_brand_name: str) -> dict[str, object]:
 
 
 @pytest.fixture
+def sample_image_prompt_request(sample_brand_name: str) -> dict[str, object]:
+    """Return a representative image prompt request."""
+
+    return {
+        "brand": sample_brand_name,
+        "platform": "instagram",
+        "content_type": "image_prompt",
+        "campaign_type": "property_launch",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "location": "sant_llorenc_des_cardassar",
+        "property_type": "rustic_home",
+        "visual_style": "mediterranean_lifestyle",
+        "creative_direction": "Rustic exterior with modern comfort inside, close to Manacor and beaches.",
+        "image_type": "property_exterior",
+        "aspect_ratio": "4:5",
+        "extra_notes": "Premium but approachable, realistic, no exaggerated luxury.",
+    }
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path: Path) -> Path:
     """Return a temporary output directory for export tests."""
 

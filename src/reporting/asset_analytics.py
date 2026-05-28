@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.assets.asset_contracts import normalize_asset_type
-from src.reporting.report_metrics import normalize_counts, safe_bool, safe_dict, safe_int, safe_list, safe_text, unique_strings
+from src.reporting.report_metrics import normalize_counts, safe_bool, safe_dict, safe_float, safe_int, safe_list, safe_text, unique_strings
 
 
 class AssetAnalytics:
@@ -26,12 +26,17 @@ class AssetAnalytics:
         missing_assets = unique_strings(asset_result.get("missing_assets", []))
         validation_result = safe_dict(asset_result.get("validation_result"))
         platform_mapping = safe_dict(asset_plan.get("platform_mapping"))
+        image_prompt_result = safe_dict(asset_result.get("image_prompt_result"))
+        if not image_prompt_result and isinstance(assets.get("image_prompt"), dict):
+            image_prompt_result = safe_dict(assets.get("image_prompt"))
 
         asset_types = [normalize_asset_type(name) for name in list(assets.keys())]
         image_prompt_count = sum(1 for item in asset_types if item == "image_prompt")
         video_prompt_count = sum(1 for item in asset_types if item == "video_prompt")
         export_ready_count = sum(1 for asset in assets.values() if isinstance(asset, dict) and safe_text(asset.get("status", "")).lower() in {"approved", "warning", "ready"})
         platform_distribution = normalize_counts(list(platform_mapping.keys()))
+        image_prompt_validation = safe_dict(image_prompt_result.get("validation"))
+        image_prompt_scores = safe_dict(image_prompt_validation.get("scores"))
 
         return {
             "brand": safe_text(asset_result.get("brand") or payload.get("brand") or "", limit=80),
@@ -47,6 +52,16 @@ class AssetAnalytics:
             "platform_distribution": platform_distribution,
             "platform_mapping_count": len(platform_mapping),
             "requirement_sections": list(asset_requirements.keys()),
+            "image_type": safe_text(image_prompt_result.get("image_type") or payload.get("image_type") or "", limit=80),
+            "aspect_ratio": safe_text(image_prompt_result.get("aspect_ratio") or payload.get("aspect_ratio") or "", limit=80),
+            "visual_style_used": safe_text(image_prompt_result.get("visual_style") or payload.get("visual_style") or "", limit=80),
+            "cinematic_rules_count": safe_int(len(safe_list(image_prompt_result.get("cinematic_rules_applied"))), 0),
+            "negative_prompt_enabled": safe_bool(bool(image_prompt_result.get("negative_prompt"))),
+            "image_prompt_validation_status": safe_bool(image_prompt_validation.get("valid", False)) if image_prompt_validation else False,
+            "realism_score": safe_float(image_prompt_scores.get("realism"), 0.0),
+            "completeness_score": safe_float(image_prompt_scores.get("completeness"), 0.0),
+            "platform_fit_score": safe_float(image_prompt_scores.get("platform_fit"), 0.0),
+            "conciseness_score": safe_float(image_prompt_scores.get("conciseness"), 0.0),
             "validation_valid": safe_bool(validation_result.get("valid", asset_result.get("success", False))),
             "validation_warning_count": len(safe_list(validation_result.get("warnings"))),
             "validation_error_count": len(safe_list(validation_result.get("errors"))),

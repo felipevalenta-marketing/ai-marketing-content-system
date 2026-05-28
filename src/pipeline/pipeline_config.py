@@ -2,8 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency fallback
+    def load_dotenv(*args: Any, **kwargs: Any) -> bool:
+        """Fallback no-op when python-dotenv is unavailable."""
+
+        return False
+
+
+load_dotenv()
 
 
 DEFAULT_SUPPORTED_CONTENT_TYPES = (
@@ -13,6 +25,19 @@ DEFAULT_SUPPORTED_CONTENT_TYPES = (
     "image_prompt",
     "video_prompt",
     "campaign_asset",
+)
+
+DEFAULT_SUPPORTED_IMAGE_PROMPT_TYPES = (
+    "property_exterior",
+    "property_interior",
+    "lifestyle_scene",
+    "architectural_detail",
+    "drone_view",
+    "neighborhood_scene",
+    "reform_potential",
+    "luxury_listing",
+    "social_media_visual",
+    "campaign_hero_image",
 )
 
 DEFAULT_SUPPORTED_PLATFORMS = (
@@ -27,6 +52,24 @@ DEFAULT_SUPPORTED_PLATFORMS = (
 )
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    """Read a boolean feature flag from the environment.
+
+    Supported truthy values are ``true``, ``1``, ``yes``, and ``on``.
+    Any other value falls back to ``default``.
+    """
+
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    normalized = raw_value.strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    return default
+
+
 @dataclass(frozen=True)
 class PipelineConfig:
     """Runtime configuration for the generation pipeline."""
@@ -35,23 +78,27 @@ class PipelineConfig:
     default_brand: str = "wenzel_partner"
     default_platform: str = "instagram"
     default_content_type: str = "instagram_post"
-    enable_live_generation: bool = True
-    enable_output_formatting: bool = True
-    enable_output_validation: bool = True
-    enable_rendering: bool = True
-    enable_export: bool = False
-    enable_platform_adaptation: bool = False
-    enable_governance_validation: bool = False
-    enable_campaign_composition: bool = False
-    enable_campaign_export: bool = False
-    enable_asset_coordination: bool = False
-    enable_asset_export: bool = False
-    enable_reporting: bool = False
-    enable_report_export: bool = False
+    enable_live_generation: bool = field(default_factory=lambda: _env_flag("ENABLE_LIVE_GENERATION", True))
+    enable_output_formatting: bool = field(default_factory=lambda: _env_flag("ENABLE_OUTPUT_FORMATTING", True))
+    enable_output_validation: bool = field(default_factory=lambda: _env_flag("ENABLE_OUTPUT_VALIDATION", True))
+    enable_rendering: bool = field(default_factory=lambda: _env_flag("ENABLE_RENDERING", True))
+    enable_export: bool = field(default_factory=lambda: _env_flag("ENABLE_EXPORT", False))
+    enable_platform_adaptation: bool = field(default_factory=lambda: _env_flag("ENABLE_PLATFORM_ADAPTATION", False))
+    enable_governance_validation: bool = field(default_factory=lambda: _env_flag("ENABLE_GOVERNANCE_VALIDATION", False))
+    enable_campaign_composition: bool = field(default_factory=lambda: _env_flag("ENABLE_CAMPAIGN_COMPOSITION", False))
+    enable_campaign_export: bool = field(default_factory=lambda: _env_flag("ENABLE_CAMPAIGN_EXPORT", False))
+    enable_asset_coordination: bool = field(default_factory=lambda: _env_flag("ENABLE_ASSET_COORDINATION", False))
+    enable_asset_export: bool = field(default_factory=lambda: _env_flag("ENABLE_ASSET_EXPORT", False))
+    enable_reporting: bool = field(default_factory=lambda: _env_flag("ENABLE_REPORTING", False))
+    enable_report_export: bool = field(default_factory=lambda: _env_flag("ENABLE_REPORT_EXPORT", False))
+    enable_image_prompt_engine: bool = field(default_factory=lambda: _env_flag("ENABLE_IMAGE_PROMPT_ENGINE", False))
+    enable_cinematic_enhancement: bool = field(default_factory=lambda: _env_flag("ENABLE_CINEMATIC_ENHANCEMENT", True))
+    enable_negative_prompts: bool = field(default_factory=lambda: _env_flag("ENABLE_NEGATIVE_PROMPTS", True))
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
     supported_content_types: tuple[str, ...] = DEFAULT_SUPPORTED_CONTENT_TYPES
+    supported_image_prompt_types: tuple[str, ...] = DEFAULT_SUPPORTED_IMAGE_PROMPT_TYPES
     target_platforms: list[str] = field(default_factory=lambda: ["instagram"])
     default_target_platforms: list[str] = field(default_factory=lambda: ["instagram", "facebook", "linkedin"])
     default_asset_types: list[str] = field(default_factory=lambda: ["text_caption", "image_prompt", "video_prompt"])
@@ -62,6 +109,8 @@ class PipelineConfig:
     report_output_root: str = "outputs/reports"
     report_formats: tuple[str, ...] = ("markdown", "json")
     default_campaign_type: str = "property_launch"
+    default_visual_style: str = field(default_factory=lambda: os.getenv("DEFAULT_VISUAL_STYLE", "mediterranean_lifestyle"))
+    default_image_aspect_ratio: str = field(default_factory=lambda: os.getenv("DEFAULT_IMAGE_ASPECT_RATIO", "4:5"))
     generation_defaults: dict[str, Any] = field(
         default_factory=lambda: {
             "provider": "openai",

@@ -67,6 +67,7 @@ def test_campaign_compatibility_works(sample_asset_request):
 
     assert result["asset_plan"]
     assert result["validation_result"]
+    assert "campaign_name" not in result["validation_result"].get("warnings", [])
 
 
 def test_asset_export_is_disabled_by_default(sample_asset_request):
@@ -82,3 +83,35 @@ def test_no_media_apis_are_called(sample_asset_request):
 
     assert result["success"] in {True, False}
     assert "generated_image" not in result["assets"]
+
+
+def test_planned_missing_assets_do_not_create_required_field_spam(sample_asset_request):
+    coordinator = AssetCoordinator()
+    result = coordinator.coordinate(sample_asset_request)
+
+    warnings = result["warnings"]
+    assert "Some planned assets are missing and should be generated before export." in warnings
+    assert not any("missing required field" in warning.lower() for warning in warnings)
+
+
+def test_existing_incomplete_asset_still_creates_required_field_warnings(sample_asset_request):
+    coordinator = AssetCoordinator()
+    request = dict(sample_asset_request)
+    request["assets"] = {
+        "image_prompt": {
+            "asset_type": "image_prompt",
+            "status": "approved",
+            "subject": "Mediterranean home exterior",
+            "composition": "",
+            "lighting": "",
+            "style": "",
+            "aspect_ratio": "4:5",
+            "negative_prompt": "",
+            "platform_use": "instagram",
+        }
+    }
+
+    result = coordinator.coordinate(request)
+
+    warnings = result["warnings"]
+    assert any("Asset image_prompt is missing required field" in warning for warning in warnings)

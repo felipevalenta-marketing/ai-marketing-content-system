@@ -58,6 +58,7 @@ def build_asset_plan(request: dict[str, Any]) -> dict[str, Any]:
         "ready": bool(requested_assets),
         "requested_asset_count": len(requested_assets),
         "supported_asset_count": len([asset for asset in requested_assets if asset in list_supported_asset_types()]),
+        "image_prompt_ready": _build_image_prompt_readiness(request),
     }
     status = "planned" if requested_assets else "needs_review"
     notes = ["Asset plan is deterministic and derived from request inputs only."]
@@ -73,6 +74,22 @@ def build_asset_plan(request: dict[str, Any]) -> dict[str, Any]:
         generation_readiness=readiness,
         notes=notes,
     ).to_dict()
+
+
+def _build_image_prompt_readiness(request: dict[str, Any]) -> dict[str, Any]:
+    """Summarize readiness for image prompt assets."""
+
+    image_type = str(request.get("image_type", "")).strip()
+    visual_style = str(request.get("visual_style", "")).strip()
+    aspect_ratio = str(request.get("aspect_ratio", "")).strip()
+    creative_direction = str(request.get("creative_direction", "")).strip()
+    return {
+        "ready": bool(image_type or visual_style or aspect_ratio or creative_direction),
+        "image_type": image_type,
+        "visual_style": visual_style,
+        "aspect_ratio": aspect_ratio,
+        "creative_direction": creative_direction,
+    }
 
 
 def _build_dependencies(requested_assets: list[str]) -> dict[str, list[str]]:

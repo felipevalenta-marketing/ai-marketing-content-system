@@ -62,6 +62,8 @@ PLATFORM_REQUIREMENTS: dict[str, dict[str, Any]] = {
 IMAGE_REQUIREMENTS = {
     "asset_types": ["image_prompt"],
     "required_fields": ["subject", "composition", "lighting", "style", "aspect_ratio", "negative_prompt", "platform_use"],
+    "visual_style_field": "visual_style",
+    "readiness_fields": ["image_type", "visual_style", "aspect_ratio", "creative_direction"],
     "creative_notes": [
         "Specify aspect ratio, subject, lighting, composition, and negative prompt.",
         "Keep brand visual consistency and realism.",
@@ -111,6 +113,20 @@ def build_asset_requirements(request: dict[str, Any]) -> dict[str, Any]:
         "asset_requirements": asset_requirements,
         "image_requirements": dict(IMAGE_REQUIREMENTS),
         "video_requirements": dict(VIDEO_REQUIREMENTS),
+        "image_prompt_readiness": {
+            "image_type": normalize_key(str(request.get("image_type", ""))),
+            "visual_style": str(request.get("visual_style", "")).strip(),
+            "aspect_ratio": str(request.get("aspect_ratio", "")).strip(),
+            "creative_direction": str(request.get("creative_direction", "")).strip(),
+            "ready": all(
+                [
+                    str(request.get("image_type", "")).strip(),
+                    str(request.get("visual_style", "")).strip(),
+                    str(request.get("aspect_ratio", "")).strip(),
+                    str(request.get("creative_direction", "")).strip(),
+                ]
+            ),
+        },
         "campaign_alignment": {
             "campaign_type": normalize_key(str(request.get("campaign_type", ""))),
             "objective": str(request.get("objective", "")).strip(),

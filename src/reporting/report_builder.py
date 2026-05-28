@@ -205,6 +205,13 @@ class ReportBuilder:
             "missing_asset_count": metrics.get("missing_asset_count", 0),
             "image_prompt_count": metrics.get("image_prompt_count", 0),
             "video_prompt_count": metrics.get("video_prompt_count", 0),
+            "visual_style_used": metrics.get("visual_style_used", ""),
+            "image_type": metrics.get("image_type", ""),
+            "aspect_ratio": metrics.get("aspect_ratio", ""),
+            "realism_score": metrics.get("realism_score", 0.0),
+            "completeness_score": metrics.get("completeness_score", 0.0),
+            "platform_fit_score": metrics.get("platform_fit_score", 0.0),
+            "conciseness_score": metrics.get("conciseness_score", 0.0),
             "validation_valid": metrics.get("validation_valid", False),
         }
 

@@ -17,7 +17,10 @@ class AssetResult:
     asset_plan: dict[str, Any]
     asset_requirements: dict[str, Any]
     assets: dict[str, Any]
+    planned_assets: list[str]
+    existing_assets: list[str]
     missing_assets: list[str]
+    invalid_assets: list[str]
     validation_result: dict[str, Any]
     metadata: dict[str, Any]
     warnings: list[str]
@@ -35,7 +38,10 @@ class AssetResult:
             "asset_plan": self.asset_plan,
             "asset_requirements": self.asset_requirements,
             "assets": self.assets,
+            "planned_assets": self.planned_assets,
+            "existing_assets": self.existing_assets,
             "missing_assets": self.missing_assets,
+            "invalid_assets": self.invalid_assets,
             "validation_result": self.validation_result,
             "metadata": self.metadata,
             "warnings": self.warnings,
@@ -51,7 +57,10 @@ def build_asset_success(
     asset_plan: dict[str, Any],
     asset_requirements: dict[str, Any],
     assets: dict[str, Any],
+    planned_assets: list[str],
+    existing_assets: list[str],
     missing_assets: list[str],
+    invalid_assets: list[str],
     validation_result: dict[str, Any],
     metadata: dict[str, Any],
     warnings: list[str] | None = None,
@@ -68,7 +77,10 @@ def build_asset_success(
         asset_plan=asset_plan,
         asset_requirements=asset_requirements,
         assets=assets,
+        planned_assets=planned_assets,
+        existing_assets=existing_assets,
         missing_assets=missing_assets,
+        invalid_assets=invalid_assets,
         validation_result=validation_result,
         metadata=metadata,
         warnings=warnings or [],
@@ -84,7 +96,10 @@ def build_asset_failure(
     asset_plan: dict[str, Any],
     asset_requirements: dict[str, Any],
     assets: dict[str, Any],
+    planned_assets: list[str],
+    existing_assets: list[str],
     missing_assets: list[str],
+    invalid_assets: list[str],
     validation_result: dict[str, Any],
     metadata: dict[str, Any],
     warnings: list[str] | None = None,
@@ -101,7 +116,10 @@ def build_asset_failure(
         asset_plan=asset_plan,
         asset_requirements=asset_requirements,
         assets=assets,
+        planned_assets=planned_assets,
+        existing_assets=existing_assets,
         missing_assets=missing_assets,
+        invalid_assets=invalid_assets,
         validation_result=validation_result,
         metadata=metadata,
         warnings=warnings or [],

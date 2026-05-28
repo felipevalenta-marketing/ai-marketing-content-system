@@ -24,6 +24,8 @@ from src.assets.asset_contracts import normalize_asset_type
 from src.governance.content_governance import ContentGovernanceEngine
 from src.campaigns.campaign_composer import CampaignComposer
 from src.campaigns.campaign_contracts import get_campaign_contract
+from src.media.image_prompt_engine import ImagePromptEngine
+from src.media.image_prompt_validator import ImagePromptValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -53,6 +55,8 @@ class ContentGenerationPipeline:
         campaign_composer: CampaignComposer | None = None,
         asset_coordinator: AssetCoordinator | None = None,
         reporting_engine: ReportingEngine | None = None,
+        image_prompt_engine: ImagePromptEngine | None = None,
+        image_prompt_validator: ImagePromptValidator | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -71,6 +75,8 @@ class ContentGenerationPipeline:
         self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
         self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
         self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
+        self.image_prompt_engine = image_prompt_engine or ImagePromptEngine(logger=self.logger)
+        self.image_prompt_validator = image_prompt_validator or ImagePromptValidator()
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -194,6 +200,12 @@ class ContentGenerationPipeline:
         metadata: dict[str, Any] | None = None,
         error: str | None = None,
         warnings: list[str] | None = None,
+        image_prompt_result: dict[str, Any] | None = None,
+        enhanced_image_prompt: str | None = None,
+        negative_prompt: str | None = None,
+        visual_style: str | None = None,
+        cinematic_rules_applied: list[str] | None = None,
+        image_prompt_validation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a structured pipeline result."""
 
@@ -210,6 +222,12 @@ class ContentGenerationPipeline:
                 parsed_output=parsed_output or {},
                 formatted_output=formatted_output,
                 validation_result=validation_result,
+                image_prompt_result=image_prompt_result,
+                enhanced_image_prompt=enhanced_image_prompt,
+                negative_prompt=negative_prompt,
+                visual_style=visual_style,
+                cinematic_rules_applied=cinematic_rules_applied,
+                image_prompt_validation=image_prompt_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -255,6 +273,12 @@ class ContentGenerationPipeline:
                 parsed_output=parsed_output,
                 formatted_output=formatted_output,
                 validation_result=validation_result,
+                image_prompt_result=image_prompt_result,
+                enhanced_image_prompt=enhanced_image_prompt,
+                negative_prompt=negative_prompt,
+                visual_style=visual_style,
+                cinematic_rules_applied=cinematic_rules_applied,
+                image_prompt_validation=image_prompt_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -486,11 +510,24 @@ class ContentGenerationPipeline:
         output_metadata: dict[str, Any] = {}
         output_errors: list[str] = []
         output_warnings: list[str] = []
+        image_prompt_result: dict[str, Any] | None = None
+        enhanced_image_prompt: str | None = None
+        image_prompt_validation: dict[str, Any] | None = None
+        cinematic_rules_applied: list[str] = []
+        image_negative_prompt: str | None = None
+        image_visual_style: str | None = None
         asset_coordination_result = None
         asset_plan: dict[str, Any] = {}
         asset_requirements: dict[str, Any] = {}
         missing_assets: list[str] = []
         asset_export_paths: dict[str, str] = {}
+        execution_report: dict[str, Any] | None = None
+        governance_report: dict[str, Any] | None = None
+        campaign_report: dict[str, Any] | None = None
+        asset_report: dict[str, Any] | None = None
+        export_report: dict[str, Any] | None = None
+        consolidated_report: dict[str, Any] | None = None
+        report_export_paths: dict[str, str] = {}
 
         if self.config.enable_output_formatting:
             try:
@@ -556,6 +593,74 @@ class ContentGenerationPipeline:
                         warnings=output_warnings,
                     )
 
+            if self.config.enable_image_prompt_engine and normalized_request["content_type"] == "image_prompt":
+                try:
+                    image_prompt_started = perf_counter()
+                    image_prompt_payload = self._build_image_prompt_request(
+                        normalized_request,
+                        context,
+                        parsed_output,
+                        formatted_output,
+                    )
+                    image_prompt_result = self.image_prompt_engine.generate_image_prompt(image_prompt_payload)
+                    enhanced_image_prompt = image_prompt_result.get("prompt", "")
+                    image_negative_prompt = image_prompt_result.get("negative_prompt", "")
+                    image_visual_style = image_prompt_result.get("visual_style", "")
+                    cinematic_rules_applied = list(image_prompt_result.get("cinematic_rules_applied", []))
+                    image_prompt_validation = image_prompt_result.get("validation", {})
+                    stage_timings["image_prompt"] = round(perf_counter() - image_prompt_started, 6)
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    warning = f"Image prompt engine failed: {exc}"
+                    log_warning(self.logger, warning)
+                    image_prompt_result = {
+                        "success": False,
+                        "warnings": [warning],
+                        "errors": [warning],
+                    }
+                    image_prompt_validation = {
+                        "valid": False,
+                        "warnings": [warning],
+                        "errors": [warning],
+                        "scores": {"realism": 0.0, "completeness": 0.0, "brand_fit": 0.0, "platform_fit": 0.0, "conciseness": 0.0},
+                    }
+                    output_warnings.append(warning)
+
+        if (
+            self.config.enable_image_prompt_engine
+            and normalized_request["content_type"] == "image_prompt"
+            and image_prompt_result is None
+        ):
+            try:
+                image_prompt_started = perf_counter()
+                image_prompt_payload = self._build_image_prompt_request(
+                    normalized_request,
+                    context,
+                    parsed_output,
+                    formatted_output,
+                )
+                image_prompt_result = self.image_prompt_engine.generate_image_prompt(image_prompt_payload)
+                enhanced_image_prompt = image_prompt_result.get("prompt", "")
+                image_negative_prompt = image_prompt_result.get("negative_prompt", "")
+                image_visual_style = image_prompt_result.get("visual_style", "")
+                cinematic_rules_applied = list(image_prompt_result.get("cinematic_rules_applied", []))
+                image_prompt_validation = image_prompt_result.get("validation", {})
+                stage_timings["image_prompt"] = round(perf_counter() - image_prompt_started, 6)
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                warning = f"Image prompt engine failed: {exc}"
+                log_warning(self.logger, warning)
+                image_prompt_result = {
+                    "success": False,
+                    "warnings": [warning],
+                    "errors": [warning],
+                }
+                image_prompt_validation = {
+                    "valid": False,
+                    "warnings": [warning],
+                    "errors": [warning],
+                    "scores": {"realism": 0.0, "completeness": 0.0, "brand_fit": 0.0, "platform_fit": 0.0, "conciseness": 0.0},
+                }
+                output_warnings.append(warning)
+
         validation_status = "passed"
         if validation_result and not validation_result.get("valid", True):
             validation_status = "failed"
@@ -601,6 +706,8 @@ class ContentGenerationPipeline:
                 "content_type": normalized_request["content_type"],
                 "formatted_output": formatted_output,
                 "platform_variants": platform_variants or {},
+                "image_prompt_result": image_prompt_result or {},
+                "image_prompt_validation": image_prompt_validation or {},
                 "metadata": {
                     "audience": normalized_request.get("audience", ""),
                     "location": normalized_request.get("location", ""),
@@ -674,7 +781,7 @@ class ContentGenerationPipeline:
                 "extra_notes": normalized_request.get("extra_notes", ""),
                 "enable_export": self.config.enable_campaign_export,
             }
-            seed_assets = self._build_campaign_assets(normalized_request, formatted_output, platform_variants, governance_result)
+            seed_assets = self._build_campaign_assets(normalized_request, formatted_output, platform_variants, governance_result, image_prompt_result=image_prompt_result)
             request_assets = request.get("campaign_assets") if isinstance(request.get("campaign_assets"), dict) else request.get("assets") if isinstance(request.get("assets"), dict) else {}
             if isinstance(request_assets, dict):
                 seed_assets.update(request_assets)
@@ -699,18 +806,21 @@ class ContentGenerationPipeline:
                 "platforms": list((campaign_result or {}).get("platform_plan", {}).keys()) or list(self.config.default_target_platforms),
                 "assets_required": list((campaign_result or {}).get("asset_plan", {}).get("required_assets", [])) or list(normalized_request.get("assets_required", [])) or list(self.config.default_asset_types),
                 "creative_direction": normalized_request.get("extra_notes", ""),
-                "visual_style": normalized_request.get("visual_style", ""),
+                "visual_style": image_visual_style or normalized_request.get("visual_style", ""),
+                "image_type": normalized_request.get("image_type", ""),
+                "aspect_ratio": normalized_request.get("aspect_ratio", ""),
                 "extra_notes": normalized_request.get("extra_notes", ""),
                 "campaign_result": campaign_result or {},
                 "campaign_strategy": campaign_strategy or {},
                 "campaign_assets": campaign_assets or {},
+                "image_prompt_result": image_prompt_result or {},
                 "campaign_metadata": {
                     "campaign_governance_summary": campaign_governance_summary or {},
                     "campaign_export_paths": campaign_export_paths or {},
                 },
                 "enable_export": self.config.enable_asset_export,
             }
-            seed_assets = self._build_asset_seed(normalized_request, formatted_output, platform_variants, governance_result)
+            seed_assets = self._build_asset_seed(normalized_request, formatted_output, platform_variants, governance_result, image_prompt_result=image_prompt_result)
             if campaign_assets:
                 seed_assets.update(campaign_assets)
             asset_request["assets"] = seed_assets
@@ -781,6 +891,12 @@ class ContentGenerationPipeline:
             parsed_output=parsed_output,
             formatted_output=formatted_output,
             validation_result=validation_result,
+            image_prompt_result=image_prompt_result,
+            enhanced_image_prompt=enhanced_image_prompt,
+            negative_prompt=image_negative_prompt,
+            visual_style=image_visual_style,
+            cinematic_rules_applied=cinematic_rules_applied,
+            image_prompt_validation=image_prompt_validation,
             adaptation_result=adaptation_result,
             platform_variants=platform_variants,
             governance_result=governance_result,
@@ -798,6 +914,13 @@ class ContentGenerationPipeline:
             asset_requirements=asset_requirements,
             missing_assets=missing_assets,
             asset_export_paths=asset_export_paths,
+            execution_report=execution_report,
+            governance_report=governance_report,
+            campaign_report=campaign_report,
+            asset_report=asset_report,
+            export_report=export_report,
+            consolidated_report=consolidated_report,
+            report_export_paths=report_export_paths,
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files,
@@ -828,6 +951,9 @@ class ContentGenerationPipeline:
         normalized.setdefault("location", "")
         normalized.setdefault("property_type", "")
         normalized.setdefault("extra_notes", "")
+        normalized.setdefault("visual_style", self.config.default_visual_style)
+        normalized.setdefault("image_type", "social_media_visual")
+        normalized.setdefault("aspect_ratio", self.config.default_image_aspect_ratio)
         normalized["report"] = bool(normalized.get("report", False))
         normalized["report_json"] = bool(normalized.get("report_json", False))
         normalized["report_markdown"] = bool(normalized.get("report_markdown", False))
@@ -903,6 +1029,7 @@ class ContentGenerationPipeline:
         formatted_output: dict[str, Any] | None,
         platform_variants: dict[str, Any],
         governance_result: dict[str, Any] | None,
+        image_prompt_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build deterministic campaign seed assets from existing outputs."""
 
@@ -914,7 +1041,7 @@ class ContentGenerationPipeline:
         platform_variant = {}
         if isinstance(platform_variants, dict):
             platform_variant = dict(platform_variants.get(normalize_key(str(request.get("platform", "")))) or {})
-        return {
+        seed = {
             asset_type: {
                 "asset_type": asset_type,
                 "platform": request.get("platform", ""),
@@ -932,6 +1059,24 @@ class ContentGenerationPipeline:
                 "status": asset_status,
             }
         }
+        if asset_type == "image_prompt" and isinstance(image_prompt_result, dict) and image_prompt_result:
+            seed[asset_type].update(
+                {
+                    "subject": image_prompt_result.get("metadata", {}).get("image_type", "") if isinstance(image_prompt_result.get("metadata"), dict) else "",
+                    "composition": image_prompt_result.get("composition_style", ""),
+                    "lighting": image_prompt_result.get("lighting_style", ""),
+                    "style": image_prompt_result.get("visual_style", ""),
+                    "aspect_ratio": image_prompt_result.get("aspect_ratio", ""),
+                    "negative_prompt": image_prompt_result.get("negative_prompt", ""),
+                    "platform_use": request.get("platform", ""),
+                    "visual_direction": image_prompt_result.get("prompt", ""),
+                    "enhanced_image_prompt": image_prompt_result.get("prompt", ""),
+                    "image_prompt_result": image_prompt_result,
+                    "validation": image_prompt_result.get("validation", {}),
+                    "camera_direction": image_prompt_result.get("camera_direction", ""),
+                }
+            )
+        return seed
 
     def _campaign_asset_status(self, governance_result: dict[str, Any] | None) -> str:
         """Derive a campaign asset status from governance output."""
@@ -955,6 +1100,7 @@ class ContentGenerationPipeline:
         formatted_output: dict[str, Any] | None,
         platform_variants: dict[str, Any],
         governance_result: dict[str, Any] | None,
+        image_prompt_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build deterministic seed assets for asset coordination."""
 
@@ -965,7 +1111,7 @@ class ContentGenerationPipeline:
         platform_variant = {}
         if isinstance(platform_variants, dict):
             platform_variant = dict(platform_variants.get(normalize_key(str(request.get("platform", "")))) or {})
-        return {
+        seed = {
             asset_type: {
                 "asset_type": asset_type,
                 "platform": request.get("platform", ""),
@@ -979,11 +1125,65 @@ class ContentGenerationPipeline:
                     "audience": request.get("audience", ""),
                     "location": request.get("location", ""),
                     "objective": request.get("objective", ""),
-                    "campaign_type": request.get("campaign_type", ""),
+                "campaign_type": request.get("campaign_type", ""),
                 },
                 "status": self._campaign_asset_status(governance_result),
             }
         }
+        if asset_type == "image_prompt" and isinstance(image_prompt_result, dict) and image_prompt_result:
+            seed[asset_type].update(
+                {
+                    "subject": image_prompt_result.get("metadata", {}).get("image_type", "") if isinstance(image_prompt_result.get("metadata"), dict) else "",
+                    "composition": image_prompt_result.get("composition_style", ""),
+                    "lighting": image_prompt_result.get("lighting_style", ""),
+                    "style": image_prompt_result.get("visual_style", ""),
+                    "aspect_ratio": image_prompt_result.get("aspect_ratio", ""),
+                    "negative_prompt": image_prompt_result.get("negative_prompt", ""),
+                    "platform_use": request.get("platform", ""),
+                    "visual_direction": image_prompt_result.get("prompt", ""),
+                    "enhanced_image_prompt": image_prompt_result.get("prompt", ""),
+                    "image_prompt_result": image_prompt_result,
+                    "validation": image_prompt_result.get("validation", {}),
+                    "camera_direction": image_prompt_result.get("camera_direction", ""),
+                }
+            )
+        return seed
+
+    def _build_image_prompt_request(
+        self,
+        request: dict[str, Any],
+        context: dict[str, Any],
+        parsed_output: dict[str, Any],
+        formatted_output: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build a prompt-engine request for image prompt generation."""
+
+        request_payload = dict(request)
+        request_payload["content_type"] = "image_prompt"
+        request_payload["image_type"] = request.get("image_type") or request.get("content_type") or "social_media_visual"
+        request_payload["aspect_ratio"] = request.get("aspect_ratio") or self.config.default_image_aspect_ratio
+        request_payload["visual_style"] = request.get("visual_style") or self.config.default_visual_style
+        if not request_payload.get("creative_direction"):
+            request_payload["creative_direction"] = (
+                self._extract_image_prompt_seed(formatted_output)
+                or self._extract_image_prompt_seed(parsed_output)
+                or str(context.get("summary", {}).get("combined_context", "")).strip()
+                or request.get("extra_notes", "")
+            )
+        request_payload["enable_negative_prompts"] = self.config.enable_negative_prompts
+        request_payload["enable_cinematic_enhancement"] = self.config.enable_cinematic_enhancement
+        return request_payload
+
+    def _extract_image_prompt_seed(self, payload: dict[str, Any] | None) -> str:
+        """Extract a fallback prompt seed from parsed or formatted content."""
+
+        if not isinstance(payload, dict):
+            return ""
+        for key in ("creative_direction", "visual_direction", "prompt", "content", "caption", "description", "summary"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
 
     def _build_execution_metadata(
         self,

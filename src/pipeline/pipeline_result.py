@@ -21,6 +21,12 @@ class PipelineResult:
     parsed_output: dict[str, Any] | None
     formatted_output: dict[str, Any] | None
     validation_result: dict[str, Any] | None
+    image_prompt_result: dict[str, Any] | None
+    enhanced_image_prompt: str | None
+    negative_prompt: str | None
+    visual_style: str | None
+    cinematic_rules_applied: list[str]
+    image_prompt_validation: dict[str, Any] | None
     adaptation_result: dict[str, Any] | None
     platform_variants: dict[str, Any]
     governance_result: dict[str, Any] | None
@@ -68,6 +74,12 @@ class PipelineResult:
             "parsed_output": self.parsed_output,
             "formatted_output": self.formatted_output,
             "validation_result": self.validation_result,
+            "image_prompt_result": self.image_prompt_result,
+            "enhanced_image_prompt": self.enhanced_image_prompt,
+            "negative_prompt": self.negative_prompt,
+            "visual_style": self.visual_style,
+            "cinematic_rules_applied": self.cinematic_rules_applied,
+            "image_prompt_validation": self.image_prompt_validation,
             "adaptation_result": self.adaptation_result,
             "platform_variants": self.platform_variants,
             "governance_result": self.governance_result,
@@ -113,13 +125,19 @@ def build_success_result(
     parsed_output: dict[str, Any],
     formatted_output: dict[str, Any] | None,
     validation_result: dict[str, Any] | None,
-    adaptation_result: dict[str, Any] | None,
-    platform_variants: dict[str, Any] | None,
-    governance_result: dict[str, Any] | None,
-    approval_status: str,
-    overall_quality_score: float | None,
-    governance_warnings: list[str] | None,
-    governance_errors: list[str] | None,
+    image_prompt_result: dict[str, Any] | None = None,
+    enhanced_image_prompt: str | None = None,
+    negative_prompt: str | None = None,
+    visual_style: str | None = None,
+    cinematic_rules_applied: list[str] | None = None,
+    image_prompt_validation: dict[str, Any] | None = None,
+    adaptation_result: dict[str, Any] | None = None,
+    platform_variants: dict[str, Any] | None = None,
+    governance_result: dict[str, Any] | None = None,
+    approval_status: str = "unknown",
+    overall_quality_score: float | None = None,
+    governance_warnings: list[str] | None = None,
+    governance_errors: list[str] | None = None,
     campaign_result: dict[str, Any] | None = None,
     campaign_strategy: dict[str, Any] | None = None,
     campaign_assets: dict[str, Any] | None = None,
@@ -158,6 +176,12 @@ def build_success_result(
         parsed_output=parsed_output,
         formatted_output=formatted_output,
         validation_result=validation_result,
+        image_prompt_result=image_prompt_result,
+        enhanced_image_prompt=enhanced_image_prompt,
+        negative_prompt=negative_prompt,
+        visual_style=visual_style,
+        cinematic_rules_applied=cinematic_rules_applied or [],
+        image_prompt_validation=image_prompt_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,
@@ -205,6 +229,12 @@ def build_failure_result(
     parsed_output: dict[str, Any] | None = None,
     formatted_output: dict[str, Any] | None = None,
     validation_result: dict[str, Any] | None = None,
+    image_prompt_result: dict[str, Any] | None = None,
+    enhanced_image_prompt: str | None = None,
+    negative_prompt: str | None = None,
+    visual_style: str | None = None,
+    cinematic_rules_applied: list[str] | None = None,
+    image_prompt_validation: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
     governance_result: dict[str, Any] | None = None,
@@ -249,6 +279,12 @@ def build_failure_result(
         parsed_output=parsed_output,
         formatted_output=formatted_output,
         validation_result=validation_result,
+        image_prompt_result=image_prompt_result,
+        enhanced_image_prompt=enhanced_image_prompt,
+        negative_prompt=negative_prompt,
+        visual_style=visual_style,
+        cinematic_rules_applied=cinematic_rules_applied or [],
+        image_prompt_validation=image_prompt_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,

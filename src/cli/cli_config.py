@@ -58,6 +58,9 @@ def build_feature_flags() -> dict[str, Any]:
         "enable_asset_export": pipeline_config.enable_asset_export,
         "enable_reporting": pipeline_config.enable_reporting,
         "enable_report_export": pipeline_config.enable_report_export,
+        "enable_image_prompt_engine": pipeline_config.enable_image_prompt_engine,
+        "enable_cinematic_enhancement": pipeline_config.enable_cinematic_enhancement,
+        "enable_negative_prompts": pipeline_config.enable_negative_prompts,
     }
 
 
@@ -114,6 +117,8 @@ def build_safe_config_summary() -> dict[str, Any]:
         "default_platform": pipeline_config.default_platform,
         "default_content_type": pipeline_config.default_content_type,
         "default_campaign_type": pipeline_config.default_campaign_type,
+        "default_visual_style": pipeline_config.default_visual_style,
+        "default_image_aspect_ratio": pipeline_config.default_image_aspect_ratio,
         "default_asset_types": list(pipeline_config.default_asset_types),
         "export_defaults": {
             "output_root": pipeline_config.output_root,

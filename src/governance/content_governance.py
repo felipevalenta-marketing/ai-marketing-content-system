@@ -10,6 +10,7 @@ from src.governance.governance_result import build_governance_failure, build_gov
 from src.governance.governance_rules import get_governance_rules
 from src.governance.platform_compliance import PlatformComplianceChecker
 from src.governance.quality_scoring import QualityScorer
+from src.media.image_prompt_validator import ImagePromptValidator
 from src.utils.logger import get_logger, log_context, log_warning
 
 
@@ -23,6 +24,7 @@ class ContentGovernanceEngine:
         self.brand_checker = BrandComplianceChecker(self.rules)
         self.platform_checker = PlatformComplianceChecker(self.rules)
         self.factual_safety_checker = FactualSafetyChecker(self.rules)
+        self.image_prompt_validator = ImagePromptValidator(self.rules)
 
     def evaluate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Evaluate a payload and return a governance decision."""
@@ -38,6 +40,10 @@ class ContentGovernanceEngine:
             )
 
         log_context(self.logger, "Evaluating content governance")
+        content_type = str(payload.get("content_type", "")).strip().lower()
+        if content_type == "image_prompt" or payload.get("image_prompt_result"):
+            return self._evaluate_image_prompt(payload)
+
         formatted_result = self.evaluate_formatted_output(payload)
         platform_result = self.evaluate_platform_variants(payload)
         quality_result = self.quality_scorer.score(payload)
@@ -188,6 +194,86 @@ class ContentGovernanceEngine:
             metadata=metadata,
         )
 
+    def _evaluate_image_prompt(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate image prompt results with prompt-specific safety checks."""
+
+        image_result = payload.get("image_prompt_result")
+        if not isinstance(image_result, dict) or not image_result:
+            image_result = {
+                "prompt": payload.get("formatted_output", {}).get("visual_direction", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "negative_prompt": payload.get("formatted_output", {}).get("negative_prompt", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "visual_style": payload.get("formatted_output", {}).get("style", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "lighting_style": payload.get("formatted_output", {}).get("lighting", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "composition_style": payload.get("formatted_output", {}).get("composition", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "camera_direction": payload.get("formatted_output", {}).get("visual_direction", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "aspect_ratio": payload.get("formatted_output", {}).get("aspect_ratio", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "platform": payload.get("platform", ""),
+                "metadata": payload.get("metadata", {}),
+            }
+
+        validation = self.image_prompt_validator.validate(image_result)
+        prompt_text = str(image_result.get("prompt") or image_result.get("enhanced_image_prompt") or "").strip()
+        image_payload = {
+            "brand": payload.get("brand", ""),
+            "platform": payload.get("platform", ""),
+            "content_type": "image_prompt",
+            "formatted_output": {
+                "visual_direction": prompt_text,
+                "caption": prompt_text,
+                "main_message": prompt_text,
+                "notes": prompt_text,
+                "subject": str(image_result.get("metadata", {}).get("image_type", "")) if isinstance(image_result.get("metadata"), dict) else "",
+                "composition": str(image_result.get("composition_style", "")),
+                "lighting": str(image_result.get("lighting_style", "")),
+                "style": str(image_result.get("visual_style", "")),
+                "negative_prompt": str(image_result.get("negative_prompt", "")),
+            },
+            "platform_variants": payload.get("platform_variants", {}),
+            "metadata": payload.get("metadata", {}),
+        }
+        brand_result = self.brand_checker.check(image_payload)
+        factual_result = self.factual_safety_checker.check(image_payload)
+
+        quality_result = {
+            "score": validation["scores"]["completeness"],
+            "warnings": list(validation["warnings"]),
+            "errors": list(validation["errors"]),
+            "checks": {"image_prompt_validation": validation["scores"]},
+        }
+        platform_result = {
+            "score": validation["scores"]["platform_fit"],
+            "warnings": [warning for warning in validation["warnings"] if "platform" in warning.lower() or "aspect ratio" in warning.lower()],
+            "errors": [error for error in validation["errors"] if "aspect ratio" in error.lower() or "platform" in error.lower()],
+            "checks": {"image_prompt_platform_fit": validation["scores"]["platform_fit"]},
+        }
+        scores = {
+            "quality_score": quality_result["score"],
+            "brand_score": brand_result["score"],
+            "platform_score": platform_result["score"],
+            "factual_safety_score": factual_result["score"],
+        }
+        warnings = list(dict.fromkeys(quality_result["warnings"] + brand_result["warnings"] + platform_result["warnings"] + factual_result["warnings"]))
+        errors = list(dict.fromkeys(quality_result["errors"] + brand_result["errors"] + platform_result["errors"] + factual_result["errors"]))
+        checks = {
+            "quality": quality_result["checks"],
+            "brand": brand_result["checks"],
+            "platform": platform_result["checks"],
+            "factual_safety": factual_result["checks"],
+            "image_prompt_validation": validation,
+        }
+        recommendations = []
+        if validation["scores"]["realism"] < 75:
+            recommendations.append("Strengthen realism cues and reduce exaggerated visual language.")
+        if validation["scores"]["completeness"] < 85:
+            recommendations.append("Add missing visual prompt fields before export.")
+        if validation["scores"]["brand_fit"] < 80:
+            recommendations.append("Align the prompt more closely with premium but approachable brand language.")
+        if validation["scores"]["platform_fit"] < 80:
+            recommendations.append("Adjust aspect ratio or platform framing for better fit.")
+        if factual_result["score"] < 90:
+            recommendations.append("Remove any unsupported property claims from the visual prompt.")
+        return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
+
     def _build_recommendations(self, quality_result: dict[str, Any], brand_result: dict[str, Any], platform_result: dict[str, Any], factual_result: dict[str, Any]) -> list[str]:
         recommendations: list[str] = []
         if quality_result["score"] < 75:
@@ -223,6 +309,22 @@ class ContentGovernanceEngine:
             elif isinstance(value, list):
                 pieces.extend([str(item) for item in value])
         return "\n".join(pieces)
+
+    def build_analytics_snapshot(self, governance_result: dict[str, Any]) -> dict[str, Any]:
+        """Build a safe governance analytics snapshot."""
+
+        return {
+            "status": str(governance_result.get("status", "unknown")),
+            "approved": bool(governance_result.get("approved", False)),
+            "quality_score": float(governance_result.get("quality_score", 0.0) or 0.0),
+            "brand_score": float(governance_result.get("brand_score", 0.0) or 0.0),
+            "platform_score": float(governance_result.get("platform_score", 0.0) or 0.0),
+            "factual_safety_score": float(governance_result.get("factual_safety_score", 0.0) or 0.0),
+            "overall_score": float(governance_result.get("overall_score", 0.0) or 0.0),
+            "warning_count": len(governance_result.get("warnings", []) or []),
+            "error_count": len(governance_result.get("errors", []) or []),
+            "recommendation_count": len(governance_result.get("recommendations", []) or []),
+        }
 
 
 if __name__ == "__main__":

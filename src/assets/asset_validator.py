@@ -9,6 +9,24 @@ from src.assets.asset_requirements import get_asset_type_requirements
 from src.utils.file_utils import normalize_key
 
 
+IGNORED_BUNDLE_KEYS = {
+    "campaign_name",
+    "brand",
+    "campaign_type",
+    "objective",
+    "asset_plan",
+    "asset_requirements",
+    "assets",
+    "missing_assets",
+    "platform_mapping",
+    "governance_summary",
+    "metadata",
+    "warnings",
+    "errors",
+    "status",
+}
+
+
 class AssetValidator:
     """Validate asset coordination requests and generated bundles."""
 
@@ -90,39 +108,104 @@ class AssetValidator:
 
         warnings: list[str] = []
         errors: list[str] = []
+        planned_assets: list[str] = []
+        existing_assets: list[str] = []
+        invalid_assets: list[str] = []
         if not isinstance(assets, dict):
-            return {"valid": False, "warnings": [], "errors": ["Assets bundle must be a dictionary."]}
+            return {
+                "valid": False,
+                "warnings": [],
+                "errors": ["Assets bundle must be a dictionary."],
+                "planned_assets": [],
+                "existing_assets": [],
+                "invalid_assets": [],
+                "missing_assets": [],
+            }
 
+        asset_entries = self._extract_asset_entries(assets)
         required_assets = list(asset_plan.get("required_assets", []))
-        missing_assets = [asset for asset in required_assets if asset not in assets or self._is_missing_asset(assets.get(asset))]
-        if missing_assets:
-            warnings.append(f"Missing assets: {', '.join(missing_assets)}")
+        missing_assets: list[str] = []
 
-        for asset_type, payload in assets.items():
+        for asset_type, payload in asset_entries.items():
             canonical = normalize_asset_type(asset_type)
             if canonical not in list_supported_asset_types():
-                warnings.append(f"Unsupported asset type in bundle: {asset_type}")
                 continue
             contract = get_asset_contract(canonical)
             requirements = get_asset_type_requirements(canonical)
             if not isinstance(payload, dict):
                 errors.append(f"Asset {asset_type} must be a dictionary.")
+                invalid_assets.append(canonical)
                 continue
+            normalized_payload = self._normalize_asset_payload(payload)
+            if self._is_missing_asset(payload) or self._is_missing_asset(normalized_payload):
+                if canonical in required_assets:
+                    planned_assets.append(canonical)
+                    missing_assets.append(canonical)
+                continue
+            existing_assets.append(canonical)
             for field_name in requirements.get("required_fields", contract.required_fields):
-                if not self._is_non_empty(payload.get(field_name)):
+                if not self._is_non_empty(normalized_payload.get(field_name)):
                     if field_name in contract.required_fields:
-                        errors.append(f"Asset {asset_type} is missing required field: {field_name}")
+                        warnings.append(f"Asset {asset_type} is missing required field: {field_name}")
+                        if canonical not in invalid_assets:
+                            invalid_assets.append(canonical)
                     else:
                         warnings.append(f"Asset {asset_type} is missing field: {field_name}")
-            if canonical == "image_prompt" and not all(self._is_non_empty(payload.get(field)) for field in ("subject", "composition", "lighting", "style")):
+            if canonical == "image_prompt" and not all(self._is_non_empty(normalized_payload.get(field)) for field in ("subject", "composition", "lighting", "style")):
                 warnings.append("Image prompt is incomplete.")
-            if canonical == "video_prompt" and not all(self._is_non_empty(payload.get(field)) for field in ("scene_description", "camera_motion", "sequence", "mood")):
+                if canonical not in invalid_assets:
+                    invalid_assets.append(canonical)
+            if canonical == "video_prompt" and not all(self._is_non_empty(normalized_payload.get(field)) for field in ("scene_description", "camera_motion", "sequence", "mood")):
                 warnings.append("Video prompt is incomplete.")
+                if canonical not in invalid_assets:
+                    invalid_assets.append(canonical)
+
+        for asset in required_assets:
+            canonical = normalize_asset_type(str(asset))
+            if canonical not in asset_entries:
+                missing_assets.append(canonical)
+
+        if missing_assets:
+            warnings.append("Some planned assets are missing and should be generated before export.")
 
         campaign_alignment = asset_requirements.get("campaign_alignment", {})
         if isinstance(campaign_alignment, dict) and not campaign_alignment.get("objective"):
             warnings.append("Asset requirements do not include campaign objective.")
-        return {"valid": not errors, "warnings": list(dict.fromkeys(warnings)), "errors": list(dict.fromkeys(errors))}
+        return {
+            "valid": not errors,
+            "warnings": list(dict.fromkeys(warnings)),
+            "errors": list(dict.fromkeys(errors)),
+            "planned_assets": list(dict.fromkeys(planned_assets)),
+            "existing_assets": list(dict.fromkeys(existing_assets)),
+            "invalid_assets": list(dict.fromkeys(invalid_assets)),
+            "missing_assets": list(dict.fromkeys(missing_assets)),
+        }
+
+    def _extract_asset_entries(self, assets: dict[str, Any]) -> dict[str, Any]:
+        """Return only real asset entries from a bundle-like payload."""
+
+        extracted: dict[str, Any] = {}
+        for asset_type, payload in assets.items():
+            canonical = normalize_asset_type(str(asset_type))
+            if asset_type in IGNORED_BUNDLE_KEYS or canonical in IGNORED_BUNDLE_KEYS:
+                continue
+            if canonical not in list_supported_asset_types():
+                continue
+            if not isinstance(payload, dict):
+                continue
+            extracted[canonical] = payload
+        return extracted
+
+    def _normalize_asset_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return the innermost creative payload for validation."""
+
+        if not isinstance(payload, dict):
+            return {}
+        for key in ("formatted_output", "content"):
+            nested = payload.get(key)
+            if isinstance(nested, dict) and nested:
+                return nested
+        return payload
 
     def _is_non_empty(self, value: Any) -> bool:
         """Return whether a value contains meaningful content."""
