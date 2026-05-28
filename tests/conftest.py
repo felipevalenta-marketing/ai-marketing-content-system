@@ -154,6 +154,7 @@ def sample_campaign_request(sample_brand_name: str) -> dict[str, object]:
 
     return {
         "brand": sample_brand_name,
+        "platform": "instagram",
         "campaign_type": "property_launch",
         "objective": "generate_leads",
         "audience": "relocation_clients",
@@ -171,6 +172,7 @@ def sample_asset_request(sample_brand_name: str) -> dict[str, object]:
 
     return {
         "brand": sample_brand_name,
+        "platform": "instagram",
         "campaign_type": "property_launch",
         "objective": "generate_leads",
         "audience": "relocation_clients",
@@ -181,6 +183,27 @@ def sample_asset_request(sample_brand_name: str) -> dict[str, object]:
         "creative_direction": "Rustic exterior, modern comfort inside, close to Manacor and beaches.",
         "visual_style": "Mediterranean, natural light, premium but approachable",
         "extra_notes": "Do not invent property facts.",
+    }
+
+
+@pytest.fixture
+def sample_creative_direction_request(sample_brand_name: str) -> dict[str, object]:
+    """Return a representative creative direction request."""
+
+    return {
+        "brand": sample_brand_name,
+        "platform": "instagram",
+        "campaign_type": "property_launch",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "location": "sant_llorenc_des_cardassar",
+        "property_type": "rustic_home",
+        "content_type": "creative_direction",
+        "platforms": ["instagram", "facebook", "linkedin", "email"],
+        "visual_style": "mediterranean_lifestyle",
+        "tone": "premium but approachable",
+        "creative_direction": "Rustic exterior with modern comfort inside, close to Manacor and beaches.",
+        "extra_notes": "Keep visuals realistic, warm, and grounded in Mallorca lifestyle.",
     }
 
 

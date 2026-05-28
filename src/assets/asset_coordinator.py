@@ -147,13 +147,18 @@ class AssetCoordinator:
         """Build the asset plan."""
 
         log_context(self.logger, "Building asset plan")
-        return build_asset_plan(request)
+        plan = build_asset_plan(request)
+        return self._attach_creative_guidance(plan, request)
 
     def build_asset_requirements(self, request: dict[str, Any]) -> dict[str, Any]:
         """Build the asset requirements."""
 
         log_context(self.logger, "Building asset requirements")
-        return build_asset_requirements(request)
+        requirements = build_asset_requirements(request)
+        creative_guidance = self._extract_creative_guidance(request)
+        if creative_guidance:
+            requirements["creative_direction"] = creative_guidance
+        return requirements
 
     def map_assets_to_platforms(self, request: dict[str, Any]) -> dict[str, list[str]]:
         """Map requested assets to target platforms."""
@@ -192,6 +197,7 @@ class AssetCoordinator:
             "assets": assets,
             "image_prompt_result": normalized_request.get("image_prompt_result", {}),
             "video_script_result": normalized_request.get("video_script_result", {}),
+            "creative_direction_result": normalized_request.get("creative_direction_result", {}),
             "missing_assets": missing_assets,
             "platform_mapping": self.map_assets_to_platforms(normalized_request),
             "governance_summary": self._build_governance_summary(normalized_request, assets),
@@ -231,6 +237,7 @@ class AssetCoordinator:
         normalized["platforms"] = list(normalized.get("platforms", [])) if isinstance(normalized.get("platforms"), list) else []
         normalized["assets_required"] = self._requested_assets(normalized)
         normalized["creative_direction"] = str(normalized.get("creative_direction", "")).strip()
+        normalized["creative_direction_result"] = dict(normalized.get("creative_direction_result", {})) if isinstance(normalized.get("creative_direction_result"), dict) else {}
         normalized["visual_style"] = str(normalized.get("visual_style", "")).strip()
         normalized["image_type"] = str(normalized.get("image_type", "")).strip()
         normalized["aspect_ratio"] = str(normalized.get("aspect_ratio", "")).strip()
@@ -350,11 +357,36 @@ class AssetCoordinator:
             "campaign_assets_present": bool(request.get("campaign_assets")),
             "image_prompt_result_present": bool(request.get("image_prompt_result")),
             "video_script_result_present": bool(request.get("video_script_result")),
+            "creative_direction_result_present": bool(request.get("creative_direction_result")),
             "campaign_metadata": campaign_metadata,
         }
         if contract is not None:
             metadata["contract"] = contract
         return metadata
+
+    def _attach_creative_guidance(self, plan: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+        """Attach creative direction guidance to the asset plan."""
+
+        creative_guidance = self._extract_creative_guidance(request)
+        if not creative_guidance:
+            return plan
+        enriched = dict(plan)
+        enriched["creative_direction_guidance"] = {
+            "visual_identity": creative_guidance.get("visual_identity", {}),
+            "moodboard": creative_guidance.get("moodboard", {}),
+            "color_palette": creative_guidance.get("color_palette", {}),
+            "lighting_direction": creative_guidance.get("lighting_direction", ""),
+            "camera_style": creative_guidance.get("camera_style", ""),
+            "platform_guidelines": creative_guidance.get("platform_guidelines", {}),
+            "media_guidelines": creative_guidance.get("media_guidelines", {}),
+        }
+        return enriched
+
+    def _extract_creative_guidance(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Safely extract creative direction guidance if present."""
+
+        guidance = request.get("creative_direction_result", {})
+        return dict(guidance) if isinstance(guidance, dict) else {}
 
     def _merge_image_prompt_result(self, asset: dict[str, Any] | None, image_prompt_result: dict[str, Any]) -> dict[str, Any]:
         """Attach enhanced image prompt output to an image asset entry."""

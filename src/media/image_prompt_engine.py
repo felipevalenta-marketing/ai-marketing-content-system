@@ -139,6 +139,11 @@ class ImagePromptEngine:
     def select_visual_style(self, request: dict[str, Any]) -> dict[str, Any]:
         """Select a style preset based on request hints and fallback defaults."""
 
+        creative_guidance = request.get("creative_direction_result", {})
+        if isinstance(creative_guidance, dict):
+            creative_identity = creative_guidance.get("visual_identity", {})
+            if isinstance(creative_identity, dict) and creative_identity.get("name"):
+                return get_visual_style(str(creative_identity.get("name")))
         requested_style = str(request.get("visual_style") or request.get("style") or DEFAULT_VISUAL_STYLE).strip()
         style = get_visual_style(requested_style)
         if requested_style and style.get("name") != normalize_key(requested_style):
@@ -165,6 +170,10 @@ class ImagePromptEngine:
         objective = str(request.get("objective", "")).strip()
         audience = str(request.get("audience", "")).strip()
         aspect_ratio = str(request.get("aspect_ratio", "")).strip()
+        creative_guidance = request.get("creative_direction_result", {})
+        creative_identity = creative_guidance.get("visual_identity", {}) if isinstance(creative_guidance, dict) else {}
+        creative_moodboard = creative_guidance.get("moodboard", {}) if isinstance(creative_guidance, dict) else {}
+        creative_palette = creative_guidance.get("color_palette", {}) if isinstance(creative_guidance, dict) else {}
 
         components = [
             f"Create a premium, realistic, English-first image prompt for {platform} in the {image_type} category.",
@@ -197,6 +206,12 @@ class ImagePromptEngine:
             components.append(f"Objective context: {objective}.")
         if creative_direction:
             components.append(f"Creative direction: {creative_direction}.")
+        if isinstance(creative_identity, dict) and creative_identity.get("name"):
+            components.append(f"Visual identity: {creative_identity.get('name')} with {creative_identity.get('mood', '')}.")
+        if isinstance(creative_palette, dict) and creative_palette.get("name"):
+            components.append(f"Color palette guidance: {creative_palette.get('name')} with primary tones {', '.join(creative_palette.get('primary_colors', []))}.")
+        if isinstance(creative_moodboard, dict) and creative_moodboard.get("rule_names"):
+            components.append("Moodboard rules: " + ", ".join(str(rule) for rule in creative_moodboard.get("rule_names", []) if rule))
         if rules.get("prompt_fragments"):
             components.append("Cinematic rules: " + " ".join(rules["prompt_fragments"]))
         components.append("Emphasize realistic architectural photography, believable textures, natural light, and premium but approachable realism.")

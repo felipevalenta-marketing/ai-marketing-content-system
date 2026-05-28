@@ -63,7 +63,7 @@ IMAGE_REQUIREMENTS = {
     "asset_types": ["image_prompt"],
     "required_fields": ["subject", "composition", "lighting", "style", "aspect_ratio", "negative_prompt", "platform_use"],
     "visual_style_field": "visual_style",
-    "readiness_fields": ["image_type", "visual_style", "aspect_ratio", "creative_direction"],
+    "readiness_fields": ["image_type", "visual_style", "aspect_ratio", "creative_direction", "visual_identity", "color_palette"],
     "creative_notes": [
         "Specify aspect ratio, subject, lighting, composition, and negative prompt.",
         "Keep brand visual consistency and realism.",
@@ -74,7 +74,7 @@ IMAGE_REQUIREMENTS = {
 VIDEO_REQUIREMENTS = {
     "asset_types": ["video_prompt"],
     "required_fields": ["scene_description", "camera_motion", "sequence", "mood", "duration", "voiceover_direction", "platform_use"],
-    "readiness_fields": ["duration", "scene_sequence", "storyboard", "camera_direction", "music_mood"],
+    "readiness_fields": ["duration", "scene_sequence", "storyboard", "camera_direction", "music_mood", "creative_direction", "visual_identity"],
     "creative_notes": [
         "Specify sequence, duration, camera motion, and voiceover direction.",
         "Keep cinematic direction grounded and practical.",
@@ -119,6 +119,8 @@ def build_asset_requirements(request: dict[str, Any]) -> dict[str, Any]:
             "visual_style": str(request.get("visual_style", "")).strip(),
             "aspect_ratio": str(request.get("aspect_ratio", "")).strip(),
             "creative_direction": str(request.get("creative_direction", "")).strip(),
+            "visual_identity": _extract_creative_guidance(request).get("visual_identity_used", ""),
+            "color_palette": _extract_creative_guidance(request).get("color_palette_used", ""),
             "ready": all(
                 [
                     str(request.get("image_type", "")).strip(),
@@ -135,6 +137,8 @@ def build_asset_requirements(request: dict[str, Any]) -> dict[str, Any]:
             "storyboard": request.get("storyboard", []),
             "camera_direction": request.get("camera_direction", ""),
             "music_mood": str(request.get("tone", "")).strip() or str(request.get("music_mood", "")).strip(),
+            "creative_direction": str(request.get("creative_direction", "")).strip(),
+            "visual_identity": _extract_creative_guidance(request).get("visual_identity_used", ""),
             "ready": all(
                 [
                     str(request.get("video_type", "")).strip(),
@@ -152,6 +156,7 @@ def build_asset_requirements(request: dict[str, Any]) -> dict[str, Any]:
         },
         "creative_direction": str(request.get("creative_direction", "")).strip(),
         "visual_style": str(request.get("visual_style", "")).strip(),
+        "creative_direction_result": _extract_creative_guidance(request),
         "extra_notes": str(request.get("extra_notes", "")).strip(),
     }
 
@@ -171,3 +176,10 @@ def get_asset_requirement_template(asset_type: str) -> dict[str, Any]:
         "campaign_bundle": {"required_fields": ["campaign_name", "assets", "platform_plan", "governance_summary"], "creative_notes": ["Bundle of coordinated assets."]},
     }
     return templates.get(key, {"required_fields": ["raw_content"], "creative_notes": ["Future-ready placeholder requirements."]})
+
+
+def _extract_creative_guidance(request: dict[str, Any]) -> dict[str, Any]:
+    """Safely extract creative direction guidance if it is present."""
+
+    guidance = request.get("creative_direction_result", {})
+    return dict(guidance) if isinstance(guidance, dict) else {}

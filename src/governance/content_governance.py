@@ -10,6 +10,7 @@ from src.governance.governance_result import build_governance_failure, build_gov
 from src.governance.governance_rules import get_governance_rules
 from src.governance.platform_compliance import PlatformComplianceChecker
 from src.governance.quality_scoring import QualityScorer
+from src.creative.creative_validator import CreativeDirectionValidator
 from src.media.image_prompt_validator import ImagePromptValidator
 from src.media.video_script_validator import VideoScriptValidator
 from src.utils.logger import get_logger, log_context, log_warning
@@ -25,6 +26,7 @@ class ContentGovernanceEngine:
         self.brand_checker = BrandComplianceChecker(self.rules)
         self.platform_checker = PlatformComplianceChecker(self.rules)
         self.factual_safety_checker = FactualSafetyChecker(self.rules)
+        self.creative_direction_validator = CreativeDirectionValidator(self.rules)
         self.image_prompt_validator = ImagePromptValidator(self.rules)
         self.video_script_validator = VideoScriptValidator()
 
@@ -43,6 +45,8 @@ class ContentGovernanceEngine:
 
         log_context(self.logger, "Evaluating content governance")
         content_type = str(payload.get("content_type", "")).strip().lower()
+        if content_type == "creative_direction" or payload.get("creative_direction_result"):
+            return self._evaluate_creative_direction(payload)
         if content_type == "image_prompt" or payload.get("image_prompt_result"):
             return self._evaluate_image_prompt(payload)
         if content_type == "video_script" or payload.get("video_script_result"):
@@ -276,6 +280,89 @@ class ContentGovernanceEngine:
             recommendations.append("Adjust aspect ratio or platform framing for better fit.")
         if factual_result["score"] < 90:
             recommendations.append("Remove any unsupported property claims from the visual prompt.")
+        return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
+
+    def _evaluate_creative_direction(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate creative direction guidance."""
+
+        creative_result = payload.get("creative_direction_result")
+        if not isinstance(creative_result, dict) or not creative_result:
+            creative_result = {
+                "creative_direction_type": str(payload.get("creative_direction_type", "") or ""),
+                "brand": payload.get("brand", ""),
+                "campaign_type": payload.get("campaign_type", ""),
+                "visual_identity": payload.get("visual_identity", {}),
+                "moodboard": payload.get("moodboard", {}),
+                "color_palette": payload.get("color_palette", {}),
+                "lighting_direction": payload.get("lighting_direction", ""),
+                "camera_style": payload.get("camera_style", ""),
+                "composition_rules": payload.get("composition_rules", []),
+                "platform_guidelines": payload.get("platform_creative_guidelines", payload.get("platform_guidelines", {})),
+                "media_guidelines": payload.get("media_guidelines", {}),
+                "asset_guidelines": payload.get("asset_guidelines", {}),
+                "creative_direction": payload.get("creative_direction", ""),
+                "metadata": payload.get("metadata", {}),
+            }
+
+        validation = self.creative_direction_validator.validate(creative_result)
+        brand_result = self.brand_checker.check({
+            "brand": payload.get("brand", ""),
+            "platform": payload.get("platform", ""),
+            "content_type": "creative_direction",
+            "formatted_output": {
+                "title": str(creative_result.get("creative_direction_type", "")),
+                "short_description": str(creative_result.get("lighting_direction", "")),
+                "long_description": str(creative_result.get("camera_style", "")),
+                "highlights": [rule.get("description", "") for rule in creative_result.get("composition_rules", []) if isinstance(rule, dict)],
+                "cta": "",
+            },
+            "platform_variants": payload.get("platform_variants", {}),
+            "metadata": payload.get("metadata", {}),
+        })
+        platform_result = {
+            "score": validation["scores"]["platform_fit"],
+            "warnings": [],
+            "errors": [],
+            "checks": {"creative_direction_platform_fit": validation["scores"]["platform_fit"]},
+        }
+        factual_result = {
+            "score": validation["scores"]["realism"],
+            "warnings": list(validation["warnings"]),
+            "errors": list(validation["errors"]),
+            "checks": {"creative_direction_realism": validation["scores"]["realism"]},
+        }
+        quality_result = {
+            "score": validation["scores"]["completeness"],
+            "warnings": list(validation["warnings"]),
+            "errors": list(validation["errors"]),
+            "checks": {"creative_direction_completeness": validation["scores"]["completeness"]},
+        }
+        scores = {
+            "quality_score": quality_result["score"],
+            "brand_score": brand_result["score"],
+            "platform_score": platform_result["score"],
+            "factual_safety_score": factual_result["score"],
+        }
+        warnings = list(dict.fromkeys(validation["warnings"] + brand_result["warnings"]))
+        errors = list(dict.fromkeys(validation["errors"] + brand_result["errors"]))
+        checks = {
+            "quality": quality_result["checks"],
+            "brand": brand_result["checks"],
+            "platform": platform_result["checks"],
+            "factual_safety": factual_result["checks"],
+            "creative_direction_validation": validation,
+        }
+        recommendations = []
+        if validation["scores"]["brand_fit"] < 80:
+            recommendations.append("Align the creative direction more closely with the selected visual identity.")
+        if validation["scores"]["visual_consistency"] < 80:
+            recommendations.append("Strengthen palette, lighting, and composition consistency.")
+        if validation["scores"]["platform_fit"] < 80:
+            recommendations.append("Refine the platform-specific creative guidance.")
+        if validation["scores"]["realism"] < 80:
+            recommendations.append("Remove exaggerated or unrealistic visual cues.")
+        if validation["scores"]["completeness"] < 80:
+            recommendations.append("Add clearer moodboard and media guidance.")
         return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
 
     def _evaluate_video_script(self, payload: dict[str, Any]) -> dict[str, Any]:

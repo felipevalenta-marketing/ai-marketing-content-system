@@ -331,6 +331,17 @@ def handle_smoke(args: Any) -> dict[str, Any]:
             pipeline.video_script_engine.generate_video_script(video_script_sample)
         ).get("valid")
     )
+    creative_direction_sample = {
+        "brand": sample_brand or "sample_brand",
+        "campaign_type": "property_launch",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "platforms": ["instagram", "facebook", "linkedin"],
+        "creative_direction": "A calm Mediterranean property reveal with a premium but approachable tone.",
+    }
+    checks["creative_direction_engine_ready"] = bool(
+        pipeline.creative_direction_engine.generate_creative_direction(creative_direction_sample).get("success")
+    )
     checks["adapter_ready"] = bool(
         adapter.adapt(
             {
@@ -394,6 +405,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
             "formatter_ready",
             "validator_ready",
             "adapter_ready",
+            "creative_direction_engine_ready",
             "governance_ready",
             "campaign_ready",
             "asset_ready",
@@ -568,6 +580,50 @@ def _run_generate_dry_run(
         result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
         return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
 
+    if request.get("content_type") == "creative_direction":
+        creative_request = dict(request)
+        creative_request["creative_direction_type"] = creative_request.get("creative_direction_type") or pipeline.config.default_creative_direction_type
+        creative_request["visual_style"] = creative_request.get("visual_style") or pipeline.config.default_visual_identity
+        creative_result = pipeline.creative_direction_engine.generate_creative_direction(creative_request)
+        summary = _build_generate_summary(
+            {
+                "creative_direction_result": creative_result,
+                "creative_direction_type": creative_result.get("creative_direction_type", ""),
+                "visual_identity": creative_result.get("visual_identity", {}),
+                "moodboard": creative_result.get("moodboard", {}),
+                "color_palette": creative_result.get("color_palette", {}),
+                "metadata": {"routing": {"route_reason": "deterministic creative direction engine"}},
+            },
+            request,
+            dry_run=True,
+        )
+        result = _wrap_command_result(
+            command="generate",
+            success=bool(creative_result.get("success", True)),
+            mode="dry_run",
+            dry_run=True,
+            brand=request.get("brand", ""),
+            platform=request.get("platform", ""),
+            content_type=request.get("content_type", ""),
+            summary=summary,
+            payload={
+                "context_summary": context.get("summary", {}),
+                "creative_direction_result": creative_result,
+                "planned_execution": [
+                    "validate request",
+                    "load brand context",
+                    "generate deterministic creative direction",
+                    "skip OpenAI generation in dry-run",
+                    "skip export in dry-run" if export_requested else "no export requested",
+                ],
+            },
+            warnings=list(creative_result.get("warnings", [])),
+            errors=list(creative_result.get("errors", [])),
+            metadata={"export_requested": export_requested},
+        )
+        result = _attach_cli_execution_metadata(result, command_started, "generate_dry_run")
+        return _maybe_attach_dry_run_report(result, request, args=args, logger=logger)
+
     prompt_result = pipeline.build_prompt(request, context)
     if prompt_result.get("errors"):
         result = _wrap_command_result(
@@ -648,6 +704,16 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
                 "scene_count": len(result.get("scene_sequence", []) or []),
                 "storyboard_count": len(result.get("storyboard", []) or []),
                 "music_mood": result.get("music_mood", ""),
+            }
+        )
+    if request.get("content_type") == "creative_direction" or result.get("creative_direction_result"):
+        creative_result = result.get("creative_direction_result", {}) if isinstance(result.get("creative_direction_result"), dict) else {}
+        summary.update(
+            {
+                "creative_direction_type": result.get("creative_direction_type", creative_result.get("creative_direction_type", "")),
+                "visual_identity": creative_result.get("visual_identity", {}).get("name", "") if isinstance(creative_result.get("visual_identity"), dict) else result.get("visual_identity", ""),
+                "moodboard_rule_count": len(creative_result.get("moodboard", {}).get("rules", [])) if isinstance(creative_result.get("moodboard"), dict) else 0,
+                "color_palette": creative_result.get("color_palette", {}).get("name", "") if isinstance(creative_result.get("color_palette"), dict) else result.get("color_palette", ""),
             }
         )
     if not dry_run and isinstance(result.get("validation_result"), dict):

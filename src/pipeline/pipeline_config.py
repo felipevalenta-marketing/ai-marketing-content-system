@@ -25,6 +25,7 @@ DEFAULT_SUPPORTED_CONTENT_TYPES = (
     "image_prompt",
     "video_prompt",
     "video_script",
+    "creative_direction",
     "campaign_asset",
 )
 
@@ -97,6 +98,7 @@ class PipelineConfig:
     enable_negative_prompts: bool = field(default_factory=lambda: _env_flag("ENABLE_NEGATIVE_PROMPTS", True))
     enable_video_script_engine: bool = field(default_factory=lambda: _env_flag("ENABLE_VIDEO_SCRIPT_ENGINE", False))
     enable_storyboard_generation: bool = field(default_factory=lambda: _env_flag("ENABLE_STORYBOARD_GENERATION", True))
+    enable_creative_direction_engine: bool = field(default_factory=lambda: _env_flag("ENABLE_CREATIVE_DIRECTION_ENGINE", False))
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
@@ -116,6 +118,8 @@ class PipelineConfig:
     default_image_aspect_ratio: str = field(default_factory=lambda: os.getenv("DEFAULT_IMAGE_ASPECT_RATIO", "4:5"))
     default_video_duration: str = field(default_factory=lambda: os.getenv("DEFAULT_VIDEO_DURATION", "30s"))
     default_video_type: str = field(default_factory=lambda: os.getenv("DEFAULT_VIDEO_TYPE", "instagram_reel"))
+    default_creative_direction_type: str = field(default_factory=lambda: os.getenv("DEFAULT_CREATIVE_DIRECTION_TYPE", "campaign_visual_direction"))
+    default_visual_identity: str = field(default_factory=lambda: os.getenv("DEFAULT_VISUAL_IDENTITY", "mediterranean_luxury"))
     generation_defaults: dict[str, Any] = field(
         default_factory=lambda: {
             "provider": "openai",

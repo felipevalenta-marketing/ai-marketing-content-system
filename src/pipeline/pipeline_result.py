@@ -36,6 +36,14 @@ class PipelineResult:
     camera_direction: dict[str, Any] | None
     music_mood: str | None
     video_script_validation: dict[str, Any] | None
+    creative_direction_result: dict[str, Any] | None
+    creative_direction_type: str | None
+    visual_identity: dict[str, Any] | None
+    moodboard: dict[str, Any] | None
+    color_palette: dict[str, Any] | None
+    platform_creative_guidelines: dict[str, Any] | None
+    media_guidelines: dict[str, Any] | None
+    creative_validation: dict[str, Any] | None
     adaptation_result: dict[str, Any] | None
     platform_variants: dict[str, Any]
     governance_result: dict[str, Any] | None
@@ -98,6 +106,14 @@ class PipelineResult:
             "camera_direction": self.camera_direction,
             "music_mood": self.music_mood,
             "video_script_validation": self.video_script_validation,
+            "creative_direction_result": self.creative_direction_result,
+            "creative_direction_type": self.creative_direction_type,
+            "visual_identity": self.visual_identity,
+            "moodboard": self.moodboard,
+            "color_palette": self.color_palette,
+            "platform_creative_guidelines": self.platform_creative_guidelines,
+            "media_guidelines": self.media_guidelines,
+            "creative_validation": self.creative_validation,
             "adaptation_result": self.adaptation_result,
             "platform_variants": self.platform_variants,
             "governance_result": self.governance_result,
@@ -158,6 +174,14 @@ def build_success_result(
     camera_direction: dict[str, Any] | None = None,
     music_mood: str | None = None,
     video_script_validation: dict[str, Any] | None = None,
+    creative_direction_result: dict[str, Any] | None = None,
+    creative_direction_type: str | None = None,
+    visual_identity: dict[str, Any] | None = None,
+    moodboard: dict[str, Any] | None = None,
+    color_palette: dict[str, Any] | None = None,
+    platform_creative_guidelines: dict[str, Any] | None = None,
+    media_guidelines: dict[str, Any] | None = None,
+    creative_validation: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
     governance_result: dict[str, Any] | None = None,
@@ -218,6 +242,14 @@ def build_success_result(
         camera_direction=camera_direction,
         music_mood=music_mood,
         video_script_validation=video_script_validation,
+        creative_direction_result=creative_direction_result,
+        creative_direction_type=creative_direction_type,
+        visual_identity=visual_identity,
+        moodboard=moodboard,
+        color_palette=color_palette,
+        platform_creative_guidelines=platform_creative_guidelines,
+        media_guidelines=media_guidelines,
+        creative_validation=creative_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,
@@ -280,6 +312,14 @@ def build_failure_result(
     camera_direction: dict[str, Any] | None = None,
     music_mood: str | None = None,
     video_script_validation: dict[str, Any] | None = None,
+    creative_direction_result: dict[str, Any] | None = None,
+    creative_direction_type: str | None = None,
+    visual_identity: dict[str, Any] | None = None,
+    moodboard: dict[str, Any] | None = None,
+    color_palette: dict[str, Any] | None = None,
+    platform_creative_guidelines: dict[str, Any] | None = None,
+    media_guidelines: dict[str, Any] | None = None,
+    creative_validation: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
     governance_result: dict[str, Any] | None = None,
@@ -339,6 +379,14 @@ def build_failure_result(
         camera_direction=camera_direction,
         music_mood=music_mood,
         video_script_validation=video_script_validation,
+        creative_direction_result=creative_direction_result,
+        creative_direction_type=creative_direction_type,
+        visual_identity=visual_identity,
+        moodboard=moodboard,
+        color_palette=color_palette,
+        platform_creative_guidelines=platform_creative_guidelines,
+        media_guidelines=media_guidelines,
+        creative_validation=creative_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,

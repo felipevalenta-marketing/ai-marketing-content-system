@@ -18,6 +18,8 @@ from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
 from src.reporting.reporting_engine import ReportingEngine
+from src.creative.creative_direction_engine import CreativeDirectionEngine
+from src.creative.creative_validator import CreativeDirectionValidator
 from src.adapters.platform_adapter import PlatformAdapter
 from src.assets.asset_coordinator import AssetCoordinator
 from src.assets.asset_contracts import normalize_asset_type
@@ -61,6 +63,8 @@ class ContentGenerationPipeline:
         image_prompt_validator: ImagePromptValidator | None = None,
         video_script_engine: VideoScriptEngine | None = None,
         video_script_validator: VideoScriptValidator | None = None,
+        creative_direction_engine: CreativeDirectionEngine | None = None,
+        creative_direction_validator: CreativeDirectionValidator | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -83,6 +87,8 @@ class ContentGenerationPipeline:
         self.image_prompt_validator = image_prompt_validator or ImagePromptValidator()
         self.video_script_engine = video_script_engine or VideoScriptEngine(logger=self.logger)
         self.video_script_validator = video_script_validator or VideoScriptValidator()
+        self.creative_direction_engine = creative_direction_engine or CreativeDirectionEngine(logger=self.logger)
+        self.creative_direction_validator = creative_direction_validator or CreativeDirectionValidator()
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -221,6 +227,14 @@ class ContentGenerationPipeline:
         camera_direction: dict[str, Any] | None = None,
         music_mood: str | None = None,
         video_script_validation: dict[str, Any] | None = None,
+        creative_direction_result: dict[str, Any] | None = None,
+        creative_direction_type: str | None = None,
+        visual_identity: dict[str, Any] | None = None,
+        moodboard: dict[str, Any] | None = None,
+        color_palette: dict[str, Any] | None = None,
+        platform_creative_guidelines: dict[str, Any] | None = None,
+        media_guidelines: dict[str, Any] | None = None,
+        creative_validation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a structured pipeline result."""
 
@@ -252,6 +266,14 @@ class ContentGenerationPipeline:
                 camera_direction=camera_direction,
                 music_mood=music_mood,
                 video_script_validation=video_script_validation,
+                creative_direction_result=creative_direction_result,
+                creative_direction_type=creative_direction_type,
+                visual_identity=visual_identity,
+                moodboard=moodboard,
+                color_palette=color_palette,
+                platform_creative_guidelines=platform_creative_guidelines,
+                media_guidelines=media_guidelines,
+                creative_validation=creative_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -312,6 +334,14 @@ class ContentGenerationPipeline:
                 camera_direction=camera_direction,
                 music_mood=music_mood,
                 video_script_validation=video_script_validation,
+                creative_direction_result=creative_direction_result,
+                creative_direction_type=creative_direction_type,
+                visual_identity=visual_identity,
+                moodboard=moodboard,
+                color_palette=color_palette,
+                platform_creative_guidelines=platform_creative_guidelines,
+                media_guidelines=media_guidelines,
+                creative_validation=creative_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -404,6 +434,92 @@ class ContentGenerationPipeline:
                 error=error,
                 warnings=context.get("warnings", []),
             )
+
+        creative_direction_result: dict[str, Any] | None = None
+        creative_direction_type: str | None = None
+        visual_identity: dict[str, Any] | None = None
+        moodboard: dict[str, Any] | None = None
+        color_palette: dict[str, Any] | None = None
+        platform_creative_guidelines: dict[str, Any] | None = None
+        media_guidelines: dict[str, Any] | None = None
+        creative_validation: dict[str, Any] | None = None
+
+        if self.config.enable_creative_direction_engine or normalized_request["content_type"] == "creative_direction":
+            creative_started = perf_counter()
+            creative_request = self._build_creative_direction_request(normalized_request, context)
+            creative_direction_result = self.creative_direction_engine.generate_creative_direction(creative_request)
+            stage_timings["creative_direction"] = round(perf_counter() - creative_started, 6)
+            creative_direction_type = str(creative_direction_result.get("creative_direction_type", self.config.default_creative_direction_type))
+            if isinstance(creative_direction_result.get("visual_identity"), dict):
+                visual_identity = dict(creative_direction_result.get("visual_identity", {}))
+            if isinstance(creative_direction_result.get("moodboard"), dict):
+                moodboard = dict(creative_direction_result.get("moodboard", {}))
+            if isinstance(creative_direction_result.get("color_palette"), dict):
+                color_palette = dict(creative_direction_result.get("color_palette", {}))
+            if isinstance(creative_direction_result.get("platform_guidelines"), dict):
+                platform_creative_guidelines = dict(creative_direction_result.get("platform_guidelines", {}))
+            if isinstance(creative_direction_result.get("media_guidelines"), dict):
+                media_guidelines = dict(creative_direction_result.get("media_guidelines", {}))
+            if isinstance(creative_direction_result.get("validation"), dict):
+                creative_validation = dict(creative_direction_result.get("validation", {}))
+
+            if normalized_request["content_type"] == "creative_direction":
+                creative_errors = list(creative_direction_result.get("errors", [])) if isinstance(creative_direction_result, dict) else []
+                creative_warnings = list(creative_direction_result.get("warnings", [])) if isinstance(creative_direction_result, dict) else []
+                creative_metadata = {
+                    **base_metadata,
+                    "creative_direction_type": creative_direction_type,
+                    "visual_identity_used": visual_identity.get("name", "") if isinstance(visual_identity, dict) else "",
+                    "moodboard_rule_count": len(moodboard.get("rules", [])) if isinstance(moodboard, dict) else 0,
+                    "color_palette_used": color_palette.get("name", "") if isinstance(color_palette, dict) else "",
+                }
+                creative_metadata["execution"] = self._build_execution_metadata(
+                    execution_started_at,
+                    stage_timings,
+                    success=bool(creative_direction_result.get("success", True)),
+                    stage="creative_direction",
+                    error="; ".join(creative_errors) if creative_errors else None,
+                )
+                result = self.build_result(
+                    success=bool(creative_direction_result.get("success", True)),
+                    request=normalized_request,
+                    context=context,
+                    prompt_payload=None,
+                    ai_response=None,
+                    parsed_output=None,
+                    formatted_output=None,
+                    validation_result=None,
+                    adaptation_result=None,
+                    platform_variants={},
+                    rendered_markdown=None,
+                    rendered_text=None,
+                    exported_files={},
+                    output_metadata=build_output_metadata(
+                        brand=normalized_request["brand"],
+                        platform=normalized_request["platform"],
+                        content_type=normalized_request["content_type"],
+                        objective=normalized_request.get("objective", ""),
+                        audience=normalized_request.get("audience", ""),
+                        location=normalized_request.get("location", ""),
+                        property_type=normalized_request.get("property_type", ""),
+                        model="",
+                        provider="",
+                        validation_status="passed" if creative_direction_result.get("success", True) else "failed",
+                        export_paths={},
+                    ),
+                    metadata=creative_metadata,
+                    error="; ".join(creative_errors) if creative_errors else None,
+                    warnings=creative_warnings,
+                    creative_direction_result=creative_direction_result,
+                    creative_direction_type=creative_direction_type,
+                    visual_identity=visual_identity,
+                    moodboard=moodboard,
+                    color_palette=color_palette,
+                    platform_creative_guidelines=platform_creative_guidelines,
+                    media_guidelines=media_guidelines,
+                    creative_validation=creative_validation,
+                )
+                return self._attach_reporting(result, request=normalized_request, context=context)
 
         prompt_started = perf_counter()
         prompt_result = self.build_prompt(normalized_request, context)
@@ -654,6 +770,7 @@ class ContentGenerationPipeline:
                         context,
                         parsed_output,
                         formatted_output,
+                        creative_direction_result,
                     )
                     image_prompt_result = self.image_prompt_engine.generate_image_prompt(image_prompt_payload)
                     enhanced_image_prompt = image_prompt_result.get("prompt", "")
@@ -690,6 +807,7 @@ class ContentGenerationPipeline:
                     context,
                     parsed_output,
                     formatted_output,
+                    creative_direction_result,
                 )
                 image_prompt_result = self.image_prompt_engine.generate_image_prompt(image_prompt_payload)
                 enhanced_image_prompt = image_prompt_result.get("prompt", "")
@@ -722,6 +840,7 @@ class ContentGenerationPipeline:
                     context,
                     parsed_output,
                     formatted_output,
+                    creative_direction_result,
                 )
                 video_script_result = self.video_script_engine.generate_video_script(video_script_payload)
                 video_type = str(video_script_result.get("video_type", normalized_request.get("video_type", "")))
@@ -869,6 +988,7 @@ class ContentGenerationPipeline:
                 "platforms": list(campaign_contract.platform_plan.keys()) or list(self.config.default_target_platforms),
                 "assets_required": list(campaign_contract.required_assets),
                 "extra_notes": normalized_request.get("extra_notes", ""),
+                "creative_direction_result": creative_direction_result or {},
                 "enable_export": self.config.enable_campaign_export,
             }
             seed_assets = self._build_campaign_assets(
@@ -907,6 +1027,7 @@ class ContentGenerationPipeline:
                 "image_type": normalized_request.get("image_type", ""),
                 "aspect_ratio": normalized_request.get("aspect_ratio", ""),
                 "extra_notes": normalized_request.get("extra_notes", ""),
+                "creative_direction_result": creative_direction_result or {},
                 "campaign_result": campaign_result or {},
                 "campaign_strategy": campaign_strategy or {},
                 "campaign_assets": campaign_assets or {},
@@ -1326,6 +1447,7 @@ class ContentGenerationPipeline:
         context: dict[str, Any],
         parsed_output: dict[str, Any],
         formatted_output: dict[str, Any] | None,
+        creative_direction_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a prompt-engine request for image prompt generation."""
 
@@ -1343,6 +1465,7 @@ class ContentGenerationPipeline:
             )
         request_payload["enable_negative_prompts"] = self.config.enable_negative_prompts
         request_payload["enable_cinematic_enhancement"] = self.config.enable_cinematic_enhancement
+        request_payload["creative_direction_result"] = dict(creative_direction_result or {}) if isinstance(creative_direction_result, dict) else {}
         return request_payload
 
     def _build_video_script_request(
@@ -1351,6 +1474,7 @@ class ContentGenerationPipeline:
         context: dict[str, Any],
         parsed_output: dict[str, Any],
         formatted_output: dict[str, Any] | None,
+        creative_direction_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a video script engine request from structured pipeline data."""
 
@@ -1368,6 +1492,24 @@ class ContentGenerationPipeline:
                 or request.get("extra_notes", "")
             )
         request_payload["enable_storyboard_generation"] = self.config.enable_storyboard_generation
+        request_payload["creative_direction_result"] = dict(creative_direction_result or {}) if isinstance(creative_direction_result, dict) else {}
+        return request_payload
+
+    def _build_creative_direction_request(self, request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        """Build a creative direction request from the pipeline request payload."""
+
+        request_payload = dict(request)
+        request_payload["content_type"] = "creative_direction"
+        request_payload["campaign_type"] = request.get("campaign_type") or self.config.default_campaign_type
+        request_payload["creative_direction_type"] = request.get("creative_direction_type") or self.config.default_creative_direction_type
+        request_payload["visual_style"] = request.get("visual_style") or self.config.default_visual_identity
+        request_payload["platforms"] = list(request.get("platforms") or [request.get("platform", self.config.default_platform)])
+        request_payload["creative_direction"] = (
+            request.get("creative_direction")
+            or request.get("extra_notes")
+            or str(context.get("summary", {}).get("combined_context", "")).strip()
+        )
+        request_payload["extra_notes"] = request.get("extra_notes") or str(context.get("summary", {}).get("combined_context", "")).strip()
         return request_payload
 
     def _extract_image_prompt_seed(self, payload: dict[str, Any] | None) -> str:
@@ -1447,6 +1589,7 @@ class ContentGenerationPipeline:
                 "report_export_paths": report_bundle.get("exported_files", {}),
                 "image_prompt_report": report_bundle.get("image_prompt_report", {}),
                 "video_script_report": report_bundle.get("video_script_report", {}),
+                "creative_direction_report": report_bundle.get("creative_direction_report", {}),
                 "metadata": {**metadata, "reporting": report_metadata},
             }
         )

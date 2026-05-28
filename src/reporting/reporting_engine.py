@@ -34,6 +34,7 @@ class ReportingEngine:
         reports = self.builder.build_reports(payload)
         consolidated = reports["consolidated_report"]
         video_script_report = self._build_video_script_report(payload, reports["asset_report"])
+        creative_direction_report = self._build_creative_direction_report(payload)
         rendered = self.renderer.render(consolidated, output_format=render_format)
         rendered_markdown = self.renderer.render_markdown(consolidated)
         rendered_text = self.renderer.render_terminal(consolidated)
@@ -57,20 +58,22 @@ class ReportingEngine:
             "consolidated_report": consolidated,
             "image_prompt_report": self._build_image_prompt_report(payload, reports["asset_report"]),
             "video_script_report": video_script_report,
+            "creative_direction_report": creative_direction_report,
             "rendered": rendered,
             "rendered_markdown": rendered_markdown,
             "rendered_text": rendered_text,
             "exported_files": exported_files,
-            "warnings": self._collect_warnings({**reports, "video_script_report": video_script_report}),
-            "errors": self._collect_errors({**reports, "video_script_report": video_script_report}),
+            "warnings": self._collect_warnings({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report}),
+            "errors": self._collect_errors({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report}),
             "metadata": {
                 "brand": self._extract_brand(payload),
                 "report_name": report_name or safe_text(consolidated.get("title", "report"), limit=80),
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),
-                "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report"],
+                "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report", "creative_direction_report"],
                 "image_prompt_metrics_present": self._has_image_prompt_data(payload),
                 "video_script_metrics_present": self._has_video_script_data(payload),
+                "creative_direction_metrics_present": self._has_creative_direction_data(payload),
             },
         }
         return bundle
@@ -163,6 +166,32 @@ class ReportingEngine:
             "asset_report_reference": safe_dict(asset_report).get("summary", {}),
         }
 
+    def _build_creative_direction_report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Build a safe creative direction analytics snapshot when available."""
+
+        creative_result = safe_dict(payload.get("creative_direction_result"))
+        creative_validation = safe_dict(payload.get("creative_validation"))
+        if not creative_result and not creative_validation:
+            return {}
+        scores = safe_dict(creative_validation.get("scores"))
+        visual_identity = safe_dict(creative_result.get("visual_identity"))
+        moodboard = safe_dict(creative_result.get("moodboard"))
+        color_palette = safe_dict(creative_result.get("color_palette"))
+        platform_guidelines = safe_dict(creative_result.get("platform_guidelines"))
+        media_guidelines = safe_dict(creative_result.get("media_guidelines"))
+        return {
+            "creative_direction_type": safe_text(creative_result.get("creative_direction_type") or payload.get("creative_direction_type") or "", limit=80),
+            "visual_identity_used": safe_text(visual_identity.get("name") or payload.get("visual_identity_used") or "", limit=80),
+            "moodboard_rule_count": len(safe_list(moodboard.get("rules"))),
+            "color_palette_used": safe_text(color_palette.get("name") or payload.get("color_palette_used") or "", limit=80),
+            "platform_guideline_count": len(platform_guidelines),
+            "media_guideline_count": len(media_guidelines),
+            "creative_validation_status": bool(creative_validation.get("valid", False)) if creative_validation else False,
+            "brand_fit_score": safe_float(scores.get("brand_fit"), 0.0),
+            "realism_score": safe_float(scores.get("realism"), 0.0),
+            "visual_consistency_score": safe_float(scores.get("visual_consistency"), 0.0),
+        }
+
     def _has_image_prompt_data(self, payload: dict[str, Any]) -> bool:
         """Return whether the payload includes image prompt analytics data."""
 
@@ -172,3 +201,8 @@ class ReportingEngine:
         """Return whether the payload includes video script analytics data."""
 
         return bool(safe_dict(payload.get("video_script_result")) or safe_dict(payload.get("video_script_validation")))
+
+    def _has_creative_direction_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes creative direction analytics data."""
+
+        return bool(safe_dict(payload.get("creative_direction_result")) or safe_dict(payload.get("creative_validation")))

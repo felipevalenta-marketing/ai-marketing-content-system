@@ -138,6 +138,11 @@ class VideoScriptEngine:
     def select_scene_template(self, request: dict[str, Any]) -> dict[str, Any]:
         """Select the best scene template for a request."""
 
+        creative_guidance = request.get("creative_direction_result", {})
+        if isinstance(creative_guidance, dict):
+            creative_type = str(creative_guidance.get("creative_direction_type", "")).strip()
+            if creative_type:
+                return get_scene_template(creative_type)
         return resolve_scene_template(request)
 
     def build_scene_sequence(self, request: dict[str, Any], template: dict[str, Any]) -> list[dict[str, Any]]:
@@ -200,9 +205,14 @@ class VideoScriptEngine:
     def build_camera_direction(self, request: dict[str, Any], scenes: list[dict[str, Any]]) -> dict[str, Any]:
         """Build a compact camera direction summary."""
 
+        creative_guidance = request.get("creative_direction_result", {})
+        camera_style = ""
+        if isinstance(creative_guidance, dict):
+            camera_style = str(creative_guidance.get("camera_style", "")).strip()
         return {
             "platform": normalize_key(str(request.get("platform", ""))),
             "framing": "vertical-safe" if normalize_key(str(request.get("platform", ""))) in {"instagram", "tiktok"} else "balanced",
+            "camera_style": camera_style,
             "movement": [scene.get("camera_motion", "") for scene in scenes if scene.get("camera_motion")],
             "shot_types": [self._shot_type_for_scene(request, scene) for scene in scenes],
             "continuity_note": "Maintain cinematic continuity and avoid fake luxury exaggeration.",
@@ -211,6 +221,13 @@ class VideoScriptEngine:
     def build_music_mood(self, request: dict[str, Any]) -> str:
         """Build a music mood recommendation."""
 
+        creative_guidance = request.get("creative_direction_result", {})
+        if isinstance(creative_guidance, dict):
+            media_guidelines = creative_guidance.get("media_guidelines", {})
+            if isinstance(media_guidelines, dict):
+                video_guidance = media_guidelines.get("video_scripts", {})
+                if isinstance(video_guidance, dict) and video_guidance.get("music_direction"):
+                    return str(video_guidance.get("music_direction", "")).strip()
         platform = normalize_key(str(request.get("platform", "")))
         tone = str(request.get("tone") or "premium but approachable").strip().lower()
         if platform in {"instagram", "tiktok"}:
@@ -308,6 +325,7 @@ class VideoScriptEngine:
         normalized["visual_style"] = str(normalized.get("visual_style", "")).strip()
         normalized["tone"] = str(normalized.get("tone", "")).strip()
         normalized["extra_notes"] = str(normalized.get("extra_notes", "")).strip()
+        normalized["creative_direction_result"] = dict(normalized.get("creative_direction_result", {})) if isinstance(normalized.get("creative_direction_result"), dict) else {}
         normalized["enable_storyboard_generation"] = bool(normalized.get("enable_storyboard_generation", True))
         return normalized
 
