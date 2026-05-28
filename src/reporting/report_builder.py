@@ -52,6 +52,7 @@ class ReportBuilder:
             sections={
                 "execution": execution_metrics,
                 "pipeline": self._extract_pipeline_metrics(payload),
+                "cost": self._extract_cost_metrics(payload),
             },
         )
         governance_report = build_governance_report(
@@ -93,6 +94,7 @@ class ReportBuilder:
             "campaign": campaign_report,
             "asset": asset_report,
             "export": export_report,
+            "cost": self._extract_cost_metrics(payload),
         }
         consolidated_metrics = self._build_consolidated_metrics(
             execution_metrics,
@@ -184,6 +186,15 @@ class ReportBuilder:
             "estimated_usage": metrics.get("estimated_usage", False),
             "token_provider": metrics.get("token_provider", ""),
             "token_model": metrics.get("token_model", ""),
+            "input_cost": metrics.get("input_cost", 0.0),
+            "output_cost": metrics.get("output_cost", 0.0),
+            "cached_input_cost": metrics.get("cached_input_cost", 0.0),
+            "total_cost": metrics.get("total_cost", 0.0),
+            "currency": metrics.get("currency", ""),
+            "estimated_cost": metrics.get("estimated_cost", False),
+            "pricing_found": metrics.get("pricing_found", False),
+            "pricing_version": metrics.get("pricing_version", ""),
+            "pricing_source": metrics.get("pricing_source", ""),
         }
 
     def _build_governance_summary(self, metrics: dict[str, Any]) -> dict[str, Any]:
@@ -252,6 +263,10 @@ class ReportBuilder:
             "warning_count": metrics.get("warning_count", 0),
             "error_count": metrics.get("error_count", 0),
             "execution_time_seconds": metrics.get("execution_time_seconds", 0.0),
+            "total_cost": metrics.get("total_cost", 0.0),
+            "currency": metrics.get("currency", ""),
+            "estimated_cost": metrics.get("estimated_cost", False),
+            "pricing_found": metrics.get("pricing_found", False),
         }
 
     def _build_export_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -300,6 +315,15 @@ class ReportBuilder:
             "estimated_usage": bool(execution_metrics.get("estimated_usage")),
             "token_provider": safe_text(execution_metrics.get("token_provider", ""), limit=80),
             "token_model": safe_text(execution_metrics.get("token_model", ""), limit=80),
+            "input_cost": safe_float(execution_metrics.get("input_cost"), 0.0),
+            "output_cost": safe_float(execution_metrics.get("output_cost"), 0.0),
+            "cached_input_cost": safe_float(execution_metrics.get("cached_input_cost"), 0.0),
+            "total_cost": safe_float(execution_metrics.get("total_cost"), 0.0),
+            "currency": safe_text(execution_metrics.get("currency", ""), limit=32),
+            "estimated_cost": bool(execution_metrics.get("estimated_cost")),
+            "pricing_found": bool(execution_metrics.get("pricing_found")),
+            "pricing_version": safe_text(execution_metrics.get("pricing_version", ""), limit=80),
+            "pricing_source": safe_text(execution_metrics.get("pricing_source", ""), limit=80),
             "governance_overall_score": safe_float(governance_metrics.get("overall_score"), 0.0),
             "campaign_complexity": safe_text(campaign_metrics.get("complexity", ""), limit=80),
             "asset_count": safe_int(asset_metrics.get("asset_count"), 0),
@@ -314,6 +338,20 @@ class ReportBuilder:
             "ended_at": execution.get("ended_at", ""),
             "duration_seconds": execution.get("duration_seconds", 0.0),
             "stages": safe_dict(execution.get("stages")),
+        }
+
+    def _extract_cost_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
+        cost_usage = safe_dict(payload.get("cost_usage"))
+        execution_cost_summary = safe_dict(payload.get("execution_cost_summary"))
+        module_cost_summary = safe_dict(payload.get("module_cost_summary"))
+        provider_cost_summary = safe_dict(payload.get("provider_cost_summary"))
+        model_cost_summary = safe_dict(payload.get("model_cost_summary"))
+        return {
+            "cost_usage": cost_usage,
+            "execution_cost_summary": execution_cost_summary,
+            "module_cost_summary": module_cost_summary,
+            "provider_cost_summary": provider_cost_summary,
+            "model_cost_summary": model_cost_summary,
         }
 
     def _extract_export_paths(self, payload: dict[str, Any]) -> dict[str, str]:

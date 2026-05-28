@@ -38,6 +38,11 @@ class ExecutionAnalytics:
         module_token_summary = safe_dict(payload.get("module_token_summary"))
         provider_token_summary = safe_dict(payload.get("provider_token_summary"))
         estimated_token_usage = safe_dict(payload.get("estimated_token_usage"))
+        cost_usage = safe_dict(payload.get("cost_usage"))
+        execution_cost_summary = safe_dict(payload.get("execution_cost_summary"))
+        module_cost_summary = safe_dict(payload.get("module_cost_summary"))
+        provider_cost_summary = safe_dict(payload.get("provider_cost_summary"))
+        model_cost_summary = safe_dict(payload.get("model_cost_summary"))
 
         duration_seconds = safe_float(execution.get("duration_seconds"))
         if duration_seconds <= 0 and stage_timings:
@@ -83,4 +88,19 @@ class ExecutionAnalytics:
             "provider_breakdown": provider_token_summary.get("summary", {}) if isinstance(provider_token_summary.get("summary"), dict) else {},
             "execution_breakdown": execution_token_summary.get("summary", {}) if isinstance(execution_token_summary.get("summary"), dict) else {},
             "estimated_token_usage": estimated_token_usage,
+            "input_cost": safe_float(cost_usage.get("input_cost"), 0.0),
+            "output_cost": safe_float(cost_usage.get("output_cost"), 0.0),
+            "cached_input_cost": safe_float(cost_usage.get("cached_input_cost"), 0.0),
+            "total_cost": safe_float(cost_usage.get("total_cost"), 0.0),
+            "currency": safe_text(cost_usage.get("currency"), limit=32),
+            "estimated_cost": safe_bool(cost_usage.get("estimated_cost")),
+            "pricing_found": safe_bool(cost_usage.get("pricing_found")),
+            "pricing_version": safe_text(cost_usage.get("pricing_version"), limit=80),
+            "pricing_source": safe_text(cost_usage.get("pricing_source"), limit=80),
+            "cost_provider": safe_text(cost_usage.get("provider"), limit=80),
+            "cost_model": safe_text(cost_usage.get("model"), limit=80),
+            "module_cost_breakdown": module_cost_summary.get("summary", {}) if isinstance(module_cost_summary.get("summary"), dict) else {},
+            "provider_cost_breakdown": provider_cost_summary.get("summary", {}) if isinstance(provider_cost_summary.get("summary"), dict) else {},
+            "model_cost_breakdown": model_cost_summary.get("summary", {}) if isinstance(model_cost_summary.get("summary"), dict) else {},
+            "execution_cost_breakdown": execution_cost_summary.get("summary", {}) if isinstance(execution_cost_summary.get("summary"), dict) else {},
         }

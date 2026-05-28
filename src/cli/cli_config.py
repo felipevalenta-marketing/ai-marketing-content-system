@@ -62,6 +62,8 @@ def build_feature_flags() -> dict[str, Any]:
         "enable_token_estimation": pipeline_config.enable_token_estimation,
         "track_input_tokens": pipeline_config.track_input_tokens,
         "track_output_tokens": pipeline_config.track_output_tokens,
+        "enable_cost_tracking": pipeline_config.enable_cost_tracking,
+        "enable_cost_estimation": pipeline_config.enable_cost_estimation,
         "enable_image_prompt_engine": pipeline_config.enable_image_prompt_engine,
         "enable_cinematic_enhancement": pipeline_config.enable_cinematic_enhancement,
         "enable_negative_prompts": pipeline_config.enable_negative_prompts,
@@ -131,6 +133,8 @@ def build_safe_config_summary() -> dict[str, Any]:
         "default_video_type": pipeline_config.default_video_type,
         "default_creative_direction_type": pipeline_config.default_creative_direction_type,
         "default_visual_identity": pipeline_config.default_visual_identity,
+        "default_cost_currency": pipeline_config.default_cost_currency,
+        "cost_round_decimals": pipeline_config.cost_round_decimals,
         "default_asset_types": list(pipeline_config.default_asset_types),
         "export_defaults": {
             "output_root": pipeline_config.output_root,

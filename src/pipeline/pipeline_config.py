@@ -72,6 +72,18 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return default
 
 
+def _env_int(name: str, default: int) -> int:
+    """Read an integer value from the environment safely."""
+
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value.strip())
+    except (TypeError, ValueError):
+        return default
+
+
 @dataclass(frozen=True)
 class PipelineConfig:
     """Runtime configuration for the generation pipeline."""
@@ -97,6 +109,10 @@ class PipelineConfig:
     enable_token_estimation: bool = field(default_factory=lambda: _env_flag("ENABLE_TOKEN_ESTIMATION", True))
     track_input_tokens: bool = field(default_factory=lambda: _env_flag("TRACK_INPUT_TOKENS", _env_flag("TRACK_PROMPT_TOKENS", True)))
     track_output_tokens: bool = field(default_factory=lambda: _env_flag("TRACK_OUTPUT_TOKENS", _env_flag("TRACK_COMPLETION_TOKENS", True)))
+    enable_cost_tracking: bool = field(default_factory=lambda: _env_flag("ENABLE_COST_TRACKING", True))
+    enable_cost_estimation: bool = field(default_factory=lambda: _env_flag("ENABLE_COST_ESTIMATION", True))
+    default_cost_currency: str = field(default_factory=lambda: os.getenv("DEFAULT_COST_CURRENCY", "USD"))
+    cost_round_decimals: int = field(default_factory=lambda: _env_int("COST_ROUND_DECIMALS", 6))
     enable_image_prompt_engine: bool = field(default_factory=lambda: _env_flag("ENABLE_IMAGE_PROMPT_ENGINE", False))
     enable_cinematic_enhancement: bool = field(default_factory=lambda: _env_flag("ENABLE_CINEMATIC_ENHANCEMENT", True))
     enable_negative_prompts: bool = field(default_factory=lambda: _env_flag("ENABLE_NEGATIVE_PROMPTS", True))

@@ -32,6 +32,7 @@ from src.media.video_script_engine import VideoScriptEngine
 from src.media.video_script_validator import VideoScriptValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
+from src.tracking.cost_tracker import CostTracker
 from src.tracking.token_tracker import TokenTracker
 from src.prompts.prompt_builder import PromptBuilder
 from src.utils.file_utils import normalize_key
@@ -85,6 +86,12 @@ class ContentGenerationPipeline:
         self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
         self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
         self.token_tracker = TokenTracker(logger=self.logger)
+        self.cost_tracker = CostTracker(
+            logger=self.logger,
+            enable_fallback=self.config.enable_cost_estimation,
+            default_currency=self.config.default_cost_currency,
+            round_decimals=self.config.cost_round_decimals,
+        )
         self.image_prompt_engine = image_prompt_engine or ImagePromptEngine(logger=self.logger)
         self.image_prompt_validator = image_prompt_validator or ImagePromptValidator()
         self.video_script_engine = video_script_engine or VideoScriptEngine(logger=self.logger)
@@ -216,6 +223,11 @@ class ContentGenerationPipeline:
         module_token_summary: dict[str, Any] | None = None,
         provider_token_summary: dict[str, Any] | None = None,
         estimated_token_usage: dict[str, Any] | None = None,
+        cost_usage: dict[str, Any] | None = None,
+        execution_cost_summary: dict[str, Any] | None = None,
+        module_cost_summary: dict[str, Any] | None = None,
+        provider_cost_summary: dict[str, Any] | None = None,
+        model_cost_summary: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         error: str | None = None,
         warnings: list[str] | None = None,
@@ -252,6 +264,11 @@ class ContentGenerationPipeline:
         module_token_summary = module_token_summary if module_token_summary is not None else metadata_payload.get("module_token_summary")
         provider_token_summary = provider_token_summary if provider_token_summary is not None else metadata_payload.get("provider_token_summary")
         estimated_token_usage = estimated_token_usage if estimated_token_usage is not None else metadata_payload.get("estimated_token_usage")
+        cost_usage = cost_usage if cost_usage is not None else metadata_payload.get("cost_usage")
+        execution_cost_summary = execution_cost_summary if execution_cost_summary is not None else metadata_payload.get("execution_cost_summary")
+        module_cost_summary = module_cost_summary if module_cost_summary is not None else metadata_payload.get("module_cost_summary")
+        provider_cost_summary = provider_cost_summary if provider_cost_summary is not None else metadata_payload.get("provider_cost_summary")
+        model_cost_summary = model_cost_summary if model_cost_summary is not None else metadata_payload.get("model_cost_summary")
         if success:
             result = build_success_result(
                 brand=normalized_request["brand"],
@@ -320,6 +337,11 @@ class ContentGenerationPipeline:
                 module_token_summary=module_token_summary,
                 provider_token_summary=provider_token_summary,
                 estimated_token_usage=estimated_token_usage,
+                cost_usage=cost_usage,
+                execution_cost_summary=execution_cost_summary,
+                module_cost_summary=module_cost_summary,
+                provider_cost_summary=provider_cost_summary,
+                model_cost_summary=model_cost_summary,
                 metadata=metadata,
                 warnings=warnings or [],
             )
@@ -393,6 +415,11 @@ class ContentGenerationPipeline:
                 module_token_summary=module_token_summary,
                 provider_token_summary=provider_token_summary,
                 estimated_token_usage=estimated_token_usage,
+                cost_usage=cost_usage,
+                execution_cost_summary=execution_cost_summary,
+                module_cost_summary=module_cost_summary,
+                provider_cost_summary=provider_cost_summary,
+                model_cost_summary=model_cost_summary,
                 warnings=warnings or [],
             )
         return self._attach_reporting(result, request=normalized_request, context=context)
@@ -634,6 +661,14 @@ class ContentGenerationPipeline:
             metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="generation", error=error)
             ai_warnings = list(ai_response.get("metadata", {}).get("warnings", []))
             token_warnings_on_failure = list(ai_response.get("token_usage", {}).get("warnings", [])) if isinstance(ai_response.get("token_usage"), dict) else []
+            failure_token_usage = ai_response.get("token_usage") if isinstance(ai_response.get("token_usage"), dict) else None
+            failure_cost_tracking = self._build_cost_tracking(
+                request=normalized_request,
+                token_usage=failure_token_usage,
+                estimated_token_usage=None,
+                metadata=metadata,
+                execution_id=execution_started_at.isoformat(),
+            ) if self.config.enable_cost_tracking else {}
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -654,9 +689,14 @@ class ContentGenerationPipeline:
                 module_token_summary=None,
                 provider_token_summary=None,
                 estimated_token_usage=ai_response.get("token_usage") if isinstance(ai_response.get("token_usage"), dict) and ai_response.get("token_usage", {}).get("estimated") else None,
+                cost_usage=failure_cost_tracking.get("cost_usage"),
+                execution_cost_summary=failure_cost_tracking.get("execution_cost_summary"),
+                module_cost_summary=failure_cost_tracking.get("module_cost_summary"),
+                provider_cost_summary=failure_cost_tracking.get("provider_cost_summary"),
+                model_cost_summary=failure_cost_tracking.get("model_cost_summary"),
                 metadata=metadata,
                 error=error,
-                warnings=ai_warnings + token_warnings_on_failure,
+                warnings=ai_warnings + token_warnings_on_failure + list(failure_cost_tracking.get("warnings", [])),
             )
 
         token_usage: dict[str, Any] | None = None
@@ -683,6 +723,33 @@ class ContentGenerationPipeline:
             token_warnings = list(token_tracking.get("warnings", []))
             token_errors = list(token_tracking.get("errors", []))
             metadata.update(token_tracking)
+
+        cost_usage: dict[str, Any] | None = None
+        execution_cost_summary: dict[str, Any] | None = None
+        module_cost_summary: dict[str, Any] | None = None
+        provider_cost_summary: dict[str, Any] | None = None
+        model_cost_summary: dict[str, Any] | None = None
+        cost_warnings: list[str] = []
+        cost_errors: list[str] = []
+        if self.config.enable_cost_tracking:
+            cost_token_usage = token_usage if isinstance(token_usage, dict) and token_usage else (
+                ai_response.get("token_usage") if isinstance(ai_response.get("token_usage"), dict) else None
+            )
+            cost_tracking = self._build_cost_tracking(
+                request=normalized_request,
+                token_usage=cost_token_usage,
+                estimated_token_usage=estimated_token_usage,
+                metadata=metadata,
+                execution_id=execution_started_at.isoformat(),
+            )
+            cost_usage = cost_tracking.get("cost_usage")
+            execution_cost_summary = cost_tracking.get("execution_cost_summary")
+            module_cost_summary = cost_tracking.get("module_cost_summary")
+            provider_cost_summary = cost_tracking.get("provider_cost_summary")
+            model_cost_summary = cost_tracking.get("model_cost_summary")
+            cost_warnings = list(cost_tracking.get("warnings", []))
+            cost_errors = list(cost_tracking.get("errors", []))
+            metadata.update(cost_tracking)
 
         try:
             parsing_started = perf_counter()
@@ -1218,6 +1285,11 @@ class ContentGenerationPipeline:
             exported_files=exported_files,
             output_metadata=output_metadata,
             metadata=metadata,
+            cost_usage=cost_usage,
+            execution_cost_summary=execution_cost_summary,
+            module_cost_summary=module_cost_summary,
+            provider_cost_summary=provider_cost_summary,
+            model_cost_summary=model_cost_summary,
             error=None,
             warnings=list(ai_response.get("metadata", {}).get("warnings", []))
             + output_warnings
@@ -1226,6 +1298,8 @@ class ContentGenerationPipeline:
             + video_script_errors
             + token_warnings
             + token_errors
+            + cost_warnings
+            + cost_errors
             + governance_warnings
             + governance_errors
             + asset_warnings
@@ -1697,6 +1771,86 @@ class ContentGenerationPipeline:
             "estimated_token_usage": estimated_token_usage,
             "warnings": list(usage_record.get("warnings", [])),
             "errors": list(usage_record.get("errors", [])),
+        }
+
+    def _build_cost_tracking(
+        self,
+        *,
+        request: dict[str, Any],
+        token_usage: dict[str, Any] | None,
+        estimated_token_usage: dict[str, Any] | None,
+        metadata: dict[str, Any],
+        execution_id: str,
+    ) -> dict[str, Any]:
+        """Build cost usage records and aggregated summaries."""
+
+        if not self.config.enable_cost_tracking:
+            return {
+                "cost_usage": None,
+                "execution_cost_summary": None,
+                "module_cost_summary": None,
+                "provider_cost_summary": None,
+                "model_cost_summary": None,
+                "warnings": [],
+                "errors": [],
+            }
+
+        base_metadata = {
+            **metadata,
+            "brand": request.get("brand", ""),
+            "platform": request.get("platform", ""),
+            "content_type": request.get("content_type", ""),
+            "objective": request.get("objective", ""),
+            "audience": request.get("audience", ""),
+            "location": request.get("location", ""),
+            "property_type": request.get("property_type", ""),
+            "execution_id": execution_id,
+            "module": request.get("content_type", ""),
+            "operation": "generation",
+            "campaign_id": str(request.get("campaign_type", "") or request.get("objective", "") or ""),
+            "asset_type": request.get("content_type", ""),
+            "provider": metadata.get("provider", ""),
+            "model": metadata.get("model", ""),
+            "currency": self.config.default_cost_currency,
+        }
+
+        usage_record: dict[str, Any] | None = None
+        if isinstance(token_usage, dict) and token_usage:
+            usage_record = self.cost_tracker.track_cost(token_usage, metadata=base_metadata)
+        elif self.config.enable_cost_estimation and isinstance(estimated_token_usage, dict) and estimated_token_usage:
+            usage_record = self.cost_tracker.track_cost(
+                estimated_token_usage,
+                metadata={**base_metadata, "fallback_used": True},
+            )
+
+        if usage_record is None:
+            usage_record = self.cost_tracker.track_cost(None, metadata=base_metadata)
+
+        records = [usage_record]
+        execution_summary = self.cost_tracker.aggregate_execution_cost(records)
+        module_summary = self.cost_tracker.aggregator.aggregate_by_module(records)
+        provider_summary = self.cost_tracker.aggregator.aggregate_by_provider(records)
+        model_summary = self.cost_tracker.aggregator.aggregate_by_model(records)
+
+        warnings = list(dict.fromkeys(list(usage_record.get("warnings", []))))
+        errors = list(dict.fromkeys(list(usage_record.get("errors", []))))
+        if usage_record.get("estimated_cost") and not usage_record.get("pricing_found"):
+            message = "Cost tracking is partial because pricing was not found."
+            if message not in warnings:
+                warnings.append(message)
+        if not token_usage:
+            missing_message = "Token usage is missing; cost tracking is partial."
+            if missing_message not in warnings:
+                warnings.append(missing_message)
+
+        return {
+            "cost_usage": usage_record,
+            "execution_cost_summary": execution_summary,
+            "module_cost_summary": module_summary,
+            "provider_cost_summary": provider_summary,
+            "model_cost_summary": model_summary,
+            "warnings": warnings,
+            "errors": errors,
         }
 
     def _attach_reporting(self, result: dict[str, Any], request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:

@@ -711,6 +711,24 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
                 "execution_total_tokens": (result.get("execution_token_summary") or {}).get("summary", {}).get("total_tokens", 0) if isinstance(result.get("execution_token_summary"), dict) else 0,
             }
         )
+    cost_usage = result.get("cost_usage") if isinstance(result.get("cost_usage"), dict) else {}
+    if cost_usage:
+        summary.update(
+            {
+                "cost_provider": cost_usage.get("provider", ""),
+                "cost_model": cost_usage.get("model", ""),
+                "currency": cost_usage.get("currency", ""),
+                "input_cost": round(float(cost_usage.get("input_cost", 0.0) or 0.0), 6),
+                "output_cost": round(float(cost_usage.get("output_cost", 0.0) or 0.0), 6),
+                "cached_input_cost": round(float(cost_usage.get("cached_input_cost", 0.0) or 0.0), 6),
+                "total_cost": round(float(cost_usage.get("total_cost", 0.0) or 0.0), 6),
+                "estimated_cost": cost_usage.get("estimated_cost", False),
+                "pricing_found": cost_usage.get("pricing_found", False),
+                "pricing_version": cost_usage.get("pricing_version", ""),
+                "pricing_source": cost_usage.get("pricing_source", ""),
+                "cost_execution_total": (result.get("execution_cost_summary") or {}).get("summary", {}).get("total_cost", 0.0) if isinstance(result.get("execution_cost_summary"), dict) else 0.0,
+            }
+        )
     if request.get("content_type") in {"video_script", "video_prompt"}:
         summary.update(
             {

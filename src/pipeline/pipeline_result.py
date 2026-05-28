@@ -77,6 +77,11 @@ class PipelineResult:
     module_token_summary: dict[str, Any] | None
     provider_token_summary: dict[str, Any] | None
     estimated_token_usage: dict[str, Any] | None
+    cost_usage: dict[str, Any] | None
+    execution_cost_summary: dict[str, Any] | None
+    module_cost_summary: dict[str, Any] | None
+    provider_cost_summary: dict[str, Any] | None
+    model_cost_summary: dict[str, Any] | None
     metadata: dict[str, Any]
     error: str | None
     warnings: list[str] = field(default_factory=list)
@@ -152,6 +157,11 @@ class PipelineResult:
             "module_token_summary": self.module_token_summary,
             "provider_token_summary": self.provider_token_summary,
             "estimated_token_usage": self.estimated_token_usage,
+            "cost_usage": self.cost_usage,
+            "execution_cost_summary": self.execution_cost_summary,
+            "module_cost_summary": self.module_cost_summary,
+            "provider_cost_summary": self.provider_cost_summary,
+            "model_cost_summary": self.model_cost_summary,
             "metadata": self.metadata,
             "error": self.error,
             "warnings": self.warnings,
@@ -225,6 +235,11 @@ def build_success_result(
     module_token_summary: dict[str, Any] | None = None,
     provider_token_summary: dict[str, Any] | None = None,
     estimated_token_usage: dict[str, Any] | None = None,
+    cost_usage: dict[str, Any] | None = None,
+    execution_cost_summary: dict[str, Any] | None = None,
+    module_cost_summary: dict[str, Any] | None = None,
+    provider_cost_summary: dict[str, Any] | None = None,
+    model_cost_summary: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -298,6 +313,11 @@ def build_success_result(
         module_token_summary=module_token_summary,
         provider_token_summary=provider_token_summary,
         estimated_token_usage=estimated_token_usage,
+        cost_usage=cost_usage,
+        execution_cost_summary=execution_cost_summary,
+        module_cost_summary=module_cost_summary,
+        provider_cost_summary=provider_cost_summary,
+        model_cost_summary=model_cost_summary,
         metadata=metadata or {},
         error=None,
         warnings=warnings or [],
@@ -373,6 +393,11 @@ def build_failure_result(
     module_token_summary: dict[str, Any] | None = None,
     provider_token_summary: dict[str, Any] | None = None,
     estimated_token_usage: dict[str, Any] | None = None,
+    cost_usage: dict[str, Any] | None = None,
+    execution_cost_summary: dict[str, Any] | None = None,
+    module_cost_summary: dict[str, Any] | None = None,
+    provider_cost_summary: dict[str, Any] | None = None,
+    model_cost_summary: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a failure pipeline response."""
@@ -445,6 +470,11 @@ def build_failure_result(
         module_token_summary=module_token_summary,
         provider_token_summary=provider_token_summary,
         estimated_token_usage=estimated_token_usage,
+        cost_usage=cost_usage,
+        execution_cost_summary=execution_cost_summary,
+        module_cost_summary=module_cost_summary,
+        provider_cost_summary=provider_cost_summary,
+        model_cost_summary=model_cost_summary,
         metadata=metadata,
         error=error,
         warnings=warnings or [],

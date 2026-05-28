@@ -75,6 +75,7 @@ class ReportingEngine:
             "video_script_metrics_present": self._has_video_script_data(payload),
             "creative_direction_metrics_present": self._has_creative_direction_data(payload),
             "token_metrics_present": self._has_token_data(payload),
+            "cost_metrics_present": self._has_cost_data(payload),
         },
         }
         return bundle
@@ -216,4 +217,15 @@ class ReportingEngine:
             or safe_dict(payload.get("execution_token_summary"))
             or safe_dict(payload.get("module_token_summary"))
             or safe_dict(payload.get("provider_token_summary"))
+        )
+
+    def _has_cost_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes cost tracking analytics data."""
+
+        return bool(
+            safe_dict(payload.get("cost_usage"))
+            or safe_dict(payload.get("execution_cost_summary"))
+            or safe_dict(payload.get("module_cost_summary"))
+            or safe_dict(payload.get("provider_cost_summary"))
+            or safe_dict(payload.get("model_cost_summary"))
         )

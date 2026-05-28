@@ -372,6 +372,39 @@ def sample_token_usage() -> dict[str, object]:
 
 
 @pytest.fixture
+def sample_cost_usage() -> dict[str, object]:
+    """Return a representative normalized cost usage payload."""
+
+    return {
+        "success": True,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "currency": "USD",
+        "input_tokens": 1000,
+        "output_tokens": 500,
+        "cached_input_tokens": 100,
+        "total_tokens": 1500,
+        "input_cost": 0.0,
+        "output_cost": 0.0,
+        "cached_input_cost": 0.0,
+        "total_cost": 0.0,
+        "estimated_tokens": False,
+        "estimated_cost": True,
+        "pricing_found": False,
+        "pricing_version": "unknown",
+        "pricing_source": "unknown",
+        "execution_id": "exec-1",
+        "module": "generation",
+        "operation": "openai_generate",
+        "campaign_id": "campaign-1",
+        "asset_type": "instagram_post",
+        "metadata": {},
+        "warnings": ["Pricing not found for provider/model."],
+        "errors": [],
+    }
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path: Path) -> Path:
     """Return a temporary output directory for export tests."""
 

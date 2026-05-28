@@ -34,6 +34,55 @@ def test_reporting_engine_builds_consolidated_report(sample_generation_request: 
         "warnings": [],
         "errors": [],
         "governance_result": sample_governance_payload,
+        "token_usage": {
+            "success": True,
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "input_tokens": 120,
+            "output_tokens": 80,
+            "total_tokens": 200,
+            "estimated": False,
+            "source": "provider_usage",
+            "execution_id": "exec-1",
+            "module": "generation",
+            "operation": "generation",
+            "campaign_id": "campaign-1",
+            "asset_type": "instagram_post",
+            "metadata": {},
+            "warnings": [],
+            "errors": [],
+        },
+        "cost_usage": {
+            "success": True,
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "currency": "USD",
+            "input_tokens": 120,
+            "output_tokens": 80,
+            "cached_input_tokens": 0,
+            "total_tokens": 200,
+            "input_cost": 0.0,
+            "output_cost": 0.0,
+            "cached_input_cost": 0.0,
+            "total_cost": 0.0,
+            "estimated_tokens": False,
+            "estimated_cost": True,
+            "pricing_found": False,
+            "pricing_version": "unknown",
+            "pricing_source": "unknown",
+            "execution_id": "exec-1",
+            "module": "generation",
+            "operation": "generation",
+            "campaign_id": "campaign-1",
+            "asset_type": "instagram_post",
+            "metadata": {},
+            "warnings": ["Pricing not found for provider/model."],
+            "errors": [],
+        },
+        "execution_cost_summary": {"summary": {"total_cost": 0.0}},
+        "module_cost_summary": {"summary": {"generation": {"total_cost": 0.0}}},
+        "provider_cost_summary": {"summary": {"openai": {"total_cost": 0.0}}},
+        "model_cost_summary": {"summary": {"gpt-4o-mini": {"total_cost": 0.0}}},
         "campaign_result": {
             "campaign_name": "sample_campaign",
             "campaign_type": "property_launch",
@@ -68,6 +117,8 @@ def test_reporting_engine_builds_consolidated_report(sample_generation_request: 
     assert bundle["success"] is True
     assert bundle["consolidated_report"]["report_type"] == "consolidated"
     assert bundle["execution_report"]["metrics"]["execution_time_seconds"] == 1.0
+    assert bundle["execution_report"]["metrics"]["total_cost"] == 0.0
+    assert bundle["consolidated_report"]["metrics"]["total_cost"] == 0.0
     assert bundle["governance_report"]["metrics"]["status"] == "unknown"
 
 
