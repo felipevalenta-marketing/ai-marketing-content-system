@@ -17,6 +17,8 @@ from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
 from src.adapters.platform_adapter import PlatformAdapter
 from src.governance.content_governance import ContentGovernanceEngine
+from src.campaigns.campaign_composer import CampaignComposer
+from src.campaigns.campaign_contracts import get_campaign_contract
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -43,6 +45,7 @@ class ContentGenerationPipeline:
         exporter: OutputExporter | None = None,
         adapter: PlatformAdapter | None = None,
         governance_engine: ContentGovernanceEngine | None = None,
+        campaign_composer: CampaignComposer | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -58,6 +61,7 @@ class ContentGenerationPipeline:
         self.exporter = exporter or OutputExporter(output_root=self.config.output_root, logger=self.logger)
         self.adapter = adapter or PlatformAdapter(logger=self.logger)
         self.governance_engine = governance_engine or ContentGovernanceEngine(logger=self.logger)
+        self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -157,6 +161,11 @@ class ContentGenerationPipeline:
         overall_quality_score: float | None = None,
         governance_warnings: list[str] | None = None,
         governance_errors: list[str] | None = None,
+        campaign_result: dict[str, Any] | None = None,
+        campaign_strategy: dict[str, Any] | None = None,
+        campaign_assets: dict[str, Any] | None = None,
+        campaign_governance_summary: dict[str, Any] | None = None,
+        campaign_export_paths: dict[str, str] | None = None,
         rendered_markdown: str | None = None,
         rendered_text: str | None = None,
         exported_files: dict[str, str] | None = None,
@@ -187,6 +196,11 @@ class ContentGenerationPipeline:
                 overall_quality_score=overall_quality_score,
                 governance_warnings=governance_warnings or [],
                 governance_errors=governance_errors or [],
+                campaign_result=campaign_result,
+                campaign_strategy=campaign_strategy,
+                campaign_assets=campaign_assets or {},
+                campaign_governance_summary=campaign_governance_summary,
+                campaign_export_paths=campaign_export_paths or {},
                 rendered_markdown=rendered_markdown,
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
@@ -214,6 +228,11 @@ class ContentGenerationPipeline:
             overall_quality_score=overall_quality_score,
             governance_warnings=governance_warnings or [],
             governance_errors=governance_errors or [],
+            campaign_result=campaign_result,
+            campaign_strategy=campaign_strategy,
+            campaign_assets=campaign_assets or {},
+            campaign_governance_summary=campaign_governance_summary,
+            campaign_export_paths=campaign_export_paths or {},
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files or {},
@@ -534,19 +553,50 @@ class ContentGenerationPipeline:
         else:
             approval_status = "not_evaluated" if not self.config.enable_governance_validation else "unknown"
 
-        if self.config.enable_export and not self.config.enable_governance_validation:
-            try:
-                exported_files = self.exporter.export(
-                    brand=normalized_request["brand"],
-                    content_type=normalized_request["content_type"],
+            if self.config.enable_export and not self.config.enable_governance_validation:
+                try:
+                    exported_files = self.exporter.export(
+                        brand=normalized_request["brand"],
+                        content_type=normalized_request["content_type"],
                     output=formatted_output,
                     metadata=metadata,
                     validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
                     formats=list(self.config.export_formats),
                 )
-            except Exception as exc:  # pragma: no cover - defensive fallback
-                log_warning(self.logger, f"Export failed: {exc}")
-                exported_files = {}
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    log_warning(self.logger, f"Export failed: {exc}")
+                    exported_files = {}
+
+        campaign_result = None
+        campaign_strategy = None
+        campaign_assets: dict[str, Any] = {}
+        campaign_governance_summary = None
+        campaign_export_paths: dict[str, str] = {}
+        if self.config.enable_campaign_composition:
+            log_context(self.logger, "Composing campaign pack")
+            campaign_type = normalize_key(str(request.get("campaign_type") or self.config.default_campaign_type))
+            campaign_contract = get_campaign_contract(campaign_type)
+            campaign_request = {
+                "brand": normalized_request["brand"],
+                "campaign_type": campaign_type,
+                "objective": normalized_request.get("objective", ""),
+                "audience": normalized_request.get("audience", ""),
+                "location": normalized_request.get("location", ""),
+                "property_type": normalized_request.get("property_type", ""),
+                "platforms": list(campaign_contract.platform_plan.keys()) or list(self.config.default_target_platforms),
+                "assets_required": list(campaign_contract.required_assets),
+                "extra_notes": normalized_request.get("extra_notes", ""),
+                "enable_export": self.config.enable_campaign_export,
+            }
+            seed_assets = self._build_campaign_assets(normalized_request, formatted_output, platform_variants, governance_result)
+            request_assets = request.get("campaign_assets") if isinstance(request.get("campaign_assets"), dict) else request.get("assets") if isinstance(request.get("assets"), dict) else {}
+            if isinstance(request_assets, dict):
+                seed_assets.update(request_assets)
+            campaign_result = self.campaign_composer.compose(campaign_request, assets=seed_assets)
+            campaign_strategy = campaign_result.get("strategy")
+            campaign_assets = dict(campaign_result.get("assets") or seed_assets)
+            campaign_governance_summary = campaign_result.get("governance_summary")
+            campaign_export_paths = dict(campaign_result.get("export_paths") or {})
 
         output_metadata = build_output_metadata(
             brand=normalized_request["brand"],
@@ -572,6 +622,7 @@ class ContentGenerationPipeline:
                 "adapted": bool(platform_variants),
                 "approval_status": approval_status,
                 "overall_quality_score": overall_quality_score,
+                "campaign_composed": bool(campaign_result),
             }
         )
         result = self.build_result(
@@ -590,6 +641,11 @@ class ContentGenerationPipeline:
             overall_quality_score=overall_quality_score,
             governance_warnings=governance_warnings,
             governance_errors=governance_errors,
+            campaign_result=campaign_result,
+            campaign_strategy=campaign_strategy,
+            campaign_assets=campaign_assets,
+            campaign_governance_summary=campaign_governance_summary,
+            campaign_export_paths=campaign_export_paths,
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files,
@@ -684,6 +740,58 @@ class ContentGenerationPipeline:
         if bundle is not None:
             summary["warnings"] = list(bundle.warnings)
         return summary
+
+    def _build_campaign_assets(
+        self,
+        request: dict[str, Any],
+        formatted_output: dict[str, Any] | None,
+        platform_variants: dict[str, Any],
+        governance_result: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build deterministic campaign seed assets from existing outputs."""
+
+        if not isinstance(formatted_output, dict) or not formatted_output:
+            return {}
+
+        asset_type = str(request.get("content_type", "")).strip()
+        asset_status = self._campaign_asset_status(governance_result)
+        platform_variant = {}
+        if isinstance(platform_variants, dict):
+            platform_variant = dict(platform_variants.get(normalize_key(str(request.get("platform", "")))) or {})
+        return {
+            asset_type: {
+                "asset_type": asset_type,
+                "platform": request.get("platform", ""),
+                "purpose": request.get("objective", ""),
+                "content": formatted_output,
+                "formatted_output": formatted_output,
+                "platform_variant": platform_variant,
+                "governance_result": governance_result or {},
+                "metadata": {
+                    "brand": request.get("brand", ""),
+                    "audience": request.get("audience", ""),
+                    "location": request.get("location", ""),
+                    "objective": request.get("objective", ""),
+                },
+                "status": asset_status,
+            }
+        }
+
+    def _campaign_asset_status(self, governance_result: dict[str, Any] | None) -> str:
+        """Derive a campaign asset status from governance output."""
+
+        if not isinstance(governance_result, dict):
+            return "warning"
+        status = str(governance_result.get("status", "")).lower()
+        if status == "approved":
+            return "approved"
+        if status == "approved_with_warnings":
+            return "warning"
+        if status == "rejected":
+            return "rejected"
+        if status in {"needs_review", "warning"}:
+            return "warning"
+        return "warning"
 
 
 if __name__ == "__main__":

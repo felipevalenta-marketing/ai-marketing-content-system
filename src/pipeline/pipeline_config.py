@@ -42,6 +42,8 @@ class PipelineConfig:
     enable_export: bool = False
     enable_platform_adaptation: bool = False
     enable_governance_validation: bool = False
+    enable_campaign_composition: bool = False
+    enable_campaign_export: bool = False
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
@@ -50,6 +52,8 @@ class PipelineConfig:
     default_target_platforms: list[str] = field(default_factory=lambda: ["instagram", "facebook", "linkedin"])
     export_formats: tuple[str, ...] = ("markdown", "json")
     output_root: str = "outputs"
+    campaign_output_root: str = "outputs"
+    default_campaign_type: str = "property_launch"
     generation_defaults: dict[str, Any] = field(
         default_factory=lambda: {
             "provider": "openai",
