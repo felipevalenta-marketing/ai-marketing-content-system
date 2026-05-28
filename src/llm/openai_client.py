@@ -236,8 +236,9 @@ class OpenAIClient:
                 error=None,
             ).to_dict()
         except Exception as exc:  # pragma: no cover - defensive runtime guard
-            log_error(self.logger, f"OpenAI generation failed: {exc}")
-            return self._failure(model_name=model_name, metadata=metadata, message=self._sanitize_error(str(exc)))
+            sanitized_error = self._sanitize_error(str(exc))
+            log_error(self.logger, f"OpenAI generation failed: {sanitized_error}")
+            return self._failure(model_name=model_name, metadata=metadata, message=sanitized_error)
 
     def _initialize_client(self) -> Any | None:
         """Initialize the OpenAI SDK client safely."""
@@ -452,7 +453,11 @@ class OpenAIClient:
 
         if not message:
             return "OpenAI generation failed."
-        return message.replace(os.getenv("OPENAI_API_KEY", ""), "[redacted]")
+        redacted = message
+        for secret in {os.getenv("OPENAI_API_KEY", ""), self.config.api_key or ""}:
+            if secret:
+                redacted = redacted.replace(secret, "[redacted]")
+        return redacted
 
     def _failure(self, model_name: str, metadata: dict[str, Any], message: str) -> dict[str, Any]:
         """Return a structured failure payload."""

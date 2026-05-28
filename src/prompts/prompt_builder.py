@@ -120,6 +120,7 @@ class PromptPayload:
             "prompt_mode": self.prompt_mode,
             "output_contract": self.output_contract,
             "orchestration_metadata": self.orchestration_metadata,
+            "metadata": self.orchestration_metadata,
             "prompt_summary": self.prompt_summary,
         }
         if self.errors:

@@ -59,10 +59,13 @@ class ResponseParser:
                 parser_warnings=warnings,
             ).to_dict()
 
+        json_candidate = self._clean_json_candidate(normalized)
         parsed_json = self.try_parse_json(normalized)
         hashtags = self.extract_hashtags(normalized)
         cta = self.extract_cta(normalized)
 
+        if json_candidate and parsed_json is None:
+            warnings.append("Malformed JSON-like content received.")
         if parsed_json is None and normalized != content:
             warnings.append("Content normalized before parsing.")
         if parsed_json is None and not hashtags and not cta:
