@@ -163,3 +163,33 @@ def test_pipeline_includes_asset_coordination_result_when_enabled(sample_generat
     assert result["asset_coordination_result"] is not None
     assert result["asset_plan"] is not None
     assert result["asset_requirements"] is not None
+
+
+def test_pipeline_includes_video_script_result_when_enabled(sample_video_script_request, sample_video_script_ai_response):
+    pipeline = ContentGenerationPipeline(
+        config=PipelineConfig(
+            enable_live_generation=True,
+            enable_output_formatting=True,
+            enable_output_validation=True,
+            enable_rendering=True,
+            enable_platform_adaptation=True,
+            enable_governance_validation=True,
+            enable_campaign_composition=True,
+            enable_asset_coordination=True,
+            enable_video_script_engine=True,
+            enable_storyboard_generation=True,
+        )
+    )
+    pipeline._can_generate_live = lambda: True  # type: ignore[assignment]
+    pipeline.generate_ai_response = lambda payload: sample_video_script_ai_response  # type: ignore[assignment]
+
+    result = pipeline.generate(sample_video_script_request)
+
+    assert result["video_script_result"] is not None
+    assert result["video_type"] == "instagram_reel"
+    assert result["video_duration"] == "30s"
+    assert result["scene_sequence"]
+    assert result["storyboard"]
+    assert result["video_script_validation"] is not None
+    assert result["asset_coordination_result"] is not None
+    assert result["governance_result"] is not None

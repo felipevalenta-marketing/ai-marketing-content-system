@@ -74,6 +74,7 @@ IMAGE_REQUIREMENTS = {
 VIDEO_REQUIREMENTS = {
     "asset_types": ["video_prompt"],
     "required_fields": ["scene_description", "camera_motion", "sequence", "mood", "duration", "voiceover_direction", "platform_use"],
+    "readiness_fields": ["duration", "scene_sequence", "storyboard", "camera_direction", "music_mood"],
     "creative_notes": [
         "Specify sequence, duration, camera motion, and voiceover direction.",
         "Keep cinematic direction grounded and practical.",
@@ -127,6 +128,21 @@ def build_asset_requirements(request: dict[str, Any]) -> dict[str, Any]:
                 ]
             ),
         },
+        "video_script_readiness": {
+            "video_type": normalize_key(str(request.get("video_type", ""))),
+            "duration": str(request.get("duration", "")).strip(),
+            "scene_sequence": request.get("scene_sequence", []),
+            "storyboard": request.get("storyboard", []),
+            "camera_direction": request.get("camera_direction", ""),
+            "music_mood": str(request.get("tone", "")).strip() or str(request.get("music_mood", "")).strip(),
+            "ready": all(
+                [
+                    str(request.get("video_type", "")).strip(),
+                    str(request.get("duration", "")).strip(),
+                    str(request.get("creative_direction", "")).strip(),
+                ]
+            ),
+        },
         "campaign_alignment": {
             "campaign_type": normalize_key(str(request.get("campaign_type", ""))),
             "objective": str(request.get("objective", "")).strip(),
@@ -147,7 +163,7 @@ def get_asset_requirement_template(asset_type: str) -> dict[str, Any]:
     templates: dict[str, dict[str, Any]] = {
         "text_caption": {"required_fields": ["platform", "hook", "caption", "cta", "hashtags", "governance_status"], "creative_notes": ["Ready for social packaging."]},
         "social_post": {"required_fields": ["platform", "hook", "caption", "cta", "hashtags"], "creative_notes": ["Ready for social packaging."]},
-        "reel_script": {"required_fields": ["hook", "script", "scenes", "voiceover_direction", "cta", "visual_direction"], "creative_notes": ["Ready for reel production planning."]},
+        "reel_script": {"required_fields": ["hook", "script", "scenes", "voiceover_direction", "cta", "visual_direction"], "creative_notes": ["Ready for reel production planning.", "Include duration and storyboard guidance when available."]},
         "property_description": {"required_fields": ["title", "short_description", "long_description", "highlights", "cta"], "creative_notes": ["Ready for website and listing workflows."]},
         "email_teaser": {"required_fields": ["subject", "preview_text", "body", "cta"], "creative_notes": ["Ready for email nurture workflows."]},
         "website_listing": {"required_fields": ["title", "short_description", "long_description", "highlights", "cta"], "creative_notes": ["Ready for website publishing."]},

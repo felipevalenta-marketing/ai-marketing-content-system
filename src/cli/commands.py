@@ -254,6 +254,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "src.prompts": find_spec("src.prompts") is not None,
         "src.llm": find_spec("src.llm") is not None,
         "src.output": find_spec("src.output") is not None,
+        "src.media": find_spec("src.media") is not None,
         "src.adapters": find_spec("src.adapters") is not None,
         "src.governance": find_spec("src.governance") is not None,
         "src.campaigns": find_spec("src.campaigns") is not None,
@@ -317,6 +318,19 @@ def handle_smoke(args: Any) -> dict[str, Any]:
     )
     checks["formatter_ready"] = bool(sample_formatted)
     checks["validator_ready"] = bool(validator.validate(sample_formatted, "instagram_post").get("valid"))
+    video_script_sample = {
+        "brand": sample_brand or "sample_brand",
+        "platform": "instagram",
+        "content_type": "video_script",
+        "video_type": "instagram_reel",
+        "duration": "30s",
+        "creative_direction": "A calm Mediterranean property reveal with a premium but approachable tone.",
+    }
+    checks["video_script_engine_ready"] = bool(
+        pipeline.video_script_validator.validate(
+            pipeline.video_script_engine.generate_video_script(video_script_sample)
+        ).get("valid")
+    )
     checks["adapter_ready"] = bool(
         adapter.adapt(
             {
@@ -442,10 +456,13 @@ def _build_generation_request(args: Any) -> dict[str, Any]:
         "location": normalize_key(str(getattr(args, "location", "") or "").strip()),
         "property_type": normalize_key(str(getattr(args, "property_type", "") or "").strip()),
         "creative_direction": str(getattr(args, "creative_direction", "") or "").strip(),
+        "tone": str(getattr(args, "tone", "") or "").strip(),
         "extra_notes": str(getattr(args, "extra_notes", "") or "").strip(),
         "visual_style": str(getattr(args, "visual_style", "") or "").strip(),
         "image_type": str(getattr(args, "image_type", "") or "").strip(),
         "aspect_ratio": str(getattr(args, "aspect_ratio", "") or "").strip(),
+        "video_type": str(getattr(args, "video_type", "") or "").strip(),
+        "duration": str(getattr(args, "duration", "") or "").strip(),
         "export": bool(getattr(args, "export", False)),
         "report": bool(getattr(args, "report", False)),
         "report_json": bool(getattr(args, "report_json", False)),
@@ -623,6 +640,16 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
         "exported": bool(result.get("exported_files")),
         "export_paths": result.get("exported_files", {}),
     }
+    if request.get("content_type") in {"video_script", "video_prompt"}:
+        summary.update(
+            {
+                "video_type": result.get("video_type", request.get("video_type", "")),
+                "video_duration": result.get("video_duration", request.get("duration", "")),
+                "scene_count": len(result.get("scene_sequence", []) or []),
+                "storyboard_count": len(result.get("storyboard", []) or []),
+                "music_mood": result.get("music_mood", ""),
+            }
+        )
     if not dry_run and isinstance(result.get("validation_result"), dict):
         summary["validation_status"] = result.get("validation_result", {}).get("valid")
     return summary

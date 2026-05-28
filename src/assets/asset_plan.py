@@ -97,7 +97,7 @@ def _build_dependencies(requested_assets: list[str]) -> dict[str, list[str]]:
 
     dependencies: dict[str, list[str]] = {}
     for asset in requested_assets:
-        if asset in {"image_prompt", "video_prompt"}:
+        if asset in {"image_prompt", "video_prompt", "reel_script"}:
             dependencies[asset] = ["campaign_strategy", "creative_direction"]
         elif asset in {"email_teaser", "website_listing", "campaign_summary", "campaign_bundle"}:
             dependencies[asset] = ["formatted_output", "governance_summary"]

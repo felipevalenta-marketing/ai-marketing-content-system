@@ -61,6 +61,8 @@ def build_feature_flags() -> dict[str, Any]:
         "enable_image_prompt_engine": pipeline_config.enable_image_prompt_engine,
         "enable_cinematic_enhancement": pipeline_config.enable_cinematic_enhancement,
         "enable_negative_prompts": pipeline_config.enable_negative_prompts,
+        "enable_video_script_engine": pipeline_config.enable_video_script_engine,
+        "enable_storyboard_generation": pipeline_config.enable_storyboard_generation,
     }
 
 
@@ -119,6 +121,8 @@ def build_safe_config_summary() -> dict[str, Any]:
         "default_campaign_type": pipeline_config.default_campaign_type,
         "default_visual_style": pipeline_config.default_visual_style,
         "default_image_aspect_ratio": pipeline_config.default_image_aspect_ratio,
+        "default_video_duration": pipeline_config.default_video_duration,
+        "default_video_type": pipeline_config.default_video_type,
         "default_asset_types": list(pipeline_config.default_asset_types),
         "export_defaults": {
             "output_root": pipeline_config.output_root,

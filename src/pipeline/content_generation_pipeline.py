@@ -26,6 +26,8 @@ from src.campaigns.campaign_composer import CampaignComposer
 from src.campaigns.campaign_contracts import get_campaign_contract
 from src.media.image_prompt_engine import ImagePromptEngine
 from src.media.image_prompt_validator import ImagePromptValidator
+from src.media.video_script_engine import VideoScriptEngine
+from src.media.video_script_validator import VideoScriptValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -57,6 +59,8 @@ class ContentGenerationPipeline:
         reporting_engine: ReportingEngine | None = None,
         image_prompt_engine: ImagePromptEngine | None = None,
         image_prompt_validator: ImagePromptValidator | None = None,
+        video_script_engine: VideoScriptEngine | None = None,
+        video_script_validator: VideoScriptValidator | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -77,6 +81,8 @@ class ContentGenerationPipeline:
         self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
         self.image_prompt_engine = image_prompt_engine or ImagePromptEngine(logger=self.logger)
         self.image_prompt_validator = image_prompt_validator or ImagePromptValidator()
+        self.video_script_engine = video_script_engine or VideoScriptEngine(logger=self.logger)
+        self.video_script_validator = video_script_validator or VideoScriptValidator()
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -206,6 +212,15 @@ class ContentGenerationPipeline:
         visual_style: str | None = None,
         cinematic_rules_applied: list[str] | None = None,
         image_prompt_validation: dict[str, Any] | None = None,
+        video_script_result: dict[str, Any] | None = None,
+        video_type: str | None = None,
+        video_duration: str | None = None,
+        scene_sequence: list[dict[str, Any]] | None = None,
+        storyboard: list[dict[str, Any]] | None = None,
+        voiceover: str | None = None,
+        camera_direction: dict[str, Any] | None = None,
+        music_mood: str | None = None,
+        video_script_validation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build a structured pipeline result."""
 
@@ -228,6 +243,15 @@ class ContentGenerationPipeline:
                 visual_style=visual_style,
                 cinematic_rules_applied=cinematic_rules_applied,
                 image_prompt_validation=image_prompt_validation,
+                video_script_result=video_script_result,
+                video_type=video_type,
+                video_duration=video_duration,
+                scene_sequence=scene_sequence,
+                storyboard=storyboard,
+                voiceover=voiceover,
+                camera_direction=camera_direction,
+                music_mood=music_mood,
+                video_script_validation=video_script_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -279,6 +303,15 @@ class ContentGenerationPipeline:
                 visual_style=visual_style,
                 cinematic_rules_applied=cinematic_rules_applied,
                 image_prompt_validation=image_prompt_validation,
+                video_script_result=video_script_result,
+                video_type=video_type,
+                video_duration=video_duration,
+                scene_sequence=scene_sequence,
+                storyboard=storyboard,
+                voiceover=voiceover,
+                camera_direction=camera_direction,
+                music_mood=music_mood,
+                video_script_validation=video_script_validation,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
                 governance_result=governance_result,
@@ -415,6 +448,17 @@ class ContentGenerationPipeline:
                 "routing": model_route.to_dict(),
             }
         )
+        if isinstance(prompt_payload, dict):
+            prompt_metadata = prompt_payload.setdefault("metadata", {})
+            if isinstance(prompt_metadata, dict):
+                prompt_metadata.update(
+                    {
+                        "provider": model_route.provider,
+                        "model": model_route.model_name,
+                        "route": model_route.route_reason,
+                        "generation_mode": normalized_request["content_type"],
+                    }
+                )
         log_context(self.logger, f"Model routed to {model_route.provider}/{model_route.model_name}")
 
         if not self._can_generate_live():
@@ -516,6 +560,15 @@ class ContentGenerationPipeline:
         cinematic_rules_applied: list[str] = []
         image_negative_prompt: str | None = None
         image_visual_style: str | None = None
+        video_script_result: dict[str, Any] | None = None
+        video_type: str | None = None
+        video_duration: str | None = None
+        scene_sequence: list[dict[str, Any]] = []
+        storyboard: list[dict[str, Any]] = []
+        voiceover: str | None = None
+        camera_direction: dict[str, Any] | None = None
+        music_mood: str | None = None
+        video_script_validation: dict[str, Any] | None = None
         asset_coordination_result = None
         asset_plan: dict[str, Any] = {}
         asset_requirements: dict[str, Any] = {}
@@ -661,6 +714,43 @@ class ContentGenerationPipeline:
                 }
                 output_warnings.append(warning)
 
+        if self.config.enable_video_script_engine and normalized_request["content_type"] in {"video_script", "video_prompt"}:
+            try:
+                video_script_started = perf_counter()
+                video_script_payload = self._build_video_script_request(
+                    normalized_request,
+                    context,
+                    parsed_output,
+                    formatted_output,
+                )
+                video_script_result = self.video_script_engine.generate_video_script(video_script_payload)
+                video_type = str(video_script_result.get("video_type", normalized_request.get("video_type", "")))
+                video_duration = str(video_script_result.get("duration", normalized_request.get("duration", "")))
+                scene_sequence = list(video_script_result.get("scene_sequence", [])) if isinstance(video_script_result.get("scene_sequence"), list) else []
+                storyboard = list(video_script_result.get("storyboard", [])) if isinstance(video_script_result.get("storyboard"), list) else []
+                voiceover = str(video_script_result.get("voiceover", ""))
+                camera_direction = video_script_result.get("camera_direction", {})
+                if not isinstance(camera_direction, dict):
+                    camera_direction = {"value": camera_direction}
+                music_mood = str(video_script_result.get("music_mood", ""))
+                video_script_validation = video_script_result.get("validation", {})
+                stage_timings["video_script"] = round(perf_counter() - video_script_started, 6)
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                warning = f"Video script engine failed: {exc}"
+                log_warning(self.logger, warning)
+                video_script_result = {
+                    "success": False,
+                    "warnings": [warning],
+                    "errors": [warning],
+                }
+                video_script_validation = {
+                    "valid": False,
+                    "warnings": [warning],
+                    "errors": [warning],
+                    "scores": {"structure": 0.0, "pacing": 0.0, "brand_fit": 0.0, "platform_fit": 0.0, "factual_safety": 0.0},
+                }
+                output_warnings.append(warning)
+
         validation_status = "passed"
         if validation_result and not validation_result.get("valid", True):
             validation_status = "failed"
@@ -781,7 +871,14 @@ class ContentGenerationPipeline:
                 "extra_notes": normalized_request.get("extra_notes", ""),
                 "enable_export": self.config.enable_campaign_export,
             }
-            seed_assets = self._build_campaign_assets(normalized_request, formatted_output, platform_variants, governance_result, image_prompt_result=image_prompt_result)
+            seed_assets = self._build_campaign_assets(
+                normalized_request,
+                formatted_output,
+                platform_variants,
+                governance_result,
+                image_prompt_result=image_prompt_result,
+                video_script_result=video_script_result,
+            )
             request_assets = request.get("campaign_assets") if isinstance(request.get("campaign_assets"), dict) else request.get("assets") if isinstance(request.get("assets"), dict) else {}
             if isinstance(request_assets, dict):
                 seed_assets.update(request_assets)
@@ -814,13 +911,21 @@ class ContentGenerationPipeline:
                 "campaign_strategy": campaign_strategy or {},
                 "campaign_assets": campaign_assets or {},
                 "image_prompt_result": image_prompt_result or {},
+                "video_script_result": video_script_result or {},
                 "campaign_metadata": {
                     "campaign_governance_summary": campaign_governance_summary or {},
                     "campaign_export_paths": campaign_export_paths or {},
                 },
                 "enable_export": self.config.enable_asset_export,
             }
-            seed_assets = self._build_asset_seed(normalized_request, formatted_output, platform_variants, governance_result, image_prompt_result=image_prompt_result)
+            seed_assets = self._build_asset_seed(
+                normalized_request,
+                formatted_output,
+                platform_variants,
+                governance_result,
+                image_prompt_result=image_prompt_result,
+                video_script_result=video_script_result,
+            )
             if campaign_assets:
                 seed_assets.update(campaign_assets)
             asset_request["assets"] = seed_assets
@@ -882,6 +987,8 @@ class ContentGenerationPipeline:
         )
         asset_warnings = list(asset_coordination_result.get("warnings", [])) if isinstance(asset_coordination_result, dict) else []
         asset_errors = list(asset_coordination_result.get("errors", [])) if isinstance(asset_coordination_result, dict) else []
+        video_script_warnings = list(video_script_result.get("warnings", [])) if isinstance(video_script_result, dict) else []
+        video_script_errors = list(video_script_result.get("errors", [])) if isinstance(video_script_result, dict) else []
         result = self.build_result(
             success=True,
             request=normalized_request,
@@ -897,6 +1004,15 @@ class ContentGenerationPipeline:
             visual_style=image_visual_style,
             cinematic_rules_applied=cinematic_rules_applied,
             image_prompt_validation=image_prompt_validation,
+            video_script_result=video_script_result,
+            video_type=video_type,
+            video_duration=video_duration,
+            scene_sequence=scene_sequence,
+            storyboard=storyboard,
+            voiceover=voiceover,
+            camera_direction=camera_direction,
+            music_mood=music_mood,
+            video_script_validation=video_script_validation,
             adaptation_result=adaptation_result,
             platform_variants=platform_variants,
             governance_result=governance_result,
@@ -927,7 +1043,15 @@ class ContentGenerationPipeline:
             output_metadata=output_metadata,
             metadata=metadata,
             error=None,
-            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors + governance_warnings + governance_errors + asset_warnings + asset_errors,
+            warnings=list(ai_response.get("metadata", {}).get("warnings", []))
+            + output_warnings
+            + output_errors
+            + video_script_warnings
+            + video_script_errors
+            + governance_warnings
+            + governance_errors
+            + asset_warnings
+            + asset_errors,
         )
         log_context(self.logger, f"Final result ready for {normalized_request['brand']}/{normalized_request['content_type']}")
         return result
@@ -954,6 +1078,9 @@ class ContentGenerationPipeline:
         normalized.setdefault("visual_style", self.config.default_visual_style)
         normalized.setdefault("image_type", "social_media_visual")
         normalized.setdefault("aspect_ratio", self.config.default_image_aspect_ratio)
+        normalized.setdefault("video_type", self.config.default_video_type)
+        normalized.setdefault("duration", self.config.default_video_duration)
+        normalized.setdefault("tone", "premium but approachable")
         normalized["report"] = bool(normalized.get("report", False))
         normalized["report_json"] = bool(normalized.get("report_json", False))
         normalized["report_markdown"] = bool(normalized.get("report_markdown", False))
@@ -983,6 +1110,9 @@ class ContentGenerationPipeline:
             "audience": request.get("audience", ""),
             "location": request.get("location", ""),
             "property_type": request.get("property_type", ""),
+            "video_type": request.get("video_type", ""),
+            "duration": request.get("duration", ""),
+            "tone": request.get("tone", ""),
             "context_summary": context.get("summary", {}),
             "detected_categories": context.get("detected_categories", []),
             "prompt_summary": prompt_payload.get("prompt_summary", ""),
@@ -1003,6 +1133,9 @@ class ContentGenerationPipeline:
             "audience": request.get("audience", ""),
             "location": request.get("location", ""),
             "property_type": request.get("property_type", ""),
+            "video_type": request.get("video_type", ""),
+            "duration": request.get("duration", ""),
+            "tone": request.get("tone", ""),
             "estimated_tokens": None,
             "cost_estimate": None,
         }
@@ -1030,6 +1163,7 @@ class ContentGenerationPipeline:
         platform_variants: dict[str, Any],
         governance_result: dict[str, Any] | None,
         image_prompt_result: dict[str, Any] | None = None,
+        video_script_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build deterministic campaign seed assets from existing outputs."""
 
@@ -1037,6 +1171,8 @@ class ContentGenerationPipeline:
             return {}
 
         asset_type = str(request.get("content_type", "")).strip()
+        if asset_type == "video_script":
+            asset_type = "reel_script"
         asset_status = self._campaign_asset_status(governance_result)
         platform_variant = {}
         if isinstance(platform_variants, dict):
@@ -1076,6 +1212,23 @@ class ContentGenerationPipeline:
                     "camera_direction": image_prompt_result.get("camera_direction", ""),
                 }
             )
+        if asset_type == "reel_script" and isinstance(video_script_result, dict) and video_script_result:
+            seed[asset_type].update(
+                {
+                    "hook": video_script_result.get("hook", ""),
+                    "script": video_script_result.get("script", ""),
+                    "scenes": list(video_script_result.get("scene_sequence", [])) if isinstance(video_script_result.get("scene_sequence"), list) else [],
+                    "storyboard": list(video_script_result.get("storyboard", [])) if isinstance(video_script_result.get("storyboard"), list) else [],
+                    "voiceover_direction": video_script_result.get("voiceover", ""),
+                    "cta": video_script_result.get("cta", ""),
+                    "visual_direction": video_script_result.get("script", "") or video_script_result.get("hook", ""),
+                    "duration": video_script_result.get("duration", ""),
+                    "camera_direction": video_script_result.get("camera_direction", ""),
+                    "music_mood": video_script_result.get("music_mood", ""),
+                    "video_script_result": video_script_result,
+                    "validation": video_script_result.get("validation", {}),
+                }
+            )
         return seed
 
     def _campaign_asset_status(self, governance_result: dict[str, Any] | None) -> str:
@@ -1101,6 +1254,7 @@ class ContentGenerationPipeline:
         platform_variants: dict[str, Any],
         governance_result: dict[str, Any] | None,
         image_prompt_result: dict[str, Any] | None = None,
+        video_script_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build deterministic seed assets for asset coordination."""
 
@@ -1147,6 +1301,23 @@ class ContentGenerationPipeline:
                     "camera_direction": image_prompt_result.get("camera_direction", ""),
                 }
             )
+        if asset_type == "reel_script" and isinstance(video_script_result, dict) and video_script_result:
+            seed[asset_type].update(
+                {
+                    "hook": video_script_result.get("hook", ""),
+                    "script": video_script_result.get("script", ""),
+                    "scenes": list(video_script_result.get("scene_sequence", [])) if isinstance(video_script_result.get("scene_sequence"), list) else [],
+                    "storyboard": list(video_script_result.get("storyboard", [])) if isinstance(video_script_result.get("storyboard"), list) else [],
+                    "voiceover_direction": video_script_result.get("voiceover", ""),
+                    "cta": video_script_result.get("cta", ""),
+                    "visual_direction": video_script_result.get("script", "") or video_script_result.get("hook", ""),
+                    "duration": video_script_result.get("duration", ""),
+                    "camera_direction": video_script_result.get("camera_direction", ""),
+                    "music_mood": video_script_result.get("music_mood", ""),
+                    "video_script_result": video_script_result,
+                    "validation": video_script_result.get("validation", {}),
+                }
+            )
         return seed
 
     def _build_image_prompt_request(
@@ -1174,12 +1345,48 @@ class ContentGenerationPipeline:
         request_payload["enable_cinematic_enhancement"] = self.config.enable_cinematic_enhancement
         return request_payload
 
+    def _build_video_script_request(
+        self,
+        request: dict[str, Any],
+        context: dict[str, Any],
+        parsed_output: dict[str, Any],
+        formatted_output: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Build a video script engine request from structured pipeline data."""
+
+        request_payload = dict(request)
+        request_payload["content_type"] = "video_script"
+        request_payload["video_type"] = request.get("video_type") or self.config.default_video_type
+        request_payload["duration"] = request.get("duration") or self.config.default_video_duration
+        request_payload["tone"] = request.get("tone") or "premium but approachable"
+        request_payload["visual_style"] = request.get("visual_style") or self.config.default_visual_style
+        if not request_payload.get("creative_direction"):
+            request_payload["creative_direction"] = (
+                self._extract_video_script_seed(formatted_output)
+                or self._extract_video_script_seed(parsed_output)
+                or str(context.get("summary", {}).get("combined_context", "")).strip()
+                or request.get("extra_notes", "")
+            )
+        request_payload["enable_storyboard_generation"] = self.config.enable_storyboard_generation
+        return request_payload
+
     def _extract_image_prompt_seed(self, payload: dict[str, Any] | None) -> str:
         """Extract a fallback prompt seed from parsed or formatted content."""
 
         if not isinstance(payload, dict):
             return ""
         for key in ("creative_direction", "visual_direction", "prompt", "content", "caption", "description", "summary"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
+    def _extract_video_script_seed(self, payload: dict[str, Any] | None) -> str:
+        """Extract a fallback seed from parsed or formatted video content."""
+
+        if not isinstance(payload, dict):
+            return ""
+        for key in ("creative_direction", "hook", "script", "voiceover", "prompt", "content", "caption", "description", "summary"):
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
@@ -1238,6 +1445,8 @@ class ContentGenerationPipeline:
                 "export_report": report_bundle.get("export_report"),
                 "consolidated_report": report_bundle.get("consolidated_report"),
                 "report_export_paths": report_bundle.get("exported_files", {}),
+                "image_prompt_report": report_bundle.get("image_prompt_report", {}),
+                "video_script_report": report_bundle.get("video_script_report", {}),
                 "metadata": {**metadata, "reporting": report_metadata},
             }
         )

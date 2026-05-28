@@ -185,6 +185,125 @@ def sample_asset_request(sample_brand_name: str) -> dict[str, object]:
 
 
 @pytest.fixture
+def sample_video_script_request(sample_brand_name: str) -> dict[str, object]:
+    """Return a representative video script request."""
+
+    return {
+        "brand": sample_brand_name,
+        "platform": "instagram",
+        "content_type": "video_script",
+        "campaign_type": "property_launch",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "location": "sant_llorenc_des_cardassar",
+        "property_type": "rustic_home",
+        "video_type": "instagram_reel",
+        "duration": "30s",
+        "creative_direction": "Rustic exterior with modern comfort inside, close to Manacor and beaches.",
+        "visual_style": "mediterranean_lifestyle",
+        "tone": "premium but approachable",
+        "extra_notes": "Do not invent property facts.",
+    }
+
+
+@pytest.fixture
+def sample_video_script_ai_response() -> dict[str, object]:
+    """Return a representative AI response for video script generation."""
+
+    content = json.dumps(
+        {
+            "hook": "Discover a rustic Mallorca home with calm, modern comfort.",
+            "script": "Start with the exterior, move into the bright living spaces, and finish with the lifestyle payoff.",
+            "voiceover": "Discover a rustic Mallorca home with calm, modern comfort. Step inside, enjoy the light, and imagine the lifestyle.",
+            "cta": "Contact our team to learn more.",
+            "music_mood": "warm, modern, rhythmic, and elegant",
+            "scene_sequence": [
+                {
+                    "scene_number": 1,
+                    "duration": "6s",
+                    "visual": "Strong exterior first impression with natural light.",
+                    "camera_motion": "slow push-in",
+                    "voiceover": "Discover a rustic Mallorca home with calm, modern comfort.",
+                    "on_screen_text": "Rustic Mallorca calm",
+                    "purpose": "Hook / first impression",
+                },
+                {
+                    "scene_number": 2,
+                    "duration": "6s",
+                    "visual": "Exterior context with the surrounding lifestyle.",
+                    "camera_motion": "gentle pan",
+                    "voiceover": "Step inside, enjoy the light, and imagine the lifestyle.",
+                    "on_screen_text": "Lifestyle context",
+                    "purpose": "Exterior or lifestyle context",
+                },
+                {
+                    "scene_number": 3,
+                    "duration": "6s",
+                    "visual": "Bright interior comfort and practical layout.",
+                    "camera_motion": "steady glide",
+                    "voiceover": "Bright interiors and a grounded Mediterranean feel.",
+                    "on_screen_text": "Modern comfort",
+                    "purpose": "Main property value",
+                },
+                {
+                    "scene_number": 4,
+                    "duration": "6s",
+                    "visual": "Location relevance close to Manacor and beaches.",
+                    "camera_motion": "slow reveal",
+                    "voiceover": "Close to Manacor and the coast, with everyday convenience.",
+                    "on_screen_text": "Well located",
+                    "purpose": "Location or lifestyle relevance",
+                },
+                {
+                    "scene_number": 5,
+                    "duration": "6s",
+                    "visual": "Final CTA frame with elegant brand close.",
+                    "camera_motion": "settled frame",
+                    "voiceover": "Contact our team to learn more.",
+                    "on_screen_text": "Contact our team",
+                    "purpose": "CTA",
+                },
+            ],
+            "storyboard": [
+                {
+                    "frame_number": 1,
+                    "scene_number": 1,
+                    "shot_type": "wide",
+                    "visual_description": "Strong exterior first impression with natural light.",
+                    "camera_direction": "slow push-in",
+                    "lighting": "natural daylight",
+                    "motion": "slow push-in",
+                    "on_screen_text": "Rustic Mallorca calm",
+                    "voiceover": "Discover a rustic Mallorca home with calm, modern comfort.",
+                }
+            ],
+            "camera_direction": {
+                "platform": "instagram",
+                "framing": "vertical-safe",
+                "movement": ["slow push-in", "gentle pan", "steady glide", "slow reveal", "settled frame"],
+                "shot_types": ["wide", "medium", "detail", "wide", "hero"],
+                "continuity_note": "Maintain cinematic continuity and avoid fake luxury exaggeration.",
+            },
+        }
+    )
+
+    return {
+        "success": True,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "content": content,
+        "raw_response": {"content": content, "id": "dummy-video-script"},
+        "metadata": {
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "temperature": 0.7,
+            "warnings": [],
+        },
+        "error": None,
+    }
+
+
+@pytest.fixture
 def sample_image_prompt_request(sample_brand_name: str) -> dict[str, object]:
     """Return a representative image prompt request."""
 

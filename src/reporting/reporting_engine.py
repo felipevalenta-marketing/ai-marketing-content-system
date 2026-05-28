@@ -33,6 +33,7 @@ class ReportingEngine:
         log_context(self.logger, "Building analytics reports")
         reports = self.builder.build_reports(payload)
         consolidated = reports["consolidated_report"]
+        video_script_report = self._build_video_script_report(payload, reports["asset_report"])
         rendered = self.renderer.render(consolidated, output_format=render_format)
         rendered_markdown = self.renderer.render_markdown(consolidated)
         rendered_text = self.renderer.render_terminal(consolidated)
@@ -55,19 +56,21 @@ class ReportingEngine:
             "export_report": reports["export_report"],
             "consolidated_report": consolidated,
             "image_prompt_report": self._build_image_prompt_report(payload, reports["asset_report"]),
+            "video_script_report": video_script_report,
             "rendered": rendered,
             "rendered_markdown": rendered_markdown,
             "rendered_text": rendered_text,
             "exported_files": exported_files,
-            "warnings": self._collect_warnings(reports),
-            "errors": self._collect_errors(reports),
+            "warnings": self._collect_warnings({**reports, "video_script_report": video_script_report}),
+            "errors": self._collect_errors({**reports, "video_script_report": video_script_report}),
             "metadata": {
                 "brand": self._extract_brand(payload),
                 "report_name": report_name or safe_text(consolidated.get("title", "report"), limit=80),
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),
-                "report_types": list(reports.keys()),
+                "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report"],
                 "image_prompt_metrics_present": self._has_image_prompt_data(payload),
+                "video_script_metrics_present": self._has_video_script_data(payload),
             },
         }
         return bundle
@@ -137,7 +140,35 @@ class ReportingEngine:
             "asset_report_reference": safe_dict(asset_report).get("summary", {}),
         }
 
+    def _build_video_script_report(self, payload: dict[str, Any], asset_report: dict[str, Any]) -> dict[str, Any]:
+        """Build a safe video script analytics snapshot when available."""
+
+        video_script_result = safe_dict(payload.get("video_script_result"))
+        video_script_validation = safe_dict(payload.get("video_script_validation"))
+        if not video_script_result and not video_script_validation:
+            return {}
+        scores = safe_dict(video_script_validation.get("scores"))
+        return {
+            "video_type": safe_text(video_script_result.get("video_type") or payload.get("video_type") or "", limit=80),
+            "duration": safe_text(video_script_result.get("duration") or payload.get("duration") or "", limit=80),
+            "scene_count": len(safe_list(video_script_result.get("scene_sequence"))),
+            "storyboard_scene_count": len(safe_list(video_script_result.get("storyboard"))),
+            "voiceover_length": len(safe_text(video_script_result.get("voiceover") or "", limit=120).split()),
+            "hook_present": bool(safe_text(video_script_result.get("hook") or "", limit=120)),
+            "cta_present": bool(safe_text(video_script_result.get("cta") or "", limit=120)),
+            "validation_status": bool(video_script_validation.get("valid", False)) if video_script_validation else False,
+            "pacing_score": safe_float(scores.get("pacing"), 0.0),
+            "factual_safety_score": safe_float(scores.get("factual_safety"), 0.0),
+            "platform_fit_score": safe_float(scores.get("platform_fit"), 0.0),
+            "asset_report_reference": safe_dict(asset_report).get("summary", {}),
+        }
+
     def _has_image_prompt_data(self, payload: dict[str, Any]) -> bool:
         """Return whether the payload includes image prompt analytics data."""
 
         return bool(safe_dict(payload.get("image_prompt_result")) or safe_dict(payload.get("image_prompt_validation")))
+
+    def _has_video_script_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes video script analytics data."""
+
+        return bool(safe_dict(payload.get("video_script_result")) or safe_dict(payload.get("video_script_validation")))

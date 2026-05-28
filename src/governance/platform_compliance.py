@@ -29,6 +29,58 @@ class PlatformComplianceChecker:
             warnings.append(f"Unsupported platform: {platform}")
             return {"score": 50.0, "warnings": warnings, "errors": errors, "checks": {"unsupported_platform": True}}
 
+        if content_type in {"video_prompt", "video_script"}:
+            hook = self._get(output, "hook")
+            script = self._get(output, "script", "scene_description")
+            voiceover = self._get(output, "voiceover", "voiceover_direction")
+            cta = self._get(output, "cta")
+            scene_sequence = self._normalize_list(output.get("scene_sequence") or output.get("sequence"))
+            storyboard = self._normalize_list(output.get("storyboard"))
+            duration = self._get(output, "duration")
+            checks.update(
+                {
+                    "hook_exists": bool(hook),
+                    "script_exists": bool(script),
+                    "voiceover_exists": bool(voiceover),
+                    "cta_exists": bool(cta),
+                    "scene_count": len(scene_sequence),
+                    "storyboard_count": len(storyboard),
+                    "duration": duration,
+                }
+            )
+            if not hook:
+                warnings.append("Video script is missing a hook.")
+            if not script:
+                errors.append("Video script is missing a script body.")
+            if not voiceover:
+                warnings.append("Video script is missing voiceover direction.")
+            if not cta:
+                warnings.append("Video script is missing a CTA.")
+            if not scene_sequence:
+                errors.append("Video script is missing a scene sequence.")
+            if not storyboard:
+                warnings.append("Video script is missing storyboard detail.")
+            if platform in {"instagram", "tiktok"} and len(scene_sequence) > 6:
+                warnings.append("Video script has too many scenes for a vertical short-form platform.")
+            if platform == "linkedin" and self._is_overly_emotional(script):
+                warnings.append("LinkedIn video script appears overly emotional.")
+            if platform == "website" and self._has_hype(script):
+                warnings.append("Website video script appears exaggerated.")
+            score = 100.0
+            score -= 10 if not hook else 0
+            score -= 15 if not script else 0
+            score -= 8 if not voiceover else 0
+            score -= 8 if not cta else 0
+            score -= 8 if not scene_sequence else 0
+            score -= 4 if not storyboard else 0
+            if platform in {"instagram", "tiktok"} and duration not in {"15s", "30s", "45s"}:
+                score -= 10
+            if platform == "linkedin" and self._is_overly_emotional(script):
+                score -= 8
+            if platform == "website" and self._has_hype(script):
+                score -= 8
+            return {"score": max(0.0, round(score, 2)), "warnings": warnings, "errors": errors, "checks": checks}
+
         if platform == "instagram":
             hook = self._get(output, "hook")
             caption = self._get(output, "caption")

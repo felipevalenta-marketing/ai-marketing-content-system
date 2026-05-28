@@ -11,6 +11,7 @@ from src.governance.governance_rules import get_governance_rules
 from src.governance.platform_compliance import PlatformComplianceChecker
 from src.governance.quality_scoring import QualityScorer
 from src.media.image_prompt_validator import ImagePromptValidator
+from src.media.video_script_validator import VideoScriptValidator
 from src.utils.logger import get_logger, log_context, log_warning
 
 
@@ -25,6 +26,7 @@ class ContentGovernanceEngine:
         self.platform_checker = PlatformComplianceChecker(self.rules)
         self.factual_safety_checker = FactualSafetyChecker(self.rules)
         self.image_prompt_validator = ImagePromptValidator(self.rules)
+        self.video_script_validator = VideoScriptValidator()
 
     def evaluate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Evaluate a payload and return a governance decision."""
@@ -43,6 +45,8 @@ class ContentGovernanceEngine:
         content_type = str(payload.get("content_type", "")).strip().lower()
         if content_type == "image_prompt" or payload.get("image_prompt_result"):
             return self._evaluate_image_prompt(payload)
+        if content_type == "video_script" or payload.get("video_script_result"):
+            return self._evaluate_video_script(payload)
 
         formatted_result = self.evaluate_formatted_output(payload)
         platform_result = self.evaluate_platform_variants(payload)
@@ -272,6 +276,89 @@ class ContentGovernanceEngine:
             recommendations.append("Adjust aspect ratio or platform framing for better fit.")
         if factual_result["score"] < 90:
             recommendations.append("Remove any unsupported property claims from the visual prompt.")
+        return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
+
+    def _evaluate_video_script(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate video script results with prompt-specific safety checks."""
+
+        video_result = payload.get("video_script_result")
+        if not isinstance(video_result, dict) or not video_result:
+            formatted_output = payload.get("formatted_output", {})
+            if isinstance(formatted_output, dict):
+                video_result = {
+                    "hook": formatted_output.get("hook", ""),
+                    "script": formatted_output.get("script", ""),
+                    "voiceover": formatted_output.get("voiceover", formatted_output.get("voiceover_direction", "")),
+                    "cta": formatted_output.get("cta", ""),
+                    "music_mood": formatted_output.get("music_mood", formatted_output.get("mood", "")),
+                    "scene_sequence": formatted_output.get("scene_sequence", formatted_output.get("sequence", [])),
+                    "storyboard": formatted_output.get("storyboard", []),
+                    "camera_direction": formatted_output.get("camera_direction", formatted_output.get("camera_motion", "")),
+                    "duration": formatted_output.get("duration", payload.get("metadata", {}).get("duration", "")) if isinstance(payload.get("metadata"), dict) else formatted_output.get("duration", ""),
+                    "platform": payload.get("platform", ""),
+                    "metadata": payload.get("metadata", {}),
+                }
+            else:
+                video_result = {}
+
+        validation = self.video_script_validator.validate(video_result)
+        script_text = str(video_result.get("script") or video_result.get("voiceover") or "").strip()
+        video_payload = {
+            "brand": payload.get("brand", ""),
+            "platform": payload.get("platform", ""),
+            "content_type": "video_script",
+            "formatted_output": {
+                "hook": str(video_result.get("hook", "")),
+                "script": script_text,
+                "voiceover": str(video_result.get("voiceover", video_result.get("voiceover_direction", ""))),
+                "cta": str(video_result.get("cta", "")),
+                "music_mood": str(video_result.get("music_mood", video_result.get("mood", ""))),
+                "scene_sequence": video_result.get("scene_sequence", video_result.get("sequence", [])),
+                "storyboard": video_result.get("storyboard", []),
+                "camera_direction": video_result.get("camera_direction", video_result.get("camera_motion", "")),
+            },
+            "platform_variants": payload.get("platform_variants", {}),
+            "metadata": payload.get("metadata", {}),
+        }
+        brand_result = self.brand_checker.check(video_payload)
+        factual_result = self.factual_safety_checker.check(video_payload)
+
+        quality_result = {
+            "score": validation["scores"]["structure"],
+            "warnings": list(validation["warnings"]),
+            "errors": list(validation["errors"]),
+            "checks": {"video_script_validation": validation["scores"]},
+        }
+        platform_result = {
+            "score": validation["scores"]["platform_fit"],
+            "warnings": [warning for warning in validation["warnings"] if "platform" in warning.lower() or "duration" in warning.lower() or "scene" in warning.lower()],
+            "errors": [error for error in validation["errors"] if "duration" in error.lower() or "scene" in error.lower() or "storyboard" in error.lower()],
+            "checks": {"video_script_platform_fit": validation["scores"]["platform_fit"]},
+        }
+        scores = {
+            "quality_score": quality_result["score"],
+            "brand_score": brand_result["score"],
+            "platform_score": platform_result["score"],
+            "factual_safety_score": factual_result["score"],
+        }
+        warnings = list(dict.fromkeys(quality_result["warnings"] + brand_result["warnings"] + platform_result["warnings"] + factual_result["warnings"]))
+        errors = list(dict.fromkeys(quality_result["errors"] + brand_result["errors"] + platform_result["errors"] + factual_result["errors"]))
+        checks = {
+            "quality": quality_result["checks"],
+            "brand": brand_result["checks"],
+            "platform": platform_result["checks"],
+            "factual_safety": factual_result["checks"],
+            "video_script_validation": validation,
+        }
+        recommendations = []
+        if validation["scores"]["structure"] < 75:
+            recommendations.append("Strengthen the hook, scene sequence, and CTA structure.")
+        if validation["scores"]["pacing"] < 75:
+            recommendations.append("Tighten pacing and align the scene count with the duration.")
+        if validation["scores"]["platform_fit"] < 80:
+            recommendations.append("Adjust framing, pacing, or CTA timing for the platform.")
+        if validation["scores"]["factual_safety"] < 90:
+            recommendations.append("Remove unsupported property claims from the script.")
         return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
 
     def _build_recommendations(self, quality_result: dict[str, Any], brand_result: dict[str, Any], platform_result: dict[str, Any], factual_result: dict[str, Any]) -> list[str]:

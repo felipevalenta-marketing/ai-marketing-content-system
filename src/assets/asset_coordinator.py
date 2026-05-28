@@ -56,6 +56,11 @@ class AssetCoordinator:
                 existing_assets.get("image_prompt"),
                 normalized_request.get("image_prompt_result"),
             )
+        if normalized_request.get("video_script_result"):
+            existing_assets["reel_script"] = self._merge_video_script_result(
+                existing_assets.get("reel_script"),
+                normalized_request.get("video_script_result"),
+            )
         asset_bundle = self.assemble_asset_bundle(normalized_request, existing_assets=existing_assets)
         validation_result = self.validator.validate(normalized_request, asset_plan, asset_requirements, existing_assets)
         planned_assets = list(validation_result.get("planned_assets", []))
@@ -77,6 +82,7 @@ class AssetCoordinator:
                 "asset_plan": asset_plan,
                 "asset_requirements": asset_requirements,
                 "assets": existing_assets,
+                "video_script_result": normalized_request.get("video_script_result", {}),
                 "planned_assets": planned_assets,
                 "existing_assets": existing_asset_names,
                 "missing_assets": missing_assets,
@@ -170,6 +176,11 @@ class AssetCoordinator:
                 assets.get("image_prompt"),
                 normalized_request.get("image_prompt_result"),
             )
+        if normalized_request.get("video_script_result"):
+            assets["reel_script"] = self._merge_video_script_result(
+                assets.get("reel_script"),
+                normalized_request.get("video_script_result"),
+            )
         missing_assets = self.summarize_missing_assets(asset_plan, existing_assets=assets)
         bundle = {
             "campaign_name": normalized_request.get("campaign_name") or self._build_campaign_name(normalized_request),
@@ -180,6 +191,7 @@ class AssetCoordinator:
             "asset_requirements": asset_requirements,
             "assets": assets,
             "image_prompt_result": normalized_request.get("image_prompt_result", {}),
+            "video_script_result": normalized_request.get("video_script_result", {}),
             "missing_assets": missing_assets,
             "platform_mapping": self.map_assets_to_platforms(normalized_request),
             "governance_summary": self._build_governance_summary(normalized_request, assets),
@@ -223,6 +235,7 @@ class AssetCoordinator:
         normalized["image_type"] = str(normalized.get("image_type", "")).strip()
         normalized["aspect_ratio"] = str(normalized.get("aspect_ratio", "")).strip()
         normalized["image_prompt_result"] = dict(normalized.get("image_prompt_result", {})) if isinstance(normalized.get("image_prompt_result"), dict) else {}
+        normalized["video_script_result"] = dict(normalized.get("video_script_result", {})) if isinstance(normalized.get("video_script_result"), dict) else {}
         normalized["extra_notes"] = str(normalized.get("extra_notes", "")).strip()
         normalized["enable_export"] = bool(normalized.get("enable_export", False))
         return normalized
@@ -336,6 +349,7 @@ class AssetCoordinator:
             "campaign_strategy_present": bool(request.get("campaign_strategy")),
             "campaign_assets_present": bool(request.get("campaign_assets")),
             "image_prompt_result_present": bool(request.get("image_prompt_result")),
+            "video_script_result_present": bool(request.get("video_script_result")),
             "campaign_metadata": campaign_metadata,
         }
         if contract is not None:
@@ -372,6 +386,36 @@ class AssetCoordinator:
         }
         if not merged.get("status"):
             merged["status"] = "approved" if image_prompt_result.get("success") else "warning"
+        return merged
+
+    def _merge_video_script_result(self, asset: dict[str, Any] | None, video_script_result: dict[str, Any]) -> dict[str, Any]:
+        """Attach structured video script output to a reel script asset entry."""
+
+        merged = dict(asset or {})
+        if not isinstance(video_script_result, dict):
+            return merged
+        merged.setdefault("asset_type", "reel_script")
+        merged.setdefault("platform", video_script_result.get("platform", ""))
+        merged.setdefault("purpose", "")
+        scene_sequence = list(video_script_result.get("scene_sequence", [])) if isinstance(video_script_result.get("scene_sequence"), list) else []
+        storyboard = list(video_script_result.get("storyboard", [])) if isinstance(video_script_result.get("storyboard"), list) else []
+        merged["video_script_result"] = dict(video_script_result)
+        merged["hook"] = video_script_result.get("hook", "")
+        merged["script"] = video_script_result.get("script", "")
+        merged["scenes"] = scene_sequence
+        merged["storyboard"] = storyboard
+        merged["voiceover_direction"] = video_script_result.get("voiceover", "")
+        merged["cta"] = video_script_result.get("cta", "")
+        merged["visual_direction"] = video_script_result.get("script", "") or video_script_result.get("hook", "")
+        merged["duration"] = video_script_result.get("duration", "")
+        merged["camera_direction"] = video_script_result.get("camera_direction", "")
+        merged["music_mood"] = video_script_result.get("music_mood", "")
+        merged["metadata"] = {
+            **(dict(merged.get("metadata", {})) if isinstance(merged.get("metadata"), dict) else {}),
+            "video_script_result": video_script_result.get("metadata", {}),
+        }
+        if not merged.get("status"):
+            merged["status"] = "approved" if video_script_result.get("success") else "warning"
         return merged
 
     def build_analytics_snapshot(self, asset_result: dict[str, Any]) -> dict[str, Any]:

@@ -27,6 +27,15 @@ class PipelineResult:
     visual_style: str | None
     cinematic_rules_applied: list[str]
     image_prompt_validation: dict[str, Any] | None
+    video_script_result: dict[str, Any] | None
+    video_type: str | None
+    video_duration: str | None
+    scene_sequence: list[dict[str, Any]]
+    storyboard: list[dict[str, Any]]
+    voiceover: str | None
+    camera_direction: dict[str, Any] | None
+    music_mood: str | None
+    video_script_validation: dict[str, Any] | None
     adaptation_result: dict[str, Any] | None
     platform_variants: dict[str, Any]
     governance_result: dict[str, Any] | None
@@ -80,6 +89,15 @@ class PipelineResult:
             "visual_style": self.visual_style,
             "cinematic_rules_applied": self.cinematic_rules_applied,
             "image_prompt_validation": self.image_prompt_validation,
+            "video_script_result": self.video_script_result,
+            "video_type": self.video_type,
+            "video_duration": self.video_duration,
+            "scene_sequence": self.scene_sequence,
+            "storyboard": self.storyboard,
+            "voiceover": self.voiceover,
+            "camera_direction": self.camera_direction,
+            "music_mood": self.music_mood,
+            "video_script_validation": self.video_script_validation,
             "adaptation_result": self.adaptation_result,
             "platform_variants": self.platform_variants,
             "governance_result": self.governance_result,
@@ -131,6 +149,15 @@ def build_success_result(
     visual_style: str | None = None,
     cinematic_rules_applied: list[str] | None = None,
     image_prompt_validation: dict[str, Any] | None = None,
+    video_script_result: dict[str, Any] | None = None,
+    video_type: str | None = None,
+    video_duration: str | None = None,
+    scene_sequence: list[dict[str, Any]] | None = None,
+    storyboard: list[dict[str, Any]] | None = None,
+    voiceover: str | None = None,
+    camera_direction: dict[str, Any] | None = None,
+    music_mood: str | None = None,
+    video_script_validation: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
     governance_result: dict[str, Any] | None = None,
@@ -182,6 +209,15 @@ def build_success_result(
         visual_style=visual_style,
         cinematic_rules_applied=cinematic_rules_applied or [],
         image_prompt_validation=image_prompt_validation,
+        video_script_result=video_script_result,
+        video_type=video_type,
+        video_duration=video_duration,
+        scene_sequence=scene_sequence or [],
+        storyboard=storyboard or [],
+        voiceover=voiceover,
+        camera_direction=camera_direction,
+        music_mood=music_mood,
+        video_script_validation=video_script_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,
@@ -235,6 +271,15 @@ def build_failure_result(
     visual_style: str | None = None,
     cinematic_rules_applied: list[str] | None = None,
     image_prompt_validation: dict[str, Any] | None = None,
+    video_script_result: dict[str, Any] | None = None,
+    video_type: str | None = None,
+    video_duration: str | None = None,
+    scene_sequence: list[dict[str, Any]] | None = None,
+    storyboard: list[dict[str, Any]] | None = None,
+    voiceover: str | None = None,
+    camera_direction: dict[str, Any] | None = None,
+    music_mood: str | None = None,
+    video_script_validation: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
     governance_result: dict[str, Any] | None = None,
@@ -285,6 +330,15 @@ def build_failure_result(
         visual_style=visual_style,
         cinematic_rules_applied=cinematic_rules_applied or [],
         image_prompt_validation=image_prompt_validation,
+        video_script_result=video_script_result,
+        video_type=video_type,
+        video_duration=video_duration,
+        scene_sequence=scene_sequence or [],
+        storyboard=storyboard or [],
+        voiceover=voiceover,
+        camera_direction=camera_direction,
+        music_mood=music_mood,
+        video_script_validation=video_script_validation,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
         governance_result=governance_result,
