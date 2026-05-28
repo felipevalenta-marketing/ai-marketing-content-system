@@ -40,8 +40,11 @@ class PipelineConfig:
     enable_output_validation: bool = True
     enable_rendering: bool = True
     enable_export: bool = False
+    enable_platform_adaptation: bool = False
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
     supported_content_types: tuple[str, ...] = DEFAULT_SUPPORTED_CONTENT_TYPES
+    target_platforms: list[str] = field(default_factory=lambda: ["instagram"])
+    default_target_platforms: list[str] = field(default_factory=lambda: ["instagram", "facebook", "linkedin"])
     export_formats: tuple[str, ...] = ("markdown", "json")
     output_root: str = "outputs"
     generation_defaults: dict[str, Any] = field(

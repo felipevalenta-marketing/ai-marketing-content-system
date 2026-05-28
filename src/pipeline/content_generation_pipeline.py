@@ -15,6 +15,7 @@ from src.output.output_formatter import OutputFormatter
 from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
+from src.adapters.platform_adapter import PlatformAdapter
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -39,6 +40,7 @@ class ContentGenerationPipeline:
         validator: OutputValidator | None = None,
         renderer: OutputRenderer | None = None,
         exporter: OutputExporter | None = None,
+        adapter: PlatformAdapter | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -52,6 +54,7 @@ class ContentGenerationPipeline:
         self.validator = validator or OutputValidator(logger=self.logger)
         self.renderer = renderer or OutputRenderer(logger=self.logger)
         self.exporter = exporter or OutputExporter(output_root=self.config.output_root, logger=self.logger)
+        self.adapter = adapter or PlatformAdapter(logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -144,6 +147,8 @@ class ContentGenerationPipeline:
         parsed_output: dict[str, Any] | None,
         formatted_output: dict[str, Any] | None,
         validation_result: dict[str, Any] | None,
+        adaptation_result: dict[str, Any] | None,
+        platform_variants: dict[str, Any] | None,
         rendered_markdown: str | None,
         rendered_text: str | None,
         exported_files: dict[str, str] | None,
@@ -167,6 +172,8 @@ class ContentGenerationPipeline:
                 parsed_output=parsed_output or {},
                 formatted_output=formatted_output,
                 validation_result=validation_result,
+                adaptation_result=adaptation_result,
+                platform_variants=platform_variants or {},
                 rendered_markdown=rendered_markdown,
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
@@ -187,6 +194,8 @@ class ContentGenerationPipeline:
             parsed_output=parsed_output,
             formatted_output=formatted_output,
             validation_result=validation_result,
+            adaptation_result=adaptation_result,
+            platform_variants=platform_variants or {},
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files or {},
@@ -212,6 +221,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -233,6 +244,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -255,6 +268,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -294,6 +309,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -317,6 +334,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -340,6 +359,8 @@ class ContentGenerationPipeline:
                 parsed_output=None,
                 formatted_output=None,
                 validation_result=None,
+                adaptation_result=None,
+                platform_variants={},
                 rendered_markdown=None,
                 rendered_text=None,
                 exported_files={},
@@ -354,6 +375,8 @@ class ContentGenerationPipeline:
 
         formatted_output = None
         validation_result = None
+        adaptation_result = None
+        platform_variants: dict[str, Any] = {}
         rendered_markdown = None
         rendered_text = None
         exported_files: dict[str, str] = {}
@@ -376,6 +399,8 @@ class ContentGenerationPipeline:
                     parsed_output=parsed_output,
                     formatted_output=None,
                     validation_result=None,
+                    adaptation_result=None,
+                    platform_variants={},
                     rendered_markdown=None,
                     rendered_text=None,
                     exported_files={},
@@ -406,6 +431,8 @@ class ContentGenerationPipeline:
                         parsed_output=parsed_output,
                         formatted_output=formatted_output,
                         validation_result=validation_result,
+                        adaptation_result=None,
+                        platform_variants={},
                         rendered_markdown=None,
                         rendered_text=None,
                         exported_files={},
@@ -435,6 +462,30 @@ class ContentGenerationPipeline:
         elif validation_result and validation_result.get("warnings"):
             validation_status = "warning"
 
+        if self.config.enable_platform_adaptation and formatted_output:
+            target_platforms = list(self.config.target_platforms or self.config.default_target_platforms)
+            log_context(self.logger, f"Adapting content for platforms: {target_platforms}")
+            try:
+                adaptation_request = {
+                    "content_type": normalized_request["content_type"],
+                    "formatted_output": formatted_output,
+                    "metadata": metadata,
+                }
+                adaptation_result = self.adapter.adapt(adaptation_request, target_platforms)
+                platform_variants = dict(adaptation_result.get("platform_variants") or {})
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                warning = f"Platform adaptation failed: {exc}"
+                log_warning(self.logger, warning)
+                adaptation_result = {
+                    "success": False,
+                    "source_content_type": normalized_request["content_type"],
+                    "platform_variants": {},
+                    "warnings": [warning],
+                    "metadata": metadata,
+                    "errors": [warning],
+                }
+                platform_variants = {}
+
         output_metadata = build_output_metadata(
             brand=normalized_request["brand"],
             platform=normalized_request["platform"],
@@ -456,6 +507,7 @@ class ContentGenerationPipeline:
                 "parser_warnings": parsed_output.get("parser_warnings", []),
                 "validation_status": validation_status,
                 "exported": bool(exported_files),
+                "adapted": bool(platform_variants),
             }
         )
         result = self.build_result(
@@ -467,6 +519,8 @@ class ContentGenerationPipeline:
             parsed_output=parsed_output,
             formatted_output=formatted_output,
             validation_result=validation_result,
+            adaptation_result=adaptation_result,
+            platform_variants=platform_variants,
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files,

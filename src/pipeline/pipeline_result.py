@@ -21,6 +21,8 @@ class PipelineResult:
     parsed_output: dict[str, Any] | None
     formatted_output: dict[str, Any] | None
     validation_result: dict[str, Any] | None
+    adaptation_result: dict[str, Any] | None
+    platform_variants: dict[str, Any]
     rendered_markdown: str | None
     rendered_text: str | None
     exported_files: dict[str, str]
@@ -44,6 +46,8 @@ class PipelineResult:
             "parsed_output": self.parsed_output,
             "formatted_output": self.formatted_output,
             "validation_result": self.validation_result,
+            "adaptation_result": self.adaptation_result,
+            "platform_variants": self.platform_variants,
             "rendered_markdown": self.rendered_markdown,
             "rendered_text": self.rendered_text,
             "exported_files": self.exported_files,
@@ -65,6 +69,8 @@ def build_success_result(
     parsed_output: dict[str, Any],
     formatted_output: dict[str, Any] | None,
     validation_result: dict[str, Any] | None,
+    adaptation_result: dict[str, Any] | None,
+    platform_variants: dict[str, Any] | None,
     rendered_markdown: str | None,
     rendered_text: str | None,
     exported_files: dict[str, str] | None,
@@ -86,6 +92,8 @@ def build_success_result(
         parsed_output=parsed_output,
         formatted_output=formatted_output,
         validation_result=validation_result,
+        adaptation_result=adaptation_result,
+        platform_variants=platform_variants or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},
@@ -109,6 +117,8 @@ def build_failure_result(
     parsed_output: dict[str, Any] | None = None,
     formatted_output: dict[str, Any] | None = None,
     validation_result: dict[str, Any] | None = None,
+    adaptation_result: dict[str, Any] | None = None,
+    platform_variants: dict[str, Any] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -129,6 +139,8 @@ def build_failure_result(
         parsed_output=parsed_output,
         formatted_output=formatted_output,
         validation_result=validation_result,
+        adaptation_result=adaptation_result,
+        platform_variants=platform_variants or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},
