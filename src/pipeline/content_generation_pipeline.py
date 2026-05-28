@@ -16,6 +16,7 @@ from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
 from src.adapters.platform_adapter import PlatformAdapter
+from src.governance.content_governance import ContentGovernanceEngine
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -41,6 +42,7 @@ class ContentGenerationPipeline:
         renderer: OutputRenderer | None = None,
         exporter: OutputExporter | None = None,
         adapter: PlatformAdapter | None = None,
+        governance_engine: ContentGovernanceEngine | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -55,6 +57,7 @@ class ContentGenerationPipeline:
         self.renderer = renderer or OutputRenderer(logger=self.logger)
         self.exporter = exporter or OutputExporter(output_root=self.config.output_root, logger=self.logger)
         self.adapter = adapter or PlatformAdapter(logger=self.logger)
+        self.governance_engine = governance_engine or ContentGovernanceEngine(logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -149,12 +152,17 @@ class ContentGenerationPipeline:
         validation_result: dict[str, Any] | None,
         adaptation_result: dict[str, Any] | None,
         platform_variants: dict[str, Any] | None,
-        rendered_markdown: str | None,
-        rendered_text: str | None,
-        exported_files: dict[str, str] | None,
-        output_metadata: dict[str, Any] | None,
-        metadata: dict[str, Any],
-        error: str | None,
+        governance_result: dict[str, Any] | None = None,
+        approval_status: str = "unknown",
+        overall_quality_score: float | None = None,
+        governance_warnings: list[str] | None = None,
+        governance_errors: list[str] | None = None,
+        rendered_markdown: str | None = None,
+        rendered_text: str | None = None,
+        exported_files: dict[str, str] | None = None,
+        output_metadata: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        error: str | None = None,
         warnings: list[str] | None = None,
     ) -> dict[str, Any]:
         """Build a structured pipeline result."""
@@ -174,6 +182,11 @@ class ContentGenerationPipeline:
                 validation_result=validation_result,
                 adaptation_result=adaptation_result,
                 platform_variants=platform_variants or {},
+                governance_result=governance_result,
+                approval_status=approval_status,
+                overall_quality_score=overall_quality_score,
+                governance_warnings=governance_warnings or [],
+                governance_errors=governance_errors or [],
                 rendered_markdown=rendered_markdown,
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
@@ -196,6 +209,11 @@ class ContentGenerationPipeline:
             validation_result=validation_result,
             adaptation_result=adaptation_result,
             platform_variants=platform_variants or {},
+            governance_result=governance_result,
+            approval_status=approval_status,
+            overall_quality_score=overall_quality_score,
+            governance_warnings=governance_warnings or [],
+            governance_errors=governance_errors or [],
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files or {},
@@ -442,20 +460,6 @@ class ContentGenerationPipeline:
                         warnings=output_warnings,
                     )
 
-            if self.config.enable_export:
-                try:
-                    exported_files = self.exporter.export(
-                        brand=normalized_request["brand"],
-                        content_type=normalized_request["content_type"],
-                        output=formatted_output,
-                        metadata=metadata,
-                        validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
-                        formats=list(self.config.export_formats),
-                    )
-                except Exception as exc:  # pragma: no cover - defensive fallback
-                    log_warning(self.logger, f"Export failed: {exc}")
-                    exported_files = {}
-
         validation_status = "passed"
         if validation_result and not validation_result.get("valid", True):
             validation_status = "failed"
@@ -486,6 +490,64 @@ class ContentGenerationPipeline:
                 }
                 platform_variants = {}
 
+        governance_result = None
+        approval_status = "not_evaluated"
+        overall_quality_score = None
+        governance_warnings: list[str] = []
+        governance_errors: list[str] = []
+        if self.config.enable_governance_validation and formatted_output:
+            log_context(self.logger, "Evaluating governance")
+            governance_payload = {
+                "brand": normalized_request["brand"],
+                "platform": normalized_request["platform"],
+                "content_type": normalized_request["content_type"],
+                "formatted_output": formatted_output,
+                "platform_variants": platform_variants or {},
+                "metadata": {
+                    "audience": normalized_request.get("audience", ""),
+                    "location": normalized_request.get("location", ""),
+                    "objective": normalized_request.get("objective", ""),
+                },
+            }
+            governance_result = self.governance_engine.evaluate(governance_payload)
+            approval_status = str(governance_result.get("status", "needs_review"))
+            overall_quality_score = float(governance_result.get("overall_score", 0.0))
+            governance_warnings = list(governance_result.get("warnings", []))
+            governance_errors = list(governance_result.get("errors", []))
+
+            if self.config.reject_on_critical_safety_error and any("critical safety" in err.lower() or "guaranteed" in err.lower() or "risk-free" in err.lower() or "fake exclusivity" in err.lower() or "fake scarcity" in err.lower() or "fake urgency" in err.lower() for err in governance_errors):
+                approval_status = "rejected"
+
+            if self.config.enable_export and approval_status in {"approved", "approved_with_warnings"}:
+                try:
+                    exported_files = self.exporter.export(
+                        brand=normalized_request["brand"],
+                        content_type=normalized_request["content_type"],
+                        output=formatted_output,
+                        metadata=metadata,
+                        validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
+                        formats=list(self.config.export_formats),
+                    )
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    log_warning(self.logger, f"Export failed: {exc}")
+                    exported_files = {}
+        else:
+            approval_status = "not_evaluated" if not self.config.enable_governance_validation else "unknown"
+
+        if self.config.enable_export and not self.config.enable_governance_validation:
+            try:
+                exported_files = self.exporter.export(
+                    brand=normalized_request["brand"],
+                    content_type=normalized_request["content_type"],
+                    output=formatted_output,
+                    metadata=metadata,
+                    validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
+                    formats=list(self.config.export_formats),
+                )
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                log_warning(self.logger, f"Export failed: {exc}")
+                exported_files = {}
+
         output_metadata = build_output_metadata(
             brand=normalized_request["brand"],
             platform=normalized_request["platform"],
@@ -508,6 +570,8 @@ class ContentGenerationPipeline:
                 "validation_status": validation_status,
                 "exported": bool(exported_files),
                 "adapted": bool(platform_variants),
+                "approval_status": approval_status,
+                "overall_quality_score": overall_quality_score,
             }
         )
         result = self.build_result(
@@ -521,13 +585,18 @@ class ContentGenerationPipeline:
             validation_result=validation_result,
             adaptation_result=adaptation_result,
             platform_variants=platform_variants,
+            governance_result=governance_result,
+            approval_status=approval_status,
+            overall_quality_score=overall_quality_score,
+            governance_warnings=governance_warnings,
+            governance_errors=governance_errors,
             rendered_markdown=rendered_markdown,
             rendered_text=rendered_text,
             exported_files=exported_files,
             output_metadata=output_metadata,
             metadata=metadata,
             error=None,
-            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors,
+            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors + governance_warnings + governance_errors,
         )
         log_context(self.logger, f"Final result ready for {normalized_request['brand']}/{normalized_request['content_type']}")
         return result

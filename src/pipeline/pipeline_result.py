@@ -23,6 +23,11 @@ class PipelineResult:
     validation_result: dict[str, Any] | None
     adaptation_result: dict[str, Any] | None
     platform_variants: dict[str, Any]
+    governance_result: dict[str, Any] | None
+    approval_status: str
+    overall_quality_score: float | None
+    governance_warnings: list[str]
+    governance_errors: list[str]
     rendered_markdown: str | None
     rendered_text: str | None
     exported_files: dict[str, str]
@@ -48,6 +53,11 @@ class PipelineResult:
             "validation_result": self.validation_result,
             "adaptation_result": self.adaptation_result,
             "platform_variants": self.platform_variants,
+            "governance_result": self.governance_result,
+            "approval_status": self.approval_status,
+            "overall_quality_score": self.overall_quality_score,
+            "governance_warnings": self.governance_warnings,
+            "governance_errors": self.governance_errors,
             "rendered_markdown": self.rendered_markdown,
             "rendered_text": self.rendered_text,
             "exported_files": self.exported_files,
@@ -71,6 +81,11 @@ def build_success_result(
     validation_result: dict[str, Any] | None,
     adaptation_result: dict[str, Any] | None,
     platform_variants: dict[str, Any] | None,
+    governance_result: dict[str, Any] | None,
+    approval_status: str,
+    overall_quality_score: float | None,
+    governance_warnings: list[str] | None,
+    governance_errors: list[str] | None,
     rendered_markdown: str | None,
     rendered_text: str | None,
     exported_files: dict[str, str] | None,
@@ -94,6 +109,11 @@ def build_success_result(
         validation_result=validation_result,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
+        governance_result=governance_result,
+        approval_status=approval_status,
+        overall_quality_score=overall_quality_score,
+        governance_warnings=governance_warnings or [],
+        governance_errors=governance_errors or [],
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},
@@ -119,6 +139,11 @@ def build_failure_result(
     validation_result: dict[str, Any] | None = None,
     adaptation_result: dict[str, Any] | None = None,
     platform_variants: dict[str, Any] | None = None,
+    governance_result: dict[str, Any] | None = None,
+    approval_status: str = "unknown",
+    overall_quality_score: float | None = None,
+    governance_warnings: list[str] | None = None,
+    governance_errors: list[str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
@@ -141,6 +166,11 @@ def build_failure_result(
         validation_result=validation_result,
         adaptation_result=adaptation_result,
         platform_variants=platform_variants or {},
+        governance_result=governance_result,
+        approval_status=approval_status,
+        overall_quality_score=overall_quality_score,
+        governance_warnings=governance_warnings or [],
+        governance_errors=governance_errors or [],
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
         exported_files=exported_files or {},

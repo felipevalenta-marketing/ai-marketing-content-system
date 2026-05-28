@@ -41,6 +41,9 @@ class PipelineConfig:
     enable_rendering: bool = True
     enable_export: bool = False
     enable_platform_adaptation: bool = False
+    enable_governance_validation: bool = False
+    governance_min_score: float = 70.0
+    reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
     supported_content_types: tuple[str, ...] = DEFAULT_SUPPORTED_CONTENT_TYPES
     target_platforms: list[str] = field(default_factory=lambda: ["instagram"])
