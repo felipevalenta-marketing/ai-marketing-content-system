@@ -76,6 +76,7 @@ class ReportingEngine:
             "creative_direction_metrics_present": self._has_creative_direction_data(payload),
             "token_metrics_present": self._has_token_data(payload),
             "cost_metrics_present": self._has_cost_data(payload),
+            "persistence_metrics_present": self._has_persistence_data(payload),
         },
         }
         return bundle
@@ -229,3 +230,8 @@ class ReportingEngine:
             or safe_dict(payload.get("provider_cost_summary"))
             or safe_dict(payload.get("model_cost_summary"))
         )
+
+    def _has_persistence_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes persistence analytics data."""
+
+        return bool(safe_dict(payload.get("persistence_result")))

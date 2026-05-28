@@ -113,6 +113,9 @@ def _add_common_flags(parser: ArgumentParser) -> None:
     report_group.add_argument("--report", action="store_true", help="Generate an analytics report.")
     report_group.add_argument("--report-json", action="store_true", help="Generate and prefer JSON report output.")
     report_group.add_argument("--report-markdown", action="store_true", help="Generate and prefer markdown report output.")
+    parser.add_argument("--persist", action="store_true", help="Persist safe local records to data/.")
+    parser.add_argument("--persist-markdown", action="store_true", help="Persist markdown alongside JSON records.")
+    parser.add_argument("--storage-root", help="Set the local storage root directory.")
     parser.add_argument("--verbose", action="store_true", help="Show full traceback on unexpected errors.")
 
 

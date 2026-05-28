@@ -43,6 +43,21 @@ class ExecutionAnalytics:
         module_cost_summary = safe_dict(payload.get("module_cost_summary"))
         provider_cost_summary = safe_dict(payload.get("provider_cost_summary"))
         model_cost_summary = safe_dict(payload.get("model_cost_summary"))
+        persistence_result = safe_dict(payload.get("persistence_result"))
+        storage_paths = safe_dict(payload.get("storage_paths"))
+        stored_record_ids = safe_list(payload.get("stored_record_ids"))
+        storage_warnings = safe_list(payload.get("storage_warnings"))
+        storage_errors = safe_list(payload.get("storage_errors"))
+        persistence_summary = {
+            "records_saved": safe_int(persistence_result.get("records_saved"), 0),
+            "storage_root": safe_text(persistence_result.get("storage_root"), limit=120),
+            "stored_record_ids": stored_record_ids,
+            "storage_paths": storage_paths,
+            "markdown_saved": safe_bool(persistence_result.get("markdown_saved")),
+            "persistence_status": safe_text(persistence_result.get("persistence_status"), limit=80),
+            "persistence_enabled": safe_bool(persistence_result.get("enabled")),
+            "persistence_success": safe_bool(persistence_result.get("success")),
+        }
 
         duration_seconds = safe_float(execution.get("duration_seconds"))
         if duration_seconds <= 0 and stage_timings:
@@ -103,4 +118,14 @@ class ExecutionAnalytics:
             "provider_cost_breakdown": provider_cost_summary.get("summary", {}) if isinstance(provider_cost_summary.get("summary"), dict) else {},
             "model_cost_breakdown": model_cost_summary.get("summary", {}) if isinstance(model_cost_summary.get("summary"), dict) else {},
             "execution_cost_breakdown": execution_cost_summary.get("summary", {}) if isinstance(execution_cost_summary.get("summary"), dict) else {},
+            "persistence_summary": persistence_summary,
+            "persistence_status": persistence_summary["persistence_status"],
+            "persistence_enabled": persistence_summary["persistence_enabled"],
+            "persistence_records_saved": persistence_summary["records_saved"],
+            "persistence_markdown_saved": persistence_summary["markdown_saved"],
+            "storage_root": persistence_summary["storage_root"],
+            "storage_paths": storage_paths,
+            "stored_record_ids": stored_record_ids,
+            "storage_warning_count": len(storage_warnings),
+            "storage_error_count": len(storage_errors),
         }

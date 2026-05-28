@@ -18,8 +18,10 @@ from src.reporting.report_contracts import (
 )
 from src.reporting.report_metrics import (
     safe_dict,
+    safe_bool,
     safe_float,
     safe_int,
+    safe_list,
     safe_text,
     unique_strings,
 )
@@ -53,6 +55,7 @@ class ReportBuilder:
                 "execution": execution_metrics,
                 "pipeline": self._extract_pipeline_metrics(payload),
                 "cost": self._extract_cost_metrics(payload),
+                "persistence": self._extract_persistence_metrics(payload),
             },
         )
         governance_report = build_governance_report(
@@ -95,6 +98,7 @@ class ReportBuilder:
             "asset": asset_report,
             "export": export_report,
             "cost": self._extract_cost_metrics(payload),
+            "persistence": self._extract_persistence_metrics(payload),
         }
         consolidated_metrics = self._build_consolidated_metrics(
             execution_metrics,
@@ -195,6 +199,12 @@ class ReportBuilder:
             "pricing_found": metrics.get("pricing_found", False),
             "pricing_version": metrics.get("pricing_version", ""),
             "pricing_source": metrics.get("pricing_source", ""),
+            "persistence_status": metrics.get("persistence_status", ""),
+            "persistence_enabled": metrics.get("persistence_enabled", False),
+            "persistence_records_saved": metrics.get("persistence_records_saved", 0),
+            "persistence_markdown_saved": metrics.get("persistence_markdown_saved", False),
+            "storage_root": metrics.get("storage_root", ""),
+            "stored_record_ids": metrics.get("stored_record_ids", []),
         }
 
     def _build_governance_summary(self, metrics: dict[str, Any]) -> dict[str, Any]:
@@ -267,6 +277,9 @@ class ReportBuilder:
             "currency": metrics.get("currency", ""),
             "estimated_cost": metrics.get("estimated_cost", False),
             "pricing_found": metrics.get("pricing_found", False),
+            "persistence_status": metrics.get("persistence_status", ""),
+            "persistence_enabled": metrics.get("persistence_enabled", False),
+            "persistence_records_saved": metrics.get("persistence_records_saved", 0),
         }
 
     def _build_export_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -352,6 +365,21 @@ class ReportBuilder:
             "module_cost_summary": module_cost_summary,
             "provider_cost_summary": provider_cost_summary,
             "model_cost_summary": model_cost_summary,
+        }
+
+    def _extract_persistence_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
+        persistence_result = safe_dict(payload.get("persistence_result"))
+        if not persistence_result:
+            return {}
+        return {
+            "records_saved": safe_int(persistence_result.get("records_saved"), 0),
+            "storage_root": safe_text(persistence_result.get("storage_root"), limit=120),
+            "stored_record_ids": safe_list(persistence_result.get("stored_record_ids")),
+            "storage_paths": safe_dict(persistence_result.get("storage_paths")),
+            "markdown_saved": safe_bool(persistence_result.get("markdown_saved")),
+            "persistence_status": safe_text(persistence_result.get("persistence_status"), limit=80),
+            "persistence_enabled": safe_bool(persistence_result.get("enabled")),
+            "persistence_success": safe_bool(persistence_result.get("success")),
         }
 
     def _extract_export_paths(self, payload: dict[str, Any]) -> dict[str, str]:

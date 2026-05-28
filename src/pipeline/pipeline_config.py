@@ -105,6 +105,12 @@ class PipelineConfig:
     enable_asset_export: bool = field(default_factory=lambda: _env_flag("ENABLE_ASSET_EXPORT", False))
     enable_reporting: bool = field(default_factory=lambda: _env_flag("ENABLE_REPORTING", False))
     enable_report_export: bool = field(default_factory=lambda: _env_flag("ENABLE_REPORT_EXPORT", False))
+    enable_persistence: bool = field(default_factory=lambda: _env_flag("ENABLE_PERSISTENCE", False))
+    persist_generations: bool = field(default_factory=lambda: _env_flag("PERSIST_GENERATIONS", True))
+    persist_reports: bool = field(default_factory=lambda: _env_flag("PERSIST_REPORTS", True))
+    persist_tracking: bool = field(default_factory=lambda: _env_flag("PERSIST_TRACKING", True))
+    persist_markdown: bool = field(default_factory=lambda: _env_flag("PERSIST_MARKDOWN", False))
+    storage_overwrite: bool = field(default_factory=lambda: _env_flag("STORAGE_OVERWRITE", False))
     enable_token_tracking: bool = field(default_factory=lambda: _env_flag("ENABLE_TOKEN_TRACKING", True))
     enable_token_estimation: bool = field(default_factory=lambda: _env_flag("ENABLE_TOKEN_ESTIMATION", True))
     track_input_tokens: bool = field(default_factory=lambda: _env_flag("TRACK_INPUT_TOKENS", _env_flag("TRACK_PROMPT_TOKENS", True)))
@@ -132,6 +138,7 @@ class PipelineConfig:
     output_root: str = "outputs"
     campaign_output_root: str = "outputs"
     report_output_root: str = "outputs/reports"
+    storage_root: str = field(default_factory=lambda: os.getenv("STORAGE_ROOT", "data"))
     report_formats: tuple[str, ...] = ("markdown", "json")
     default_campaign_type: str = "property_launch"
     default_visual_style: str = field(default_factory=lambda: os.getenv("DEFAULT_VISUAL_STYLE", "mediterranean_lifestyle"))

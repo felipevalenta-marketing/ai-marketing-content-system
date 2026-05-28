@@ -20,6 +20,7 @@ from src.output.output_formatter import OutputFormatter
 from src.output.output_validator import OutputValidator
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
+from src.storage.storage_manager import StorageManager
 from src.utils.file_utils import normalize_key
 from src.utils.logger import get_logger
 
@@ -88,6 +89,7 @@ def handle_campaign(args: Any) -> dict[str, Any]:
         report_bundle = _maybe_build_report_bundle(result, args, command="campaign", logger=logger)
         if report_bundle:
             result = _inject_report_bundle(result, report_bundle)
+    result = _maybe_attach_cli_persistence(result, args, command="campaign", logger=logger)
     return _wrap_command_result(
         command="campaign",
         success=bool(result.get("success")),
@@ -122,6 +124,7 @@ def handle_assets(args: Any) -> dict[str, Any]:
         report_bundle = _maybe_build_report_bundle(result, args, command="assets", logger=logger)
         if report_bundle:
             result = _inject_report_bundle(result, report_bundle)
+    result = _maybe_attach_cli_persistence(result, args, command="assets", logger=logger)
     return _wrap_command_result(
         command="assets",
         success=bool(result.get("success")),
@@ -221,6 +224,7 @@ def handle_validate(args: Any) -> dict[str, Any]:
         **({"reporting": report_bundle} if report_bundle else {}),
     }
     payload = _attach_cli_execution_metadata(payload, command_started, "validate")
+    payload = _maybe_attach_cli_persistence(payload, args, command="validate", logger=logger)
     return _wrap_command_result(
         command="validate",
         success=True,
@@ -236,6 +240,8 @@ def handle_validate(args: Any) -> dict[str, Any]:
             "brand_score": governance_result.get("brand_score", 0.0),
             "platform_score": governance_result.get("platform_score", 0.0),
             "factual_safety_score": governance_result.get("factual_safety_score", 0.0),
+            "persistence_status": (payload.get("persistence_result") or {}).get("persistence_status", ""),
+            "storage_root": (payload.get("persistence_result") or {}).get("storage_root", ""),
         },
         payload=payload,
         warnings=list(validation_result.get("warnings", [])) + list(governance_result.get("warnings", [])),
@@ -261,6 +267,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "src.assets": find_spec("src.assets") is not None,
         "src.tracking": find_spec("src.tracking") is not None,
         "src.reporting": find_spec("src.reporting") is not None,
+        "src.storage": find_spec("src.storage") is not None,
     }
     pipeline = ContentGenerationPipeline(logger=logger)
     openai_client = OpenAIClient(logger=logger)
@@ -411,6 +418,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
             "campaign_ready",
             "asset_ready",
             "reporting_ready",
+            "src.storage",
         )
     )
 
@@ -448,6 +456,9 @@ def _build_pipeline_config(args: Any, enable_live_generation: bool) -> PipelineC
         enable_export=bool(getattr(args, "export", False)) and enable_live_generation,
         enable_campaign_export=bool(getattr(args, "export", False)),
         enable_asset_export=bool(getattr(args, "export", False)),
+        enable_persistence=bool(getattr(args, "persist", False)),
+        persist_markdown=bool(getattr(args, "persist_markdown", False)),
+        storage_root=str(getattr(args, "storage_root", "") or "data"),
     )
 
 
@@ -751,12 +762,24 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
         )
     if not dry_run and isinstance(result.get("validation_result"), dict):
         summary["validation_status"] = result.get("validation_result", {}).get("valid")
+    persistence = result.get("persistence_result") if isinstance(result.get("persistence_result"), dict) else {}
+    if persistence:
+        summary.update(
+            {
+                "persistence_status": persistence.get("persistence_status", ""),
+                "storage_root": persistence.get("storage_root", ""),
+                "records_saved": persistence.get("records_saved", 0),
+                "stored_record_ids": persistence.get("stored_record_ids", []),
+                "markdown_saved": persistence.get("markdown_saved", False),
+            }
+        )
     return summary
 
 
 def _build_campaign_summary(result: dict[str, Any]) -> dict[str, Any]:
     """Build a campaign command summary."""
 
+    persistence = result.get("persistence_result") if isinstance(result.get("persistence_result"), dict) else {}
     return {
         "campaign_name": result.get("campaign_name", ""),
         "campaign_type": result.get("campaign_type", ""),
@@ -765,12 +788,16 @@ def _build_campaign_summary(result: dict[str, Any]) -> dict[str, Any]:
         "content_sequence": result.get("content_sequence", []),
         "governance_summary": result.get("governance_summary", {}),
         "export_paths": result.get("export_paths", {}),
+        "persistence_status": persistence.get("persistence_status", ""),
+        "storage_root": persistence.get("storage_root", ""),
+        "records_saved": persistence.get("records_saved", 0),
     }
 
 
 def _build_asset_summary(result: dict[str, Any]) -> dict[str, Any]:
     """Build an asset command summary."""
 
+    persistence = result.get("persistence_result") if isinstance(result.get("persistence_result"), dict) else {}
     return {
         "campaign_type": result.get("campaign_type", ""),
         "asset_plan": result.get("asset_plan", {}),
@@ -779,6 +806,9 @@ def _build_asset_summary(result: dict[str, Any]) -> dict[str, Any]:
         "validation_result": result.get("validation_result", {}),
         "governance_summary": result.get("assets", {}).get("governance_summary", {}) if isinstance(result.get("assets"), dict) else {},
         "export_paths": result.get("export_paths", {}),
+        "persistence_status": persistence.get("persistence_status", ""),
+        "storage_root": persistence.get("storage_root", ""),
+        "records_saved": persistence.get("records_saved", 0),
     }
 
 
@@ -830,6 +860,102 @@ def _maybe_attach_dry_run_report(result: dict[str, Any], request: dict[str, Any]
     if not report_bundle:
         return result
     return _inject_report_bundle(result, report_bundle)
+
+
+def _maybe_attach_cli_persistence(result: dict[str, Any], args: Any, *, command: str, logger: Any) -> dict[str, Any]:
+    """Persist safe CLI command results when requested."""
+
+    storage_root = str(getattr(args, "storage_root", "") or PipelineConfig().storage_root)
+    if not bool(getattr(args, "persist", False)):
+        result.setdefault(
+            "persistence_result",
+            {
+                "success": True,
+                "enabled": False,
+                "persistence_status": "disabled",
+                "storage_root": storage_root,
+                "records_saved": 0,
+                "stored_record_ids": [],
+                "storage_paths": {},
+                "markdown_saved": False,
+                "warnings": [],
+                "errors": [],
+            },
+        )
+        result.setdefault("storage_paths", {})
+        result.setdefault("stored_record_ids", [])
+        result.setdefault("storage_warnings", [])
+        result.setdefault("storage_errors", [])
+        return result
+
+    try:
+        manager = StorageManager(storage_root=storage_root, logger=logger)
+        if command == "campaign":
+            save_result = manager.save_campaign(result, overwrite=bool(getattr(args, "storage_overwrite", False)), write_markdown=bool(getattr(args, "persist_markdown", False)))
+        elif command == "assets":
+            save_result = manager.save_asset(result, overwrite=bool(getattr(args, "storage_overwrite", False)), write_markdown=bool(getattr(args, "persist_markdown", False)))
+        else:
+            save_result = manager.save_report(result, overwrite=bool(getattr(args, "storage_overwrite", False)), write_markdown=bool(getattr(args, "persist_markdown", False)))
+
+        report_save_result: dict[str, Any] | None = None
+        if any(result.get(key) for key in ("consolidated_report", "execution_report", "reporting")):
+            report_save_result = manager.save_report(result, overwrite=bool(getattr(args, "storage_overwrite", False)), write_markdown=bool(getattr(args, "persist_markdown", False)))
+
+        stored_record_ids = [save_result.get("record_id", "")] if save_result.get("success") else []
+        storage_paths = {command: save_result.get("path", "")} if save_result.get("success") else {}
+        record_results = {command: save_result}
+        if report_save_result is not None:
+            record_results["report"] = report_save_result
+            if report_save_result.get("success"):
+                stored_record_ids.append(report_save_result.get("record_id", ""))
+                storage_paths["report"] = report_save_result.get("path", "")
+
+        persistence_result = {
+            "success": bool(save_result.get("success", False)) and (report_save_result is None or bool(report_save_result.get("success", False))),
+            "enabled": True,
+            "persistence_status": "persisted" if bool(save_result.get("success", False)) and (report_save_result is None or bool(report_save_result.get("success", False))) else "failed",
+            "storage_root": storage_root,
+            "records_saved": len([record_id for record_id in stored_record_ids if record_id]),
+            "stored_record_ids": [record_id for record_id in stored_record_ids if record_id],
+            "storage_paths": {key: value for key, value in storage_paths.items() if value},
+            "markdown_saved": bool(getattr(args, "persist_markdown", False)),
+            "warnings": list(dict.fromkeys(list(save_result.get("warnings", [])) + (list(report_save_result.get("warnings", [])) if report_save_result else []))),
+            "errors": list(dict.fromkeys(list(save_result.get("errors", [])) + (list(report_save_result.get("errors", [])) if report_save_result else []))),
+            "record_results": record_results,
+        }
+        result.update(
+            {
+                "persistence_result": persistence_result,
+                "storage_paths": persistence_result["storage_paths"],
+                "stored_record_ids": persistence_result["stored_record_ids"],
+                "storage_warnings": persistence_result["warnings"],
+                "storage_errors": persistence_result["errors"],
+            }
+        )
+        return result
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        warning = f"Persistence failed: {exc}"
+        result.update(
+            {
+                "persistence_result": {
+                    "success": False,
+                    "enabled": True,
+                    "persistence_status": "failed",
+                    "storage_root": storage_root,
+                    "records_saved": 0,
+                    "stored_record_ids": [],
+                    "storage_paths": {},
+                    "markdown_saved": bool(getattr(args, "persist_markdown", False)),
+                    "warnings": [warning],
+                    "errors": [warning],
+                },
+                "storage_paths": {},
+                "stored_record_ids": [],
+                "storage_warnings": [warning],
+                "storage_errors": [warning],
+            }
+        )
+        return result
 
 
 def _attach_cli_execution_metadata(result: dict[str, Any], started_at: float, command_name: str) -> dict[str, Any]:

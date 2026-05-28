@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 import json
@@ -18,6 +19,9 @@ from src.output.output_metadata import build_output_metadata
 from src.output.output_renderer import OutputRenderer
 from src.output.output_validator import OutputValidator
 from src.reporting.reporting_engine import ReportingEngine
+from src.reporting.report_metrics import safe_dict, safe_list, safe_text
+from src.storage.storage_manager import StorageManager
+from src.storage.storage_paths import build_record_id
 from src.creative.creative_direction_engine import CreativeDirectionEngine
 from src.creative.creative_validator import CreativeDirectionValidator
 from src.adapters.platform_adapter import PlatformAdapter
@@ -98,6 +102,7 @@ class ContentGenerationPipeline:
         self.video_script_validator = video_script_validator or VideoScriptValidator()
         self.creative_direction_engine = creative_direction_engine or CreativeDirectionEngine(logger=self.logger)
         self.creative_direction_validator = creative_direction_validator or CreativeDirectionValidator()
+        self.storage_manager: StorageManager | None = None
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -631,7 +636,7 @@ class ContentGenerationPipeline:
             error = "OpenAI API key missing or live generation disabled; skipping live generation."
             log_warning(self.logger, error)
             metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="generation", error=error)
-            return self.build_result(
+            result = self.build_result(
                 success=False,
                 request=normalized_request,
                 context=context,
@@ -650,6 +655,7 @@ class ContentGenerationPipeline:
                 error=error,
                 warnings=[],
             )
+            return self._attach_reporting(result, request=normalized_request, context=context)
 
         log_context(self.logger, f"Generating AI output for {normalized_request['brand']}/{normalized_request['content_type']}")
         generation_started = perf_counter()
@@ -669,7 +675,7 @@ class ContentGenerationPipeline:
                 metadata=metadata,
                 execution_id=execution_started_at.isoformat(),
             ) if self.config.enable_cost_tracking else {}
-            return self.build_result(
+            result = self.build_result(
                 success=False,
                 request=normalized_request,
                 context=context,
@@ -698,6 +704,7 @@ class ContentGenerationPipeline:
                 error=error,
                 warnings=ai_warnings + token_warnings_on_failure + list(failure_cost_tracking.get("warnings", [])),
             )
+            return self._attach_reporting(result, request=normalized_request, context=context)
 
         token_usage: dict[str, Any] | None = None
         execution_token_summary: dict[str, Any] | None = None
@@ -1306,7 +1313,7 @@ class ContentGenerationPipeline:
             + asset_errors,
         )
         log_context(self.logger, f"Final result ready for {normalized_request['brand']}/{normalized_request['content_type']}")
-        return result
+        return self._attach_reporting(result, request=normalized_request, context=context)
 
     def _can_generate_live(self) -> bool:
         """Return whether live generation can proceed."""
@@ -1856,34 +1863,246 @@ class ContentGenerationPipeline:
     def _attach_reporting(self, result: dict[str, Any], request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Attach optional reporting payloads to a pipeline result."""
 
-        if not self._should_generate_reports(request):
+        if self._should_generate_reports(request):
+            report_bundle = self.reporting_engine.generate(
+                result,
+                export=bool(self.config.enable_report_export or request.get("report_export")),
+                formats=list(self.config.report_formats),
+                render_format="json" if request.get("report_json") else "markdown" if request.get("report_markdown") else "terminal",
+                report_name=f"{request.get('brand', '')}_{request.get('content_type', '')}",
+            )
+            metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+            report_metadata = report_bundle.get("metadata", {})
+            result.update(
+                {
+                    "execution_report": report_bundle.get("execution_report"),
+                    "governance_report": report_bundle.get("governance_report"),
+                    "campaign_report": report_bundle.get("campaign_report"),
+                    "asset_report": report_bundle.get("asset_report"),
+                    "export_report": report_bundle.get("export_report"),
+                    "consolidated_report": report_bundle.get("consolidated_report"),
+                    "report_export_paths": report_bundle.get("exported_files", {}),
+                    "image_prompt_report": report_bundle.get("image_prompt_report", {}),
+                    "video_script_report": report_bundle.get("video_script_report", {}),
+                    "creative_direction_report": report_bundle.get("creative_direction_report", {}),
+                    "metadata": {**metadata, "reporting": report_metadata},
+                }
+            )
+
+        return self._attach_persistence(result, request=request, context=context)
+
+    def _attach_persistence(self, result: dict[str, Any], request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        """Persist safe local records after tracking and reporting are complete."""
+
+        if not self.config.enable_persistence:
+            result.update(
+                {
+                    "persistence_result": {
+                        "success": True,
+                        "enabled": False,
+                        "persistence_status": "disabled",
+                        "storage_root": self.config.storage_root,
+                        "records_saved": 0,
+                        "stored_record_ids": [],
+                        "storage_paths": {},
+                        "markdown_saved": False,
+                        "warnings": [],
+                        "errors": [],
+                    },
+                    "storage_paths": {},
+                    "stored_record_ids": [],
+                    "storage_warnings": [],
+                    "storage_errors": [],
+                }
+            )
             return result
 
-        report_bundle = self.reporting_engine.generate(
-            result,
-            export=bool(self.config.enable_report_export or request.get("report_export")),
-            formats=list(self.config.report_formats),
-            render_format="json" if request.get("report_json") else "markdown" if request.get("report_markdown") else "terminal",
-            report_name=f"{request.get('brand', '')}_{request.get('content_type', '')}",
-        )
-        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
-        report_metadata = report_bundle.get("metadata", {})
+        try:
+            storage_manager = self._get_storage_manager()
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            warning = f"Storage manager unavailable: {exc}"
+            result.update(
+                {
+                    "persistence_result": {
+                        "success": False,
+                        "enabled": True,
+                        "persistence_status": "unavailable",
+                        "storage_root": self.config.storage_root,
+                        "records_saved": 0,
+                        "stored_record_ids": [],
+                        "storage_paths": {},
+                        "markdown_saved": bool(self.config.persist_markdown),
+                        "warnings": [warning],
+                        "errors": [warning],
+                    },
+                    "storage_paths": {},
+                    "stored_record_ids": [],
+                    "storage_warnings": [warning],
+                    "storage_errors": [warning],
+                }
+            )
+            return result
+
+        saved_record_ids: list[str] = []
+        storage_paths: dict[str, str] = {}
+        warnings: list[str] = []
+        errors: list[str] = []
+        record_results: dict[str, Any] = {}
+
+        def capture(label: str, save_result: dict[str, Any]) -> None:
+            record_results[label] = save_result
+            warnings.extend(safe_list(save_result.get("warnings")))
+            errors.extend(safe_list(save_result.get("errors")))
+            if save_result.get("success"):
+                record_id = safe_text(save_result.get("record_id"), limit=160)
+                path = safe_text(save_result.get("path"), limit=260)
+                if record_id:
+                    saved_record_ids.append(record_id)
+                if path:
+                    storage_paths[label] = path
+
+        capture("execution", storage_manager.save_execution(result, overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+        if self.config.persist_generations:
+            capture("generation", storage_manager.save_generation(result, overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+        if self.config.persist_reports and (result.get("consolidated_report") or result.get("execution_report")):
+            capture("report", storage_manager.save_report(result, overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+
+        if self.config.persist_tracking:
+            token_usage = result.get("token_usage")
+            if isinstance(token_usage, dict) and token_usage:
+                capture("token_usage", storage_manager.save_tracking(token_usage, "token_usage", overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+            cost_usage = result.get("cost_usage")
+            if isinstance(cost_usage, dict) and cost_usage:
+                capture("cost_usage", storage_manager.save_tracking(cost_usage, "cost_usage", overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+
+        if isinstance(result.get("campaign_result"), dict) and result.get("campaign_result"):
+            capture("campaign", storage_manager.save_campaign(safe_dict(result.get("campaign_result")), overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+        if isinstance(result.get("asset_coordination_result"), dict) and result.get("asset_coordination_result"):
+            capture("asset", storage_manager.save_asset(safe_dict(result.get("asset_coordination_result")), overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+
+        specialized_payloads = {
+            "creative_direction": result.get("creative_direction_result"),
+            "image_prompt": result.get("image_prompt_result"),
+            "video_script": result.get("video_script_result"),
+        }
+        for record_type, payload in specialized_payloads.items():
+            if isinstance(payload, dict) and payload:
+                capture(record_type, storage_manager.save_record(self._build_storage_record(record_type, payload, request, result), overwrite=self.config.storage_overwrite, write_markdown=self.config.persist_markdown))
+
+        if warnings:
+            warnings = list(dict.fromkeys([safe_text(item, limit=240) for item in warnings if safe_text(item, limit=240)]))
+        if errors:
+            errors = list(dict.fromkeys([safe_text(item, limit=240) for item in errors if safe_text(item, limit=240)]))
+
+        persistence_status = "persisted" if not errors else "persisted_with_warnings"
+        persistence_result = {
+            "success": True if not errors else False,
+            "enabled": True,
+            "persistence_status": persistence_status,
+            "storage_root": self.config.storage_root,
+            "records_saved": len(saved_record_ids),
+            "stored_record_ids": saved_record_ids,
+            "storage_paths": storage_paths,
+            "markdown_saved": bool(self.config.persist_markdown),
+            "warnings": warnings,
+            "errors": errors,
+            "record_results": record_results,
+        }
         result.update(
             {
-                "execution_report": report_bundle.get("execution_report"),
-                "governance_report": report_bundle.get("governance_report"),
-                "campaign_report": report_bundle.get("campaign_report"),
-                "asset_report": report_bundle.get("asset_report"),
-                "export_report": report_bundle.get("export_report"),
-                "consolidated_report": report_bundle.get("consolidated_report"),
-                "report_export_paths": report_bundle.get("exported_files", {}),
-                "image_prompt_report": report_bundle.get("image_prompt_report", {}),
-                "video_script_report": report_bundle.get("video_script_report", {}),
-                "creative_direction_report": report_bundle.get("creative_direction_report", {}),
-                "metadata": {**metadata, "reporting": report_metadata},
+                "persistence_result": persistence_result,
+                "storage_paths": storage_paths,
+                "stored_record_ids": saved_record_ids,
+                "storage_warnings": warnings,
+                "storage_errors": errors,
             }
         )
+        self._inject_persistence_into_reports(result, persistence_result)
         return result
+
+    def _build_storage_record(
+        self,
+        record_type: str,
+        payload: dict[str, Any],
+        request: dict[str, Any],
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build a normalized storage record for specialized outputs."""
+
+        metadata = safe_dict(result.get("metadata"))
+        execution = safe_dict(metadata.get("execution"))
+        payload_metadata = safe_dict(payload.get("metadata"))
+        created_at = safe_text(execution.get("started_at") or payload_metadata.get("created_at") or metadata.get("created_at"), limit=80)
+        if not created_at:
+            created_at = datetime.now(timezone.utc).isoformat()
+        brand = safe_text(payload.get("brand") or request.get("brand") or metadata.get("brand"), limit=120)
+        platform = safe_text(payload.get("platform") or request.get("platform") or metadata.get("platform"), limit=120)
+        content_type = safe_text(payload.get("content_type") or record_type, limit=120)
+        campaign_type = safe_text(payload.get("campaign_type") or request.get("campaign_type") or metadata.get("campaign_type"), limit=120)
+        execution_id = safe_text(execution.get("started_at") or metadata.get("execution_id") or "", limit=120)
+        record_id = build_record_id(record_type, {"brand": brand, "execution_id": execution_id, "campaign_id": campaign_type})
+        return {
+            "record_id": record_id,
+            "record_type": record_type,
+            "created_at": created_at,
+            "updated_at": created_at,
+            "brand": brand,
+            "platform": platform,
+            "content_type": content_type,
+            "campaign_type": campaign_type,
+            "execution_id": execution_id,
+            "source_module": {
+                "creative_direction": "creative",
+                "image_prompt": "media",
+                "video_script": "media",
+            }.get(record_type, "pipeline"),
+            "payload": safe_dict(payload),
+            "metadata": {
+                "brand": brand,
+                "platform": platform,
+                "content_type": content_type,
+                "campaign_type": campaign_type,
+                "execution_id": execution_id,
+                "source": "pipeline",
+            },
+            "warnings": safe_list(payload.get("warnings")),
+            "errors": safe_list(payload.get("errors")),
+        }
+
+    def _inject_persistence_into_reports(self, result: dict[str, Any], persistence_result: dict[str, Any]) -> None:
+        """Add a persistence summary to any existing report payloads."""
+
+        persistence_summary = {
+            "records_saved": persistence_result.get("records_saved", 0),
+            "storage_root": persistence_result.get("storage_root", self.config.storage_root),
+            "stored_record_ids": list(persistence_result.get("stored_record_ids", [])),
+            "storage_paths": dict(persistence_result.get("storage_paths", {})),
+            "markdown_saved": persistence_result.get("markdown_saved", False),
+            "persistence_status": persistence_result.get("persistence_status", "unknown"),
+        }
+        for report_key in ("execution_report", "consolidated_report"):
+            report = result.get(report_key)
+            if not isinstance(report, dict):
+                continue
+            sections = dict(report.get("sections", {})) if isinstance(report.get("sections"), dict) else {}
+            sections["persistence"] = persistence_summary
+            metadata = dict(report.get("metadata", {})) if isinstance(report.get("metadata"), dict) else {}
+            metadata["persistence"] = persistence_summary
+            report["sections"] = sections
+            report["metadata"] = metadata
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        reporting = dict(metadata.get("reporting", {})) if isinstance(metadata.get("reporting"), dict) else {}
+        if reporting:
+            reporting["persistence"] = persistence_summary
+            metadata["reporting"] = reporting
+            result["metadata"] = metadata
+
+    def _get_storage_manager(self) -> StorageManager:
+        """Return a storage manager bound to the configured storage root."""
+
+        if self.storage_manager is None or Path(self.storage_manager.storage_root) != Path(self.config.storage_root):
+            self.storage_manager = StorageManager(storage_root=self.config.storage_root, logger=self.logger)
+        return self.storage_manager
 
     def _should_generate_reports(self, request: dict[str, Any]) -> bool:
         """Return whether reporting should be generated for a request."""

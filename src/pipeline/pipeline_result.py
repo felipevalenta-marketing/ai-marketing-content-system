@@ -61,6 +61,11 @@ class PipelineResult:
     asset_requirements: dict[str, Any]
     missing_assets: list[str]
     asset_export_paths: dict[str, str]
+    persistence_result: dict[str, Any] | None
+    storage_paths: dict[str, str]
+    stored_record_ids: list[str]
+    storage_warnings: list[str]
+    storage_errors: list[str]
     execution_report: dict[str, Any] | None
     governance_report: dict[str, Any] | None
     campaign_report: dict[str, Any] | None
@@ -141,6 +146,11 @@ class PipelineResult:
             "asset_requirements": self.asset_requirements,
             "missing_assets": self.missing_assets,
             "asset_export_paths": self.asset_export_paths,
+            "persistence_result": self.persistence_result,
+            "storage_paths": self.storage_paths,
+            "stored_record_ids": self.stored_record_ids,
+            "storage_warnings": self.storage_warnings,
+            "storage_errors": self.storage_errors,
             "execution_report": self.execution_report,
             "governance_report": self.governance_report,
             "campaign_report": self.campaign_report,
@@ -219,6 +229,11 @@ def build_success_result(
     asset_requirements: dict[str, Any] | None = None,
     missing_assets: list[str] | None = None,
     asset_export_paths: dict[str, str] | None = None,
+    persistence_result: dict[str, Any] | None = None,
+    storage_paths: dict[str, str] | None = None,
+    stored_record_ids: list[str] | None = None,
+    storage_warnings: list[str] | None = None,
+    storage_errors: list[str] | None = None,
     execution_report: dict[str, Any] | None = None,
     governance_report: dict[str, Any] | None = None,
     campaign_report: dict[str, Any] | None = None,
@@ -297,6 +312,11 @@ def build_success_result(
         asset_requirements=asset_requirements or {},
         missing_assets=missing_assets or [],
         asset_export_paths=asset_export_paths or {},
+        persistence_result=persistence_result,
+        storage_paths=storage_paths or {},
+        stored_record_ids=stored_record_ids or [],
+        storage_warnings=storage_warnings or [],
+        storage_errors=storage_errors or [],
         execution_report=execution_report,
         governance_report=governance_report,
         campaign_report=campaign_report,
@@ -377,6 +397,11 @@ def build_failure_result(
     asset_requirements: dict[str, Any] | None = None,
     missing_assets: list[str] | None = None,
     asset_export_paths: dict[str, str] | None = None,
+    persistence_result: dict[str, Any] | None = None,
+    storage_paths: dict[str, str] | None = None,
+    stored_record_ids: list[str] | None = None,
+    storage_warnings: list[str] | None = None,
+    storage_errors: list[str] | None = None,
     execution_report: dict[str, Any] | None = None,
     governance_report: dict[str, Any] | None = None,
     campaign_report: dict[str, Any] | None = None,
@@ -454,6 +479,11 @@ def build_failure_result(
         asset_requirements=asset_requirements or {},
         missing_assets=missing_assets or [],
         asset_export_paths=asset_export_paths or {},
+        persistence_result=persistence_result,
+        storage_paths=storage_paths or {},
+        stored_record_ids=stored_record_ids or [],
+        storage_warnings=storage_warnings or [],
+        storage_errors=storage_errors or [],
         execution_report=execution_report,
         governance_report=governance_report,
         campaign_report=campaign_report,
