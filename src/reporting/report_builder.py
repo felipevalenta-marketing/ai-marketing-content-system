@@ -178,6 +178,12 @@ class ReportBuilder:
             "stage_count": metrics.get("stage_count", 0),
             "warning_count": metrics.get("warning_count", 0),
             "error_count": metrics.get("error_count", 0),
+            "input_tokens": metrics.get("input_tokens", 0),
+            "output_tokens": metrics.get("output_tokens", 0),
+            "total_tokens": metrics.get("total_tokens", 0),
+            "estimated_usage": metrics.get("estimated_usage", False),
+            "token_provider": metrics.get("token_provider", ""),
+            "token_model": metrics.get("token_model", ""),
         }
 
     def _build_governance_summary(self, metrics: dict[str, Any]) -> dict[str, Any]:
@@ -288,6 +294,12 @@ class ReportBuilder:
             "warning_count": warning_count,
             "error_count": error_count,
             "report_count": 5,
+            "input_tokens": safe_int(execution_metrics.get("input_tokens"), 0),
+            "output_tokens": safe_int(execution_metrics.get("output_tokens"), 0),
+            "total_tokens": safe_int(execution_metrics.get("total_tokens"), 0),
+            "estimated_usage": bool(execution_metrics.get("estimated_usage")),
+            "token_provider": safe_text(execution_metrics.get("token_provider", ""), limit=80),
+            "token_model": safe_text(execution_metrics.get("token_model", ""), limit=80),
             "governance_overall_score": safe_float(governance_metrics.get("overall_score"), 0.0),
             "campaign_complexity": safe_text(campaign_metrics.get("complexity", ""), limit=80),
             "asset_count": safe_int(asset_metrics.get("asset_count"), 0),

@@ -165,6 +165,20 @@ def test_pipeline_includes_asset_coordination_result_when_enabled(sample_generat
     assert result["asset_requirements"] is not None
 
 
+def test_pipeline_includes_token_usage_and_estimation_fallback(sample_generation_request, sample_ai_response):
+    pipeline = ContentGenerationPipeline(config=PipelineConfig(enable_live_generation=True))
+    pipeline._can_generate_live = lambda: True  # type: ignore[assignment]
+    pipeline.generate_ai_response = lambda payload: sample_ai_response  # type: ignore[assignment]
+
+    result = pipeline.generate(sample_generation_request)
+
+    assert result["token_usage"] is not None
+    assert result["token_usage"]["source"] in {"provider_usage", "estimator", "unavailable"}
+    assert result["execution_token_summary"] is not None
+    assert result["module_token_summary"] is not None
+    assert result["provider_token_summary"] is not None
+
+
 def test_pipeline_includes_video_script_result_when_enabled(sample_video_script_request, sample_video_script_ai_response):
     pipeline = ContentGenerationPipeline(
         config=PipelineConfig(

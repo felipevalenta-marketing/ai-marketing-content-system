@@ -10,6 +10,7 @@ from src.governance.governance_result import build_governance_failure, build_gov
 from src.governance.governance_rules import get_governance_rules
 from src.governance.platform_compliance import PlatformComplianceChecker
 from src.governance.quality_scoring import QualityScorer
+from src.tracking.token_validator import TokenValidator
 from src.creative.creative_validator import CreativeDirectionValidator
 from src.media.image_prompt_validator import ImagePromptValidator
 from src.media.video_script_validator import VideoScriptValidator
@@ -26,6 +27,7 @@ class ContentGovernanceEngine:
         self.brand_checker = BrandComplianceChecker(self.rules)
         self.platform_checker = PlatformComplianceChecker(self.rules)
         self.factual_safety_checker = FactualSafetyChecker(self.rules)
+        self.token_validator = TokenValidator()
         self.creative_direction_validator = CreativeDirectionValidator(self.rules)
         self.image_prompt_validator = ImagePromptValidator(self.rules)
         self.video_script_validator = VideoScriptValidator()
@@ -46,11 +48,11 @@ class ContentGovernanceEngine:
         log_context(self.logger, "Evaluating content governance")
         content_type = str(payload.get("content_type", "")).strip().lower()
         if content_type == "creative_direction" or payload.get("creative_direction_result"):
-            return self._evaluate_creative_direction(payload)
+            return self._merge_token_analysis(self._evaluate_creative_direction(payload), self._evaluate_token_usage(payload))
         if content_type == "image_prompt" or payload.get("image_prompt_result"):
-            return self._evaluate_image_prompt(payload)
+            return self._merge_token_analysis(self._evaluate_image_prompt(payload), self._evaluate_token_usage(payload))
         if content_type == "video_script" or payload.get("video_script_result"):
-            return self._evaluate_video_script(payload)
+            return self._merge_token_analysis(self._evaluate_video_script(payload), self._evaluate_token_usage(payload))
 
         formatted_result = self.evaluate_formatted_output(payload)
         platform_result = self.evaluate_platform_variants(payload)
@@ -64,18 +66,21 @@ class ContentGovernanceEngine:
             "platform_score": platform_result["score"],
             "factual_safety_score": factual_result["score"],
         }
+        token_result = self._evaluate_token_usage(payload)
         warnings = list(dict.fromkeys(
             quality_result["warnings"]
             + brand_result["warnings"]
             + platform_result["warnings"]
             + factual_result["warnings"]
             + formatted_result.get("warnings", [])
+            + token_result.get("warnings", [])
         ))
         errors = list(dict.fromkeys(
             quality_result["errors"]
             + brand_result["errors"]
             + platform_result["errors"]
             + factual_result["errors"]
+            + token_result.get("errors", [])
         ))
         checks = {
             "quality": quality_result["checks"],
@@ -83,6 +88,7 @@ class ContentGovernanceEngine:
             "platform": platform_result["checks"],
             "factual_safety": factual_result["checks"],
             "formatted_output": formatted_result.get("checks", {}),
+            "token_tracking": token_result.get("checks", {}),
         }
         recommendations = self._build_recommendations(quality_result, brand_result, platform_result, factual_result)
         return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
@@ -447,6 +453,42 @@ class ContentGovernanceEngine:
         if validation["scores"]["factual_safety"] < 90:
             recommendations.append("Remove unsupported property claims from the script.")
         return self.build_final_decision(scores=scores, warnings=warnings, errors=errors, checks=checks, recommendations=recommendations, payload=payload)
+
+    def _evaluate_token_usage(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate token usage metadata and emit warnings only."""
+
+        token_usage = payload.get("token_usage")
+        if not isinstance(token_usage, dict) or not token_usage:
+            return {"warnings": ["Token usage missing from payload."], "errors": [], "checks": {"present": False}}
+
+        validation = self.token_validator.validate(token_usage)
+        warnings = list(validation.get("warnings", []))
+        errors = list(validation.get("errors", []))
+        checks = dict(validation.get("checks", {}))
+        warnings.extend([str(item).strip() for item in token_usage.get("warnings", []) if str(item).strip()] if isinstance(token_usage.get("warnings"), list) else [])
+        errors.extend([str(item).strip() for item in token_usage.get("errors", []) if str(item).strip()] if isinstance(token_usage.get("errors"), list) else [])
+        if int(token_usage.get("total_tokens", 0) or 0) >= 12000:
+            warnings.append("Suspiciously high token usage detected.")
+        if not checks.get("provider_present"):
+            warnings.append("Token usage provider metadata is missing.")
+        return {
+            "warnings": list(dict.fromkeys(warnings)),
+            "errors": list(dict.fromkeys(errors)),
+            "checks": checks,
+        }
+
+    def _merge_token_analysis(self, result: dict[str, Any], token_result: dict[str, Any]) -> dict[str, Any]:
+        """Merge token tracking warnings and checks into an existing governance result."""
+
+        if not isinstance(result, dict):
+            return result
+        merged = dict(result)
+        merged["warnings"] = list(dict.fromkeys(list(merged.get("warnings", [])) + list(token_result.get("warnings", []))))
+        merged["errors"] = list(dict.fromkeys(list(merged.get("errors", [])) + list(token_result.get("errors", []))))
+        checks = dict(merged.get("checks", {}))
+        checks["token_tracking"] = token_result.get("checks", {})
+        merged["checks"] = checks
+        return merged
 
     def _build_recommendations(self, quality_result: dict[str, Any], brand_result: dict[str, Any], platform_result: dict[str, Any], factual_result: dict[str, Any]) -> list[str]:
         recommendations: list[str] = []

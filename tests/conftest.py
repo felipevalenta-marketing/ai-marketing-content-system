@@ -348,6 +348,30 @@ def sample_image_prompt_request(sample_brand_name: str) -> dict[str, object]:
 
 
 @pytest.fixture
+def sample_token_usage() -> dict[str, object]:
+    """Return a representative normalized token usage payload."""
+
+    return {
+        "success": True,
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "input_tokens": 120,
+        "output_tokens": 80,
+        "total_tokens": 200,
+        "estimated": False,
+        "source": "provider_usage",
+        "execution_id": "exec-1",
+        "module": "generation",
+        "operation": "openai_generate",
+        "campaign_id": "campaign-1",
+        "asset_type": "instagram_post",
+        "metadata": {},
+        "warnings": [],
+        "errors": [],
+    }
+
+
+@pytest.fixture
 def temp_output_dir(tmp_path: Path) -> Path:
     """Return a temporary output directory for export tests."""
 

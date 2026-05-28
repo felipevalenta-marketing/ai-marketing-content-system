@@ -259,6 +259,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "src.governance": find_spec("src.governance") is not None,
         "src.campaigns": find_spec("src.campaigns") is not None,
         "src.assets": find_spec("src.assets") is not None,
+        "src.tracking": find_spec("src.tracking") is not None,
         "src.reporting": find_spec("src.reporting") is not None,
     }
     pipeline = ContentGenerationPipeline(logger=logger)
@@ -464,7 +465,7 @@ def _build_generation_request(args: Any) -> dict[str, Any]:
         "platform": normalize_key(str(getattr(args, "platform", "") or "").strip()),
         "content_type": normalize_key(str(getattr(args, "content_type", "") or "").strip()),
         "objective": str(getattr(args, "objective", "") or "").strip(),
-        "audience": str(getattr(args, "audience", "") or "").strip(),
+        "audience": str(getattr(args, "audience", "") or "general").strip(),
         "location": normalize_key(str(getattr(args, "location", "") or "").strip()),
         "property_type": normalize_key(str(getattr(args, "property_type", "") or "").strip()),
         "creative_direction": str(getattr(args, "creative_direction", "") or "").strip(),
@@ -696,6 +697,20 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
         "exported": bool(result.get("exported_files")),
         "export_paths": result.get("exported_files", {}),
     }
+    token_usage = result.get("token_usage") if isinstance(result.get("token_usage"), dict) else {}
+    if token_usage:
+        summary.update(
+            {
+                "provider": token_usage.get("provider", ""),
+                "model": token_usage.get("model", ""),
+                "input_tokens": token_usage.get("input_tokens", 0),
+                "output_tokens": token_usage.get("output_tokens", 0),
+                "total_tokens": token_usage.get("total_tokens", 0),
+                "estimated_usage": token_usage.get("estimated", False),
+                "token_source": token_usage.get("source", ""),
+                "execution_total_tokens": (result.get("execution_token_summary") or {}).get("summary", {}).get("total_tokens", 0) if isinstance(result.get("execution_token_summary"), dict) else 0,
+            }
+        )
     if request.get("content_type") in {"video_script", "video_prompt"}:
         summary.update(
             {

@@ -22,12 +22,12 @@ except Exception:  # pragma: no cover - optional dependency
     OpenAI = None
 
 from src.llm.model_registry import (
-    estimate_tokens,
     get_env_default_max_output_tokens,
     get_env_default_model,
     get_env_default_temperature,
     is_supported_model,
 )
+from src.tracking.token_tracker import TokenTracker
 from src.utils.logger import get_logger, log_context, log_error, log_warning
 
 
@@ -85,6 +85,7 @@ class OpenAIGenerationResult:
     provider: str
     model: str
     content: str
+    token_usage: dict[str, Any] | None
     raw_response: Any
     metadata: dict[str, Any]
     error: str | None
@@ -97,6 +98,7 @@ class OpenAIGenerationResult:
             "provider": self.provider,
             "model": self.model,
             "content": self.content,
+            "token_usage": self.token_usage,
             "raw_response": self.raw_response,
             "metadata": self.metadata,
             "error": self.error,
@@ -111,6 +113,7 @@ class OpenAIClient:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or self._load_config_from_env()
         self._client = self._initialize_client()
+        self.token_tracker = TokenTracker(logger=self.logger)
 
     def validate_configuration(self) -> bool:
         """Validate that the client is ready for live generation."""
@@ -214,16 +217,29 @@ class OpenAIClient:
             content = self._extract_response_text(response)
             elapsed = time.perf_counter() - start_time
             response_dict = self._serialize_response(response)
-            token_estimate = estimate_tokens(f"{system_prompt}\n{user_prompt}", model_name)
+            token_usage = self._build_token_usage(
+                response=response,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                content=content,
+                metadata={
+                    **metadata,
+                    "provider": "openai",
+                    "model": model_name,
+                    "operation": "generation",
+                    "module": metadata.get("module") or metadata.get("pipeline_stage") or "generation",
+                },
+            )
             result_metadata = {
                 **metadata,
                 "provider": "openai",
                 "model": model_name,
                 "temperature": temp,
                 "max_output_tokens": max_tokens,
-                "estimated_tokens": token_estimate,
+                "estimated_tokens": token_usage.get("total_tokens", 0) if token_usage.get("estimated") else token_usage.get("total_tokens", 0),
                 "cost_estimate": None,
                 "latency_seconds": round(elapsed, 4),
+                "token_usage": token_usage,
             }
             log_context(self.logger, f"Generation success for {model_name}")
             return OpenAIGenerationResult(
@@ -231,6 +247,7 @@ class OpenAIClient:
                 provider="openai",
                 model=model_name,
                 content=content,
+                token_usage=token_usage,
                 raw_response=response_dict,
                 metadata=result_metadata,
                 error=None,
@@ -238,7 +255,16 @@ class OpenAIClient:
         except Exception as exc:  # pragma: no cover - defensive runtime guard
             sanitized_error = self._sanitize_error(str(exc))
             log_error(self.logger, f"OpenAI generation failed: {sanitized_error}")
-            return self._failure(model_name=model_name, metadata=metadata, message=sanitized_error)
+            token_usage = self.token_tracker.build_unavailable_result(
+                metadata={
+                    **metadata,
+                    "provider": "openai",
+                    "model": model_name,
+                    "operation": "generation",
+                    "module": metadata.get("module") or metadata.get("pipeline_stage") or "generation",
+                }
+            )
+            return self._failure(model_name=model_name, metadata=metadata, message=sanitized_error, token_usage=token_usage)
 
     def _initialize_client(self) -> Any | None:
         """Initialize the OpenAI SDK client safely."""
@@ -352,6 +378,64 @@ class OpenAIClient:
                 pass
         return {"repr": repr(response)}
 
+    def _extract_response_usage(self, response: Any) -> dict[str, Any]:
+        """Extract provider usage metadata from a Responses API response."""
+
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            if hasattr(usage, "model_dump"):
+                try:
+                    dumped = usage.model_dump()
+                    if isinstance(dumped, dict):
+                        return dumped
+                except Exception:
+                    pass
+            if hasattr(usage, "to_dict"):
+                try:
+                    dumped = usage.to_dict()
+                    if isinstance(dumped, dict):
+                        return dumped
+                except Exception:
+                    pass
+            if isinstance(usage, dict):
+                return dict(usage)
+            payload: dict[str, Any] = {}
+            for key in ("input_tokens", "output_tokens", "total_tokens", "prompt_tokens", "completion_tokens"):
+                if hasattr(usage, key):
+                    payload[key] = getattr(usage, key)
+            if payload:
+                return payload
+
+        if isinstance(response, dict):
+            usage = response.get("usage")
+            if isinstance(usage, dict):
+                return dict(usage)
+        return {}
+
+    def _build_token_usage(
+        self,
+        *,
+        response: Any,
+        system_prompt: str,
+        user_prompt: str,
+        content: str,
+        metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return normalized token usage, falling back to estimation when needed."""
+
+        raw_usage = self._extract_response_usage(response)
+        if raw_usage:
+            normalized = self.token_tracker.track_usage(raw_usage, metadata=metadata)
+            if normalized.get("source") == "provider_usage":
+                return normalized
+
+        estimated = self.token_tracker.record_estimated_usage(
+            input_text=f"{system_prompt}\n{user_prompt}",
+            output_text=content,
+            metadata=metadata,
+        )
+        return estimated
+
     def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, str]:
         """Reduce metadata to a Responses API-safe payload.
 
@@ -459,7 +543,7 @@ class OpenAIClient:
                 redacted = redacted.replace(secret, "[redacted]")
         return redacted
 
-    def _failure(self, model_name: str, metadata: dict[str, Any], message: str) -> dict[str, Any]:
+    def _failure(self, model_name: str, metadata: dict[str, Any], message: str, token_usage: dict[str, Any] | None = None) -> dict[str, Any]:
         """Return a structured failure payload."""
 
         return OpenAIGenerationResult(
@@ -467,6 +551,15 @@ class OpenAIClient:
             provider="openai",
             model=model_name,
             content="",
+            token_usage=token_usage or self.token_tracker.build_unavailable_result(
+                metadata={
+                    **metadata,
+                    "provider": "openai",
+                    "model": model_name,
+                    "operation": "generation",
+                    "module": metadata.get("module") or metadata.get("pipeline_stage") or "generation",
+                }
+            ),
             raw_response=None,
             metadata={
                 **metadata,
@@ -474,6 +567,7 @@ class OpenAIClient:
                 "model": model_name,
                 "estimated_tokens": metadata.get("estimated_tokens", None),
                 "cost_estimate": metadata.get("cost_estimate", None),
+                "token_usage": token_usage or {},
             },
             error=message,
         ).to_dict()

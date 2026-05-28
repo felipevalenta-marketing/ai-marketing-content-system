@@ -98,3 +98,10 @@ def test_status_values_are_supported(sample_governance_payload):
     result = engine.evaluate(sample_governance_payload)
 
     assert result["status"] in {"approved", "approved_with_warnings", "needs_review", "rejected"}
+
+
+def test_missing_token_usage_only_warns(sample_governance_payload):
+    engine = ContentGovernanceEngine()
+    result = engine.evaluate(sample_governance_payload)
+
+    assert any("token usage" in warning.lower() for warning in result["warnings"])

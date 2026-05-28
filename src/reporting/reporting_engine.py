@@ -70,11 +70,12 @@ class ReportingEngine:
                 "report_name": report_name or safe_text(consolidated.get("title", "report"), limit=80),
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),
-                "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report", "creative_direction_report"],
-                "image_prompt_metrics_present": self._has_image_prompt_data(payload),
-                "video_script_metrics_present": self._has_video_script_data(payload),
-                "creative_direction_metrics_present": self._has_creative_direction_data(payload),
-            },
+            "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report", "creative_direction_report"],
+            "image_prompt_metrics_present": self._has_image_prompt_data(payload),
+            "video_script_metrics_present": self._has_video_script_data(payload),
+            "creative_direction_metrics_present": self._has_creative_direction_data(payload),
+            "token_metrics_present": self._has_token_data(payload),
+        },
         }
         return bundle
 
@@ -206,3 +207,13 @@ class ReportingEngine:
         """Return whether the payload includes creative direction analytics data."""
 
         return bool(safe_dict(payload.get("creative_direction_result")) or safe_dict(payload.get("creative_validation")))
+
+    def _has_token_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes token tracking analytics data."""
+
+        return bool(
+            safe_dict(payload.get("token_usage"))
+            or safe_dict(payload.get("execution_token_summary"))
+            or safe_dict(payload.get("module_token_summary"))
+            or safe_dict(payload.get("provider_token_summary"))
+        )

@@ -66,6 +66,32 @@ def test_generate_text_returns_structured_success_when_mocked(monkeypatch):
     assert result["content"] == "Generated content"
     assert result["provider"] == "openai"
     assert result["model"] == "gpt-4o-mini"
+    assert result["token_usage"]["source"] in {"provider_usage", "estimator"}
+
+
+def test_generate_text_returns_token_usage_when_mocked(monkeypatch):
+    monkeypatch.setattr(openai_client_module, "OpenAI", DummyOpenAI)
+    client = OpenAIClient(config=OpenAIClientConfig(api_key="test-key", default_model="gpt-4o-mini", default_temperature=0.7, default_max_output_tokens=1200, timeout_seconds=60, app_env="test"))
+    client.validate_configuration = lambda: True  # type: ignore[assignment]
+    dummy_response = SimpleNamespace(
+        output_text="Generated content",
+        usage=SimpleNamespace(input_tokens=12, output_tokens=8, total_tokens=20, model_dump=lambda: {"input_tokens": 12, "output_tokens": 8, "total_tokens": 20}),
+        model_dump=lambda: {"ok": True},
+    )
+    client._client = SimpleNamespace(responses=DummyResponses(dummy_response))  # type: ignore[assignment]
+
+    result = client.generate_text({
+        "system_prompt": "sys",
+        "user_prompt": "user",
+        "content_type": "instagram_post",
+        "brand": "brand",
+        "metadata": {"brand": "brand", "platform": "instagram", "content_type": "instagram_post"},
+    })
+
+    assert result["token_usage"]["provider"] == "openai"
+    assert result["token_usage"]["input_tokens"] == 12
+    assert result["token_usage"]["output_tokens"] == 8
+    assert result["token_usage"]["total_tokens"] == 20
 
 
 def test_generate_text_returns_structured_failure_on_mocked_error(monkeypatch, caplog):

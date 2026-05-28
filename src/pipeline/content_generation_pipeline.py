@@ -32,6 +32,7 @@ from src.media.video_script_engine import VideoScriptEngine
 from src.media.video_script_validator import VideoScriptValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
+from src.tracking.token_tracker import TokenTracker
 from src.prompts.prompt_builder import PromptBuilder
 from src.utils.file_utils import normalize_key
 from src.utils.logger import get_logger, log_context, log_error, log_scan, log_warning
@@ -83,6 +84,7 @@ class ContentGenerationPipeline:
         self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
         self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
         self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
+        self.token_tracker = TokenTracker(logger=self.logger)
         self.image_prompt_engine = image_prompt_engine or ImagePromptEngine(logger=self.logger)
         self.image_prompt_validator = image_prompt_validator or ImagePromptValidator()
         self.video_script_engine = video_script_engine or VideoScriptEngine(logger=self.logger)
@@ -209,6 +211,11 @@ class ContentGenerationPipeline:
         rendered_text: str | None = None,
         exported_files: dict[str, str] | None = None,
         output_metadata: dict[str, Any] | None = None,
+        token_usage: dict[str, Any] | None = None,
+        execution_token_summary: dict[str, Any] | None = None,
+        module_token_summary: dict[str, Any] | None = None,
+        provider_token_summary: dict[str, Any] | None = None,
+        estimated_token_usage: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         error: str | None = None,
         warnings: list[str] | None = None,
@@ -239,6 +246,12 @@ class ContentGenerationPipeline:
         """Build a structured pipeline result."""
 
         normalized_request = self._normalize_request(request)
+        metadata_payload = metadata or {}
+        token_usage = token_usage if token_usage is not None else metadata_payload.get("token_usage")
+        execution_token_summary = execution_token_summary if execution_token_summary is not None else metadata_payload.get("execution_token_summary")
+        module_token_summary = module_token_summary if module_token_summary is not None else metadata_payload.get("module_token_summary")
+        provider_token_summary = provider_token_summary if provider_token_summary is not None else metadata_payload.get("provider_token_summary")
+        estimated_token_usage = estimated_token_usage if estimated_token_usage is not None else metadata_payload.get("estimated_token_usage")
         if success:
             result = build_success_result(
                 brand=normalized_request["brand"],
@@ -302,6 +315,11 @@ class ContentGenerationPipeline:
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
                 output_metadata=output_metadata or {},
+                token_usage=token_usage,
+                execution_token_summary=execution_token_summary,
+                module_token_summary=module_token_summary,
+                provider_token_summary=provider_token_summary,
+                estimated_token_usage=estimated_token_usage,
                 metadata=metadata,
                 warnings=warnings or [],
             )
@@ -370,6 +388,11 @@ class ContentGenerationPipeline:
                 rendered_text=rendered_text,
                 exported_files=exported_files or {},
                 output_metadata=output_metadata or {},
+                token_usage=token_usage,
+                execution_token_summary=execution_token_summary,
+                module_token_summary=module_token_summary,
+                provider_token_summary=provider_token_summary,
+                estimated_token_usage=estimated_token_usage,
                 warnings=warnings or [],
             )
         return self._attach_reporting(result, request=normalized_request, context=context)
@@ -609,6 +632,8 @@ class ContentGenerationPipeline:
             error = str(ai_response.get("error") or "OpenAI generation failed.")
             log_error(self.logger, error)
             metadata["execution"] = self._build_execution_metadata(execution_started_at, stage_timings, success=False, stage="generation", error=error)
+            ai_warnings = list(ai_response.get("metadata", {}).get("warnings", []))
+            token_warnings_on_failure = list(ai_response.get("token_usage", {}).get("warnings", [])) if isinstance(ai_response.get("token_usage"), dict) else []
             return self.build_result(
                 success=False,
                 request=normalized_request,
@@ -624,10 +649,40 @@ class ContentGenerationPipeline:
                 rendered_text=None,
                 exported_files={},
                 output_metadata={},
+                token_usage=ai_response.get("token_usage") if isinstance(ai_response.get("token_usage"), dict) else None,
+                execution_token_summary=None,
+                module_token_summary=None,
+                provider_token_summary=None,
+                estimated_token_usage=ai_response.get("token_usage") if isinstance(ai_response.get("token_usage"), dict) and ai_response.get("token_usage", {}).get("estimated") else None,
                 metadata=metadata,
                 error=error,
-                warnings=list(ai_response.get("metadata", {}).get("warnings", [])),
+                warnings=ai_warnings + token_warnings_on_failure,
             )
+
+        token_usage: dict[str, Any] | None = None
+        execution_token_summary: dict[str, Any] | None = None
+        module_token_summary: dict[str, Any] | None = None
+        provider_token_summary: dict[str, Any] | None = None
+        estimated_token_usage: dict[str, Any] | None = None
+        token_warnings: list[str] = []
+        token_errors: list[str] = []
+        if self.config.enable_token_tracking:
+            token_tracking = self._build_token_tracking(
+                request=normalized_request,
+                prompt_payload=prompt_payload,
+                ai_response=ai_response,
+                parsed_output=None,
+                metadata=metadata,
+                execution_id=execution_started_at.isoformat(),
+            )
+            token_usage = token_tracking.get("token_usage")
+            execution_token_summary = token_tracking.get("execution_token_summary")
+            module_token_summary = token_tracking.get("module_token_summary")
+            provider_token_summary = token_tracking.get("provider_token_summary")
+            estimated_token_usage = token_tracking.get("estimated_token_usage")
+            token_warnings = list(token_tracking.get("warnings", []))
+            token_errors = list(token_tracking.get("errors", []))
+            metadata.update(token_tracking)
 
         try:
             parsing_started = perf_counter()
@@ -1169,6 +1224,8 @@ class ContentGenerationPipeline:
             + output_errors
             + video_script_warnings
             + video_script_errors
+            + token_warnings
+            + token_errors
             + governance_warnings
             + governance_errors
             + asset_warnings
@@ -1561,6 +1618,85 @@ class ContentGenerationPipeline:
             "model": model,
             "provider": provider,
             "dry_run": dry_run,
+        }
+
+    def _build_token_tracking(
+        self,
+        *,
+        request: dict[str, Any],
+        prompt_payload: dict[str, Any] | None,
+        ai_response: dict[str, Any] | None,
+        parsed_output: dict[str, Any] | None,
+        metadata: dict[str, Any],
+        execution_id: str,
+    ) -> dict[str, Any]:
+        """Build token usage records and aggregated summaries."""
+
+        if not self.config.enable_token_tracking:
+            return {
+                "token_usage": None,
+                "execution_token_summary": None,
+                "module_token_summary": None,
+                "provider_token_summary": None,
+                "estimated_token_usage": None,
+                "warnings": [],
+                "errors": [],
+            }
+
+        base_metadata = {
+            **metadata,
+            "brand": request.get("brand", ""),
+            "platform": request.get("platform", ""),
+            "content_type": request.get("content_type", ""),
+            "objective": request.get("objective", ""),
+            "audience": request.get("audience", ""),
+            "location": request.get("location", ""),
+            "property_type": request.get("property_type", ""),
+            "execution_id": execution_id,
+            "module": request.get("content_type", ""),
+            "operation": "generation",
+            "campaign_id": str(request.get("campaign_type", "") or request.get("objective", "") or ""),
+            "asset_type": request.get("content_type", ""),
+            "provider": metadata.get("provider", ""),
+            "model": metadata.get("model", ""),
+        }
+
+        usage_record = self.token_tracker.build_unavailable_result(metadata=base_metadata)
+        if isinstance(ai_response, dict):
+            token_usage = ai_response.get("token_usage")
+            if isinstance(token_usage, dict) and token_usage:
+                usage_record = self.token_tracker.record_generation(token_usage, metadata=base_metadata)
+            elif self.config.enable_token_estimation:
+                prompt_text = ""
+                if isinstance(prompt_payload, dict):
+                    prompt_text = f"{prompt_payload.get('system_prompt', '')}\n{prompt_payload.get('user_prompt', '')}".strip()
+                generated_text = str(ai_response.get("content", "") or "")
+                usage_record = self.token_tracker.record_estimated_usage(
+                    input_text=prompt_text,
+                    output_text=generated_text,
+                    metadata=base_metadata,
+                )
+
+        records = [usage_record]
+        execution_summary = self.token_tracker.aggregate_execution(records)
+        module_summary = self.token_tracker.aggregator.aggregate_by_module(records)
+        provider_summary = self.token_tracker.aggregator.aggregate_by_provider(records)
+        estimated_token_usage = usage_record if bool(usage_record.get("estimated")) else None
+
+        if not usage_record.get("estimated") and usage_record.get("source") == "unavailable":
+            warnings = list(usage_record.get("warnings", []))
+            if "Token usage unavailable." not in warnings:
+                warnings.append("Token usage unavailable.")
+            usage_record["warnings"] = warnings
+
+        return {
+            "token_usage": usage_record,
+            "execution_token_summary": execution_summary,
+            "module_token_summary": module_summary,
+            "provider_token_summary": provider_summary,
+            "estimated_token_usage": estimated_token_usage,
+            "warnings": list(usage_record.get("warnings", [])),
+            "errors": list(usage_record.get("errors", [])),
         }
 
     def _attach_reporting(self, result: dict[str, Any], request: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:

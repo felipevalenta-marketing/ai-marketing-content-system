@@ -33,6 +33,11 @@ class ExecutionAnalytics:
         exported_files.update(safe_dict(payload.get("asset_export_paths")))
         exported_files.update(safe_dict(payload.get("report_export_paths")))
         stage_timings = safe_dict(execution.get("stages"))
+        token_usage = safe_dict(payload.get("token_usage"))
+        execution_token_summary = safe_dict(payload.get("execution_token_summary"))
+        module_token_summary = safe_dict(payload.get("module_token_summary"))
+        provider_token_summary = safe_dict(payload.get("provider_token_summary"))
+        estimated_token_usage = safe_dict(payload.get("estimated_token_usage"))
 
         duration_seconds = safe_float(execution.get("duration_seconds"))
         if duration_seconds <= 0 and stage_timings:
@@ -67,4 +72,15 @@ class ExecutionAnalytics:
             "exported": bool(exported_files),
             "export_count": len(exported_files),
             "input_fields_present": count_truthy([payload.get("brand"), payload.get("platform"), payload.get("content_type")]),
+            "input_tokens": safe_int(token_usage.get("input_tokens"), 0),
+            "output_tokens": safe_int(token_usage.get("output_tokens"), 0),
+            "total_tokens": safe_int(token_usage.get("total_tokens"), 0),
+            "estimated_usage": safe_bool(token_usage.get("estimated")),
+            "token_source": safe_text(token_usage.get("source"), limit=80),
+            "token_provider": safe_text(token_usage.get("provider"), limit=80),
+            "token_model": safe_text(token_usage.get("model"), limit=80),
+            "module_breakdown": module_token_summary.get("summary", {}) if isinstance(module_token_summary.get("summary"), dict) else {},
+            "provider_breakdown": provider_token_summary.get("summary", {}) if isinstance(provider_token_summary.get("summary"), dict) else {},
+            "execution_breakdown": execution_token_summary.get("summary", {}) if isinstance(execution_token_summary.get("summary"), dict) else {},
+            "estimated_token_usage": estimated_token_usage,
         }

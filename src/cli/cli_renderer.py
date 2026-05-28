@@ -11,7 +11,6 @@ SENSITIVE_KEYS = {
     "openai_api_key",
     "raw_response",
     "secret",
-    "token",
 }
 
 

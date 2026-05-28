@@ -72,6 +72,11 @@ class PipelineResult:
     rendered_text: str | None
     exported_files: dict[str, str]
     output_metadata: dict[str, Any]
+    token_usage: dict[str, Any] | None
+    execution_token_summary: dict[str, Any] | None
+    module_token_summary: dict[str, Any] | None
+    provider_token_summary: dict[str, Any] | None
+    estimated_token_usage: dict[str, Any] | None
     metadata: dict[str, Any]
     error: str | None
     warnings: list[str] = field(default_factory=list)
@@ -142,6 +147,11 @@ class PipelineResult:
             "rendered_text": self.rendered_text,
             "exported_files": self.exported_files,
             "output_metadata": self.output_metadata,
+            "token_usage": self.token_usage,
+            "execution_token_summary": self.execution_token_summary,
+            "module_token_summary": self.module_token_summary,
+            "provider_token_summary": self.provider_token_summary,
+            "estimated_token_usage": self.estimated_token_usage,
             "metadata": self.metadata,
             "error": self.error,
             "warnings": self.warnings,
@@ -210,6 +220,11 @@ def build_success_result(
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
     output_metadata: dict[str, Any] | None = None,
+    token_usage: dict[str, Any] | None = None,
+    execution_token_summary: dict[str, Any] | None = None,
+    module_token_summary: dict[str, Any] | None = None,
+    provider_token_summary: dict[str, Any] | None = None,
+    estimated_token_usage: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -278,6 +293,11 @@ def build_success_result(
         rendered_text=rendered_text,
         exported_files=exported_files or {},
         output_metadata=output_metadata or {},
+        token_usage=token_usage,
+        execution_token_summary=execution_token_summary,
+        module_token_summary=module_token_summary,
+        provider_token_summary=provider_token_summary,
+        estimated_token_usage=estimated_token_usage,
         metadata=metadata or {},
         error=None,
         warnings=warnings or [],
@@ -348,6 +368,11 @@ def build_failure_result(
     rendered_text: str | None = None,
     exported_files: dict[str, str] | None = None,
     output_metadata: dict[str, Any] | None = None,
+    token_usage: dict[str, Any] | None = None,
+    execution_token_summary: dict[str, Any] | None = None,
+    module_token_summary: dict[str, Any] | None = None,
+    provider_token_summary: dict[str, Any] | None = None,
+    estimated_token_usage: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a failure pipeline response."""
@@ -415,6 +440,11 @@ def build_failure_result(
         rendered_text=rendered_text,
         exported_files=exported_files or {},
         output_metadata=output_metadata or {},
+        token_usage=token_usage,
+        execution_token_summary=execution_token_summary,
+        module_token_summary=module_token_summary,
+        provider_token_summary=provider_token_summary,
+        estimated_token_usage=estimated_token_usage,
         metadata=metadata,
         error=error,
         warnings=warnings or [],
