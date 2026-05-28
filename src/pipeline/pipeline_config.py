@@ -12,6 +12,7 @@ DEFAULT_SUPPORTED_CONTENT_TYPES = (
     "property_description",
     "image_prompt",
     "video_prompt",
+    "campaign_asset",
 )
 
 DEFAULT_SUPPORTED_PLATFORMS = (
@@ -35,8 +36,14 @@ class PipelineConfig:
     default_platform: str = "instagram"
     default_content_type: str = "instagram_post"
     enable_live_generation: bool = True
+    enable_output_formatting: bool = True
+    enable_output_validation: bool = True
+    enable_rendering: bool = True
+    enable_export: bool = False
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS
     supported_content_types: tuple[str, ...] = DEFAULT_SUPPORTED_CONTENT_TYPES
+    export_formats: tuple[str, ...] = ("markdown", "json")
+    output_root: str = "outputs"
     generation_defaults: dict[str, Any] = field(
         default_factory=lambda: {
             "provider": "openai",

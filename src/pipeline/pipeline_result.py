@@ -19,6 +19,12 @@ class PipelineResult:
     prompt_payload: dict[str, Any] | None
     ai_response: dict[str, Any] | None
     parsed_output: dict[str, Any] | None
+    formatted_output: dict[str, Any] | None
+    validation_result: dict[str, Any] | None
+    rendered_markdown: str | None
+    rendered_text: str | None
+    exported_files: dict[str, str]
+    output_metadata: dict[str, Any]
     metadata: dict[str, Any]
     error: str | None
     warnings: list[str] = field(default_factory=list)
@@ -36,6 +42,12 @@ class PipelineResult:
             "prompt_payload": self.prompt_payload,
             "ai_response": self.ai_response,
             "parsed_output": self.parsed_output,
+            "formatted_output": self.formatted_output,
+            "validation_result": self.validation_result,
+            "rendered_markdown": self.rendered_markdown,
+            "rendered_text": self.rendered_text,
+            "exported_files": self.exported_files,
+            "output_metadata": self.output_metadata,
             "metadata": self.metadata,
             "error": self.error,
             "warnings": self.warnings,
@@ -51,6 +63,12 @@ def build_success_result(
     prompt_payload: dict[str, Any],
     ai_response: dict[str, Any],
     parsed_output: dict[str, Any],
+    formatted_output: dict[str, Any] | None,
+    validation_result: dict[str, Any] | None,
+    rendered_markdown: str | None,
+    rendered_text: str | None,
+    exported_files: dict[str, str] | None,
+    output_metadata: dict[str, Any] | None,
     metadata: dict[str, Any],
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -66,6 +84,12 @@ def build_success_result(
         prompt_payload=prompt_payload,
         ai_response=ai_response,
         parsed_output=parsed_output,
+        formatted_output=formatted_output,
+        validation_result=validation_result,
+        rendered_markdown=rendered_markdown,
+        rendered_text=rendered_text,
+        exported_files=exported_files or {},
+        output_metadata=output_metadata or {},
         metadata=metadata,
         error=None,
         warnings=warnings or [],
@@ -83,6 +107,12 @@ def build_failure_result(
     prompt_payload: dict[str, Any] | None = None,
     ai_response: dict[str, Any] | None = None,
     parsed_output: dict[str, Any] | None = None,
+    formatted_output: dict[str, Any] | None = None,
+    validation_result: dict[str, Any] | None = None,
+    rendered_markdown: str | None = None,
+    rendered_text: str | None = None,
+    exported_files: dict[str, str] | None = None,
+    output_metadata: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a failure pipeline response."""
@@ -97,6 +127,12 @@ def build_failure_result(
         prompt_payload=prompt_payload,
         ai_response=ai_response,
         parsed_output=parsed_output,
+        formatted_output=formatted_output,
+        validation_result=validation_result,
+        rendered_markdown=rendered_markdown,
+        rendered_text=rendered_text,
+        exported_files=exported_files or {},
+        output_metadata=output_metadata or {},
         metadata=metadata,
         error=error,
         warnings=warnings or [],

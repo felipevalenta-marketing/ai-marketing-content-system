@@ -10,6 +10,11 @@ from src.core.knowledge_loader import BrandKnowledge, KnowledgeLoader
 from src.llm.llm_router import LLMRouter
 from src.llm.openai_client import OpenAIClient
 from src.llm.response_parser import ResponseParser
+from src.output.output_exporter import OutputExporter
+from src.output.output_formatter import OutputFormatter
+from src.output.output_metadata import build_output_metadata
+from src.output.output_renderer import OutputRenderer
+from src.output.output_validator import OutputValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
 from src.prompts.prompt_builder import PromptBuilder
@@ -30,6 +35,10 @@ class ContentGenerationPipeline:
         router: LLMRouter | None = None,
         client: OpenAIClient | None = None,
         parser: ResponseParser | None = None,
+        formatter: OutputFormatter | None = None,
+        validator: OutputValidator | None = None,
+        renderer: OutputRenderer | None = None,
+        exporter: OutputExporter | None = None,
     ) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.config = config or PipelineConfig()
@@ -39,6 +48,10 @@ class ContentGenerationPipeline:
         self.router = router or LLMRouter(logger=self.logger)
         self.client = client or OpenAIClient(logger=self.logger)
         self.parser = parser or ResponseParser(logger=self.logger)
+        self.formatter = formatter or OutputFormatter(logger=self.logger)
+        self.validator = validator or OutputValidator(logger=self.logger)
+        self.renderer = renderer or OutputRenderer(logger=self.logger)
+        self.exporter = exporter or OutputExporter(output_root=self.config.output_root, logger=self.logger)
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
         """Generate content from a structured request."""
@@ -129,6 +142,12 @@ class ContentGenerationPipeline:
         prompt_payload: dict[str, Any] | None,
         ai_response: dict[str, Any] | None,
         parsed_output: dict[str, Any] | None,
+        formatted_output: dict[str, Any] | None,
+        validation_result: dict[str, Any] | None,
+        rendered_markdown: str | None,
+        rendered_text: str | None,
+        exported_files: dict[str, str] | None,
+        output_metadata: dict[str, Any] | None,
         metadata: dict[str, Any],
         error: str | None,
         warnings: list[str] | None = None,
@@ -146,6 +165,12 @@ class ContentGenerationPipeline:
                 prompt_payload=prompt_payload or {},
                 ai_response=ai_response or {},
                 parsed_output=parsed_output or {},
+                formatted_output=formatted_output,
+                validation_result=validation_result,
+                rendered_markdown=rendered_markdown,
+                rendered_text=rendered_text,
+                exported_files=exported_files or {},
+                output_metadata=output_metadata or {},
                 metadata=metadata,
                 warnings=warnings or [],
             )
@@ -160,6 +185,12 @@ class ContentGenerationPipeline:
             prompt_payload=prompt_payload,
             ai_response=ai_response,
             parsed_output=parsed_output,
+            formatted_output=formatted_output,
+            validation_result=validation_result,
+            rendered_markdown=rendered_markdown,
+            rendered_text=rendered_text,
+            exported_files=exported_files or {},
+            output_metadata=output_metadata or {},
             warnings=warnings or [],
         )
 
@@ -179,6 +210,12 @@ class ContentGenerationPipeline:
                 prompt_payload=None,
                 ai_response=None,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=base_metadata,
                 error=validation_error or "Request validation failed.",
             )
@@ -194,6 +231,12 @@ class ContentGenerationPipeline:
                 prompt_payload=None,
                 ai_response=None,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=base_metadata,
                 error=error,
                 warnings=context.get("warnings", []),
@@ -210,6 +253,12 @@ class ContentGenerationPipeline:
                 prompt_payload=None,
                 ai_response=None,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=base_metadata,
                 error=error,
                 warnings=prompt_result["errors"],
@@ -243,6 +292,12 @@ class ContentGenerationPipeline:
                 prompt_payload=prompt_payload,
                 ai_response=None,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=metadata,
                 error=error,
                 warnings=[],
@@ -260,6 +315,12 @@ class ContentGenerationPipeline:
                 prompt_payload=prompt_payload,
                 ai_response=ai_response,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=metadata,
                 error=error,
                 warnings=list(ai_response.get("metadata", {}).get("warnings", [])),
@@ -277,6 +338,12 @@ class ContentGenerationPipeline:
                 prompt_payload=prompt_payload,
                 ai_response=ai_response,
                 parsed_output=None,
+                formatted_output=None,
+                validation_result=None,
+                rendered_markdown=None,
+                rendered_text=None,
+                exported_files={},
+                output_metadata={},
                 metadata=metadata,
                 error=error,
                 warnings=[],
@@ -285,11 +352,110 @@ class ContentGenerationPipeline:
         if parsed_output.get("parser_warnings"):
             log_warning(self.logger, "; ".join(parsed_output.get("parser_warnings", [])))
 
+        formatted_output = None
+        validation_result = None
+        rendered_markdown = None
+        rendered_text = None
+        exported_files: dict[str, str] = {}
+        output_metadata: dict[str, Any] = {}
+        output_errors: list[str] = []
+        output_warnings: list[str] = []
+
+        if self.config.enable_output_formatting:
+            try:
+                formatted_output = self.formatter.format(parsed_output, normalized_request["content_type"])
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                error = f"Output formatting failed: {exc}"
+                log_error(self.logger, error)
+                return self.build_result(
+                    success=False,
+                    request=normalized_request,
+                    context=context,
+                    prompt_payload=prompt_payload,
+                    ai_response=ai_response,
+                    parsed_output=parsed_output,
+                    formatted_output=None,
+                    validation_result=None,
+                    rendered_markdown=None,
+                    rendered_text=None,
+                    exported_files={},
+                    output_metadata={},
+                    metadata=metadata,
+                    error=error,
+                    warnings=[],
+                )
+
+            if self.config.enable_output_validation:
+                validation_result = self.validator.validate(formatted_output, normalized_request["content_type"])
+                output_warnings.extend(validation_result.get("warnings", []))
+                output_errors.extend(validation_result.get("errors", []))
+
+            if self.config.enable_rendering:
+                try:
+                    rendered_markdown = self.renderer.render_markdown(formatted_output, normalized_request["content_type"])
+                    rendered_text = self.renderer.render_text(formatted_output, normalized_request["content_type"])
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    error = f"Output rendering failed: {exc}"
+                    log_error(self.logger, error)
+                    return self.build_result(
+                        success=False,
+                        request=normalized_request,
+                        context=context,
+                        prompt_payload=prompt_payload,
+                        ai_response=ai_response,
+                        parsed_output=parsed_output,
+                        formatted_output=formatted_output,
+                        validation_result=validation_result,
+                        rendered_markdown=None,
+                        rendered_text=None,
+                        exported_files={},
+                        output_metadata={},
+                        metadata=metadata,
+                        error=error,
+                        warnings=output_warnings,
+                    )
+
+            if self.config.enable_export:
+                try:
+                    exported_files = self.exporter.export(
+                        brand=normalized_request["brand"],
+                        content_type=normalized_request["content_type"],
+                        output=formatted_output,
+                        metadata=metadata,
+                        validation_result=validation_result or {"valid": True, "warnings": [], "errors": []},
+                        formats=list(self.config.export_formats),
+                    )
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    log_warning(self.logger, f"Export failed: {exc}")
+                    exported_files = {}
+
+        validation_status = "passed"
+        if validation_result and not validation_result.get("valid", True):
+            validation_status = "failed"
+        elif validation_result and validation_result.get("warnings"):
+            validation_status = "warning"
+
+        output_metadata = build_output_metadata(
+            brand=normalized_request["brand"],
+            platform=normalized_request["platform"],
+            content_type=normalized_request["content_type"],
+            objective=normalized_request.get("objective", ""),
+            audience=normalized_request.get("audience", ""),
+            location=normalized_request.get("location", ""),
+            property_type=normalized_request.get("property_type", ""),
+            model=str(metadata.get("model", "")),
+            provider=str(metadata.get("provider", "")),
+            validation_status=validation_status,
+            export_paths=exported_files,
+        )
+
         metadata.update(
             {
                 "brand_context_loaded": True,
                 "generated": True,
                 "parser_warnings": parsed_output.get("parser_warnings", []),
+                "validation_status": validation_status,
+                "exported": bool(exported_files),
             }
         )
         result = self.build_result(
@@ -299,9 +465,15 @@ class ContentGenerationPipeline:
             prompt_payload=prompt_payload,
             ai_response=ai_response,
             parsed_output=parsed_output,
+            formatted_output=formatted_output,
+            validation_result=validation_result,
+            rendered_markdown=rendered_markdown,
+            rendered_text=rendered_text,
+            exported_files=exported_files,
+            output_metadata=output_metadata,
             metadata=metadata,
             error=None,
-            warnings=list(ai_response.get("metadata", {}).get("warnings", [])),
+            warnings=list(ai_response.get("metadata", {}).get("warnings", [])) + output_warnings + output_errors,
         )
         log_context(self.logger, f"Final result ready for {normalized_request['brand']}/{normalized_request['content_type']}")
         return result
