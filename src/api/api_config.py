@@ -45,6 +45,7 @@ def build_api_config_summary() -> dict[str, Any]:
             "api_debug": config.api_debug,
             "api_base_url": config.api_base_url,
             "frontend_root": config.frontend_root,
+            "cors_origins": list(config.cors_origins),
             "api_service_name": config.service_name,
             "api_version": config.api_version,
         }

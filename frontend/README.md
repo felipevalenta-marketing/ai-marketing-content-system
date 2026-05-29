@@ -1,33 +1,61 @@
-# Frontend Demo
+# Frontend UI Platform
 
-Open `index.html` in a browser after starting the API locally.
+This folder contains the React + TypeScript + Vite frontend for the AI Marketing Content System.
 
-## Run the API
+## Install
+
+```bash
+cd frontend
+npm install
+```
+
+## Run
+
+Start the API first:
 
 ```bash
 uvicorn src.api.main:app --reload
 ```
 
-If `uvicorn` is not installed in your environment, install the project dependencies first or use the local API module instructions printed by:
+Start the frontend:
 
 ```bash
-python -m src.api.main
+npm run dev
 ```
 
-## API Base
+Build the frontend:
 
-The demo uses `http://127.0.0.1:8000` by default. You can edit the API base URL in the top bar.
+```bash
+npm run build
+```
 
-## Available Endpoints
+Open:
 
-- `GET /health`
-- `GET /config`
-- `POST /generate`
-- `POST /workflow`
-- `POST /campaign`
-- `POST /assets`
-- `POST /reports/markdown`
-- `GET /storage/records`
-- `GET /storage/records/{record_type}`
-- `GET /storage/records/{record_type}/{record_id}`
-- `GET /reports/latest`
+```text
+http://127.0.0.1:5173
+```
+
+If you prefer proxy-based development, the Vite dev server is configured to proxy API routes to `http://127.0.0.1:8000`.
+
+## API Base URL
+
+Default API base URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+You can edit it in the top bar of the app.
+
+## Pages
+
+- Dashboard
+- Content Studio
+- Workflow Center
+- Campaign Studio
+- Asset Studio
+- Reports Center
+- Storage Explorer
+- Analytics Center
+- Governance Center
+- System Config

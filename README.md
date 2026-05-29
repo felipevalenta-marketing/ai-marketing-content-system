@@ -18,7 +18,7 @@ python main.py api
 
 Markdown reports export to `outputs/reports/markdown/`, and the export index is stored at `outputs/reports/markdown/index.json`.
 
-## Local API and Demo UI
+## Local API and Frontend UI Platform
 
 Run the API locally with:
 
@@ -26,4 +26,13 @@ Run the API locally with:
 uvicorn src.api.main:app --reload
 ```
 
-Open `frontend/index.html` in your browser for the demo interface. If `uvicorn` is not installed yet, run `python -m src.api.main` to print local startup instructions.
+Run the frontend platform:
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run build
+```
+
+Open `http://127.0.0.1:5173` for the UI platform. If `uvicorn` is not installed yet, run `python -m src.api.main` to print local startup instructions and the frontend path.

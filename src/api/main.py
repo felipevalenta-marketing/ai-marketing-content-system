@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from fastapi import FastAPI, HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.api_config import ApiConfig
 from src.api.api_result import build_api_response
@@ -60,6 +61,14 @@ def create_app(config: ApiConfig | None = None, services: dict[str, Any] | None 
     app.state.config = api_config
     app.state.api_debug = api_config.api_debug
     app.state.services = services or build_services(api_config)
+    app.state.cors_origins = list(api_config.cors_origins)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(api_config.cors_origins),
+        allow_methods=["*"],
+        allow_headers=["*"],
+        allow_credentials=True,
+    )
     app.include_router(api_router)
 
     @app.get("/openapi.json", summary="OpenAPI schema", description="Return the generated API schema.")
