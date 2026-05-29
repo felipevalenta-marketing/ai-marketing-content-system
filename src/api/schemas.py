@@ -174,3 +174,36 @@ class ApiResponse(BaseApiModel):
 
 class ErrorResponse(ApiResponse):
     success: bool = False
+
+
+class RegisterRequest(BaseApiModel):
+    email: str = Field(default="")
+    password: str = Field(default="")
+    display_name: str = Field(default="")
+
+
+class LoginRequest(BaseApiModel):
+    email: str = Field(default="")
+    password: str = Field(default="")
+
+
+class UserProfileUpdateRequest(BaseApiModel):
+    display_name: str | None = None
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class UserProfileResponse(BaseApiModel):
+    user_id: str = ""
+    email: str = ""
+    display_name: str = ""
+    status: str = "active"
+    created_at: str = ""
+    updated_at: str = ""
+    settings: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AuthResponse(BaseApiModel):
+    access_token: str = ""
+    token_type: str = "bearer"
+    user: UserProfileResponse = Field(default_factory=UserProfileResponse)

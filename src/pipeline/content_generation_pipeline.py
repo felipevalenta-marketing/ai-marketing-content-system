@@ -36,6 +36,7 @@ from src.media.video_script_engine import VideoScriptEngine
 from src.media.video_script_validator import VideoScriptValidator
 from src.pipeline.pipeline_config import PipelineConfig
 from src.pipeline.pipeline_result import build_failure_result, build_success_result
+from src.brands.brand_manager import BrandManager
 from src.tracking.cost_tracker import CostTracker
 from src.tracking.token_tracker import TokenTracker
 from src.prompts.prompt_builder import PromptBuilder
@@ -106,6 +107,12 @@ class ContentGenerationPipeline:
         self.video_script_validator = video_script_validator or VideoScriptValidator()
         self.creative_direction_engine = creative_direction_engine or CreativeDirectionEngine(logger=self.logger)
         self.creative_direction_validator = creative_direction_validator or CreativeDirectionValidator()
+        self.brand_manager = BrandManager(
+            brand_root=self.config.brand_root,
+            default_brand=self.config.default_brand,
+            require_valid_brand=self.config.require_valid_brand,
+            logger=self.logger,
+        )
         self.storage_manager: StorageManager | None = None
 
     def generate(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -127,8 +134,11 @@ class ContentGenerationPipeline:
         brand = normalize_key(str(request.get("brand", "")))
         platform = normalize_key(str(request.get("platform", "")))
         content_type = normalize_key(str(request.get("content_type", "")))
+        brand_validation = self.brand_manager.validate_brand(brand or self.config.default_brand)
         if not brand:
-            return False, "Missing brand."
+            brand = self.config.default_brand
+        if self.config.require_valid_brand and not brand_validation.get("valid", False):
+            return False, brand_validation.get("errors", ["Invalid brand."])[0]
         if not self.config.supports_platform(platform):
             return False, f"Unsupported platform: {platform}"
         if not self.config.supports_content_type(content_type):
@@ -139,18 +149,25 @@ class ContentGenerationPipeline:
         """Load brand context and build a reusable summary."""
 
         normalized_brand = normalize_key(brand)
+        brand_resolution = self.brand_manager.resolve_request_brand(normalized_brand or self.config.default_brand)
+        if brand_resolution.get("brand_id"):
+            normalized_brand = str(brand_resolution.get("brand_id"))
         log_scan(self.logger, f"Loading brand context for {normalized_brand}")
         bundle = self.knowledge_loader.load_brand(normalized_brand)
         if not (bundle.brand_config or bundle.knowledge_base):
             return self._empty_context_summary(normalized_brand, bundle, "Brand context not found.")
 
-        context = self.context_builder.build_brand_context(bundle)
+        context = self.context_builder.build_brand_context(bundle, brand_profile=safe_dict(brand_resolution.get("brand_profile")))
         summary = self.context_builder.build_summarized_context(bundle)
         combined_context = self.context_builder.build_combined_context(bundle)
         storytelling_context = self.context_builder.build_storytelling_context(bundle)
         log_context(self.logger, f"Context loaded for {normalized_brand}")
         return {
             "brand": normalized_brand,
+            "brand_id": normalized_brand,
+            "brand_profile": safe_dict(brand_resolution.get("brand_profile")),
+            "brand_validation": safe_dict(brand_resolution.get("brand_validation")),
+            "brand_defaults": safe_dict(brand_resolution.get("defaults")),
             "brand_root": bundle.brand_root,
             "bundle": bundle,
             "context": context,
@@ -268,6 +285,9 @@ class ContentGenerationPipeline:
 
         normalized_request = self._normalize_request(request)
         metadata_payload = metadata or {}
+        brand_profile_value = safe_dict(context.get("brand_profile"))
+        brand_validation_value = safe_dict(context.get("brand_validation"))
+        brand_defaults_value = safe_dict(context.get("brand_defaults"))
         token_usage = token_usage if token_usage is not None else metadata_payload.get("token_usage")
         execution_token_summary = execution_token_summary if execution_token_summary is not None else metadata_payload.get("execution_token_summary")
         module_token_summary = module_token_summary if module_token_summary is not None else metadata_payload.get("module_token_summary")
@@ -431,6 +451,10 @@ class ContentGenerationPipeline:
                 model_cost_summary=model_cost_summary,
                 warnings=warnings or [],
             )
+        result.setdefault("brand_id", normalized_request["brand"])
+        result.setdefault("brand_profile", brand_profile_value)
+        result.setdefault("brand_validation", brand_validation_value)
+        result.setdefault("brand_defaults", brand_defaults_value)
         return self._attach_reporting(result, request=normalized_request, context=context)
 
     def _generate(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -1330,7 +1354,13 @@ class ContentGenerationPipeline:
         """Normalize request fields and apply defaults."""
 
         normalized = dict(request or {})
-        normalized["brand"] = normalize_key(str(normalized.get("brand") or self.config.default_brand))
+        brand_value = normalize_key(str(normalized.get("brand") or self.config.default_brand))
+        brand_resolution = self.brand_manager.resolve_request_brand(brand_value)
+        normalized["brand"] = normalize_key(str(brand_resolution.get("brand_id") or brand_value or self.config.default_brand))
+        normalized["brand_id"] = normalized["brand"]
+        normalized["brand_profile"] = safe_dict(brand_resolution.get("brand_profile"))
+        normalized["brand_validation"] = safe_dict(brand_resolution.get("brand_validation"))
+        normalized["brand_defaults"] = safe_dict(brand_resolution.get("defaults"))
         normalized["platform"] = normalize_key(str(normalized.get("platform") or self.config.default_platform))
         normalized["content_type"] = normalize_key(str(normalized.get("content_type") or self.config.default_content_type))
         normalized.setdefault("objective", "")
@@ -1367,6 +1397,7 @@ class ContentGenerationPipeline:
 
         return {
             "brand": request["brand"],
+            "brand_id": request.get("brand_id", request["brand"]),
             "platform": request["platform"],
             "content_type": request["content_type"],
             "objective": request.get("objective", ""),
@@ -1377,6 +1408,9 @@ class ContentGenerationPipeline:
             "duration": request.get("duration", ""),
             "tone": request.get("tone", ""),
             "context_summary": context.get("summary", {}),
+            "brand_profile": context.get("brand_profile", {}),
+            "brand_validation": context.get("brand_validation", {}),
+            "brand_defaults": context.get("brand_defaults", {}),
             "detected_categories": context.get("detected_categories", []),
             "prompt_summary": prompt_payload.get("prompt_summary", ""),
             "prompt_version": prompt_payload.get("prompt_version", ""),
@@ -1390,6 +1424,7 @@ class ContentGenerationPipeline:
 
         return {
             "brand": request["brand"],
+            "brand_id": request.get("brand_id", request["brand"]),
             "platform": request["platform"],
             "content_type": request["content_type"],
             "objective": request.get("objective", ""),
@@ -1401,6 +1436,9 @@ class ContentGenerationPipeline:
             "tone": request.get("tone", ""),
             "estimated_tokens": None,
             "cost_estimate": None,
+            "brand_profile": request.get("brand_profile", {}),
+            "brand_validation": request.get("brand_validation", {}),
+            "brand_defaults": request.get("brand_defaults", {}),
         }
 
     def _empty_context_summary(self, brand: str, bundle: BrandKnowledge | None, error: str) -> dict[str, Any]:

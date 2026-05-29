@@ -25,9 +25,15 @@ class FakeWorkflowEngine:
         }
 
 
-def test_api_workflow_returns_structured_result() -> None:
-    app = create_app(services={"workflow": FakeWorkflowEngine()})
+def test_api_workflow_returns_structured_result(auth_services) -> None:
+    app = create_app(services={"workflow": FakeWorkflowEngine(), "users": auth_services["users"], "auth": auth_services["auth"]})
     client = TestClient(app)
+
+    register = client.post(
+        "/auth/register",
+        json={"email": "workflow@example.com", "password": "Password123", "display_name": "Workflow User"},
+    )
+    token = register.json()["data"]["access_token"]
 
     response = client.post(
         "/workflow",
@@ -44,6 +50,7 @@ def test_api_workflow_returns_structured_result() -> None:
             "assets": ["image_prompt", "video_prompt"],
             "dry_run": True,
         },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     payload = response.json()

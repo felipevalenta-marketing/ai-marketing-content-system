@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ApiClient } from "../api/client";
-import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData } from "../types/api";
+import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData, UserProfile } from "../types/api";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -15,6 +15,9 @@ interface AppShellProps {
   brandProfile?: BrandProfile | null;
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
+  currentUser?: UserProfile | null;
+  onLogout?: () => void;
+  onNavigateProfile?: () => void;
   onActiveBrandChange: (value: string) => void;
   activePage: string;
   onSelectPage: (page: string) => void;
@@ -33,6 +36,9 @@ export function AppShell({
   brandProfile,
   brandValidation,
   brandDefaults,
+  currentUser,
+  onLogout,
+  onNavigateProfile,
   onActiveBrandChange,
   activePage,
   onSelectPage,
@@ -51,6 +57,9 @@ export function AppShell({
         brandProfile={brandProfile ?? null}
         brandValidation={brandValidation ?? null}
         brandDefaults={brandDefaults ?? null}
+        currentUser={currentUser ?? null}
+        onLogout={onLogout}
+        onNavigateProfile={onNavigateProfile}
         onActiveBrandChange={onActiveBrandChange}
         onRefreshHealth={onRefreshHealth}
         onRefreshConfig={onRefreshConfig}

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request
 from src.api.api_result import build_api_response
 from src.api.runtime import get_service
 from src.api.schemas import ApiResponse, WorkflowRequest
+from src.auth.current_user import get_current_user_result
 from src.pipeline.pipeline_config import PipelineConfig
 from src.workflows.workflow_engine import WorkflowEngine
 
@@ -19,6 +20,9 @@ router = APIRouter(tags=["workflows"])
 
 @router.post("/workflow", summary="Run a workflow", description="Execute the workflow orchestration layer.", request_model=WorkflowRequest, response_model=ApiResponse)
 def run_workflow(request: Request, payload: WorkflowRequest) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "workflow"}), 401
     workflow_engine = get_service(request, "workflow")
     pipeline = get_service(request, "pipeline")
     if workflow_engine is None:

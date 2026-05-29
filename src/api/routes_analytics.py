@@ -10,6 +10,7 @@ from src.analytics.analytics_engine import AnalyticsEngine
 from src.api.api_result import build_api_response
 from src.api.runtime import get_service
 from src.api.schemas import AnalyticsRequest, ApiResponse
+from src.auth.current_user import get_current_user_result
 
 
 router = APIRouter(tags=["analytics"])
@@ -51,6 +52,9 @@ def _query_request(request: Request, analytics_type: str) -> dict[str, Any]:
 
 @router.get("/analytics/health", summary="Analytics health", description="Return a safe analytics subsystem health summary.", response_model=ApiResponse)
 def analytics_health(request: Request) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "analytics/health"}), 401
     engine = _get_engine(request)
     result = engine.generate_analytics(_query_request(request, "api_health_analytics"))
     return build_api_response(success=bool(result.get("success", False)), data=result, warnings=result.get("warnings", []), errors=result.get("errors", []), metadata={"route": "analytics/health"})
@@ -58,6 +62,9 @@ def analytics_health(request: Request) -> dict[str, Any]:
 
 @router.get("/analytics/summary", summary="Analytics summary", description="Return the executive dashboard analytics summary.", response_model=ApiResponse)
 def analytics_summary(request: Request) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "analytics/summary"}), 401
     engine = _get_engine(request)
     result = engine.generate_executive_dashboard(_query_request(request, "executive_dashboard"))
     return build_api_response(success=bool(result.get("success", False)), data=result, warnings=result.get("warnings", []), errors=result.get("errors", []), metadata={"route": "analytics/summary"})
@@ -65,6 +72,9 @@ def analytics_summary(request: Request) -> dict[str, Any]:
 
 @router.get("/analytics/dashboard", summary="Analytics dashboard", description="Return a frontend-ready analytics dashboard payload.", response_model=ApiResponse)
 def analytics_dashboard(request: Request) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "analytics/dashboard"}), 401
     engine = _get_engine(request)
     result = engine.build_dashboard_payload(_query_request(request, "executive_dashboard"))
     dashboard_payload = result.get("dashboard_payload", {})
@@ -73,6 +83,9 @@ def analytics_dashboard(request: Request) -> dict[str, Any]:
 
 @router.post("/analytics/query", summary="Query analytics", description="Query the analytics layer with structured filters.", request_model=AnalyticsRequest, response_model=ApiResponse)
 def analytics_query(request: Request, payload: AnalyticsRequest) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "analytics/query"}), 401
     engine = _get_engine(request)
     request_payload = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
     result = engine.generate_analytics(request_payload)

@@ -82,7 +82,7 @@ def _is_sensitive_key(key: str) -> bool:
     normalized = key.lower()
     if normalized in {"openai_api_key_present", "api_key_present"} or normalized.endswith("_present") and "api_key" in normalized:
         return False
-    if normalized in {"token_usage", "token_summary", "input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "estimated_tokens", "token_source", "token_provider", "token_model"}:
+    if normalized in {"token", "access_token", "token_usage", "token_summary", "input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "estimated_tokens", "token_source", "token_provider", "token_model"}:
         return False
     return any(token in normalized for token in SENSITIVE_KEY_TOKENS)
 

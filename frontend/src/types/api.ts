@@ -37,6 +37,9 @@ export interface ConfigResponseData {
   enable_api_layer?: boolean;
   enable_frontend_demo?: boolean;
   api_debug?: boolean;
+  enable_authentication?: boolean;
+  jwt_expiration_hours?: number;
+  user_storage_path?: string;
   cors_origins?: string[];
   enable_multi_brand_management?: boolean;
   brand_root?: string;
@@ -330,4 +333,43 @@ export interface ApiErrorShape {
   message?: string;
   error?: string;
   [key: string]: unknown;
+}
+
+export interface UserProfile {
+  user_id?: string;
+  email?: string;
+  display_name?: string;
+  status?: "active" | "inactive" | "suspended" | string;
+  created_at?: string;
+  updated_at?: string;
+  settings?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface AuthResult {
+  success?: boolean;
+  user?: UserProfile | Record<string, unknown> | null;
+  access_token?: string;
+  token_type?: string;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  display_name: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface UserProfileUpdateRequest {
+  display_name?: string | null;
+  settings?: Record<string, unknown>;
 }

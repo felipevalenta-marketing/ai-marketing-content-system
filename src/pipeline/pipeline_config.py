@@ -89,7 +89,10 @@ class PipelineConfig:
     """Runtime configuration for the generation pipeline."""
 
     brands_root: str = "brands"
-    default_brand: str = "wenzel_partner"
+    default_brand: str = field(default_factory=lambda: os.getenv("DEFAULT_BRAND", "wenzel_partner"))
+    enable_multi_brand_management: bool = field(default_factory=lambda: _env_flag("ENABLE_MULTI_BRAND_MANAGEMENT", True))
+    brand_root: str = field(default_factory=lambda: os.getenv("BRAND_ROOT", "brands"))
+    require_valid_brand: bool = field(default_factory=lambda: _env_flag("REQUIRE_VALID_BRAND", True))
     default_platform: str = "instagram"
     default_content_type: str = "instagram_post"
     enable_live_generation: bool = field(default_factory=lambda: _env_flag("ENABLE_LIVE_GENERATION", True))
@@ -137,6 +140,9 @@ class PipelineConfig:
     enable_api_layer: bool = field(default_factory=lambda: _env_flag("ENABLE_API_LAYER", True))
     enable_frontend_demo: bool = field(default_factory=lambda: _env_flag("ENABLE_FRONTEND_DEMO", True))
     api_debug: bool = field(default_factory=lambda: _env_flag("API_DEBUG", False))
+    enable_authentication: bool = field(default_factory=lambda: _env_flag("ENABLE_AUTHENTICATION", True))
+    jwt_expiration_hours: int = field(default_factory=lambda: _env_int("JWT_EXPIRATION_HOURS", 24))
+    user_storage_path: str = field(default_factory=lambda: os.getenv("USER_STORAGE_PATH", "data/users"))
     enable_analytics: bool = field(default_factory=lambda: _env_flag("ENABLE_ANALYTICS", True))
     analytics_default_type: str = field(default_factory=lambda: os.getenv("ANALYTICS_DEFAULT_TYPE", "executive_dashboard"))
     analytics_include_storage: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_STORAGE", True))

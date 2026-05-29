@@ -12,10 +12,15 @@ import type {
   BrandHealth,
   BrandRegistry,
   ConfigResponseData,
+  AuthResult,
+  LoginRequest,
   GenerateRequest,
   HealthResponseData,
   MarkdownReportRequest,
   StorageRecord,
+  RegisterRequest,
+  UserProfile,
+  UserProfileUpdateRequest,
   WorkflowRequest,
 } from "../types/api";
 
@@ -29,6 +34,11 @@ export interface ApiClient {
   validateBrand(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandDefaults(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandHealth(brandId: string): Promise<ApiResponse<BrandHealth>>;
+  register(payload: RegisterRequest): Promise<ApiResponse<AuthResult>>;
+  login(payload: LoginRequest): Promise<ApiResponse<AuthResult>>;
+  logout(): Promise<ApiResponse<AuthResult>>;
+  getCurrentUser(): Promise<ApiResponse<AuthResult>>;
+  updateProfile(payload: UserProfileUpdateRequest): Promise<ApiResponse<AuthResult>>;
   getAnalyticsSummary(): Promise<ApiResponse<AnalyticsSummaryData>>;
   getAnalyticsDashboard(): Promise<ApiResponse<AnalyticsDashboardData>>;
   queryAnalytics(payload: AnalyticsRequest): Promise<ApiResponse<AnalyticsResult>>;
@@ -44,6 +54,18 @@ export interface ApiClient {
 }
 
 const DEFAULT_TIMEOUT_MS = 30000;
+const AUTH_TOKEN_KEY = "amcs:auth-token";
+
+function readAuthToken(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
 
 function buildUrl(baseUrl: string, path: string): string {
   const normalizedBase = baseUrl.replace(/\/+$/, "");
@@ -90,6 +112,7 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
         headers: {
           Accept: "application/json",
           "Content-Type": init.body ? "application/json" : "application/json",
+          ...(readAuthToken() ? { Authorization: `Bearer ${readAuthToken()}` } : {}),
           ...(init.headers ?? {}),
         },
         body: init.body as BodyInit | null | undefined,
@@ -126,6 +149,26 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     validateBrand: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/validate`),
     getBrandDefaults: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/defaults`),
     getBrandHealth: (brandId: string) => request<BrandHealth>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/health`),
+    register: (payload: RegisterRequest) =>
+      request<AuthResult>(API_ENDPOINTS.authRegister, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    login: (payload: LoginRequest) =>
+      request<AuthResult>(API_ENDPOINTS.authLogin, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    logout: () =>
+      request<AuthResult>(API_ENDPOINTS.authLogout, {
+        method: "POST",
+      }),
+    getCurrentUser: () => request<AuthResult>(API_ENDPOINTS.authMe),
+    updateProfile: (payload: UserProfileUpdateRequest) =>
+      request<AuthResult>(API_ENDPOINTS.usersProfile, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
     getAnalyticsSummary: () => request<AnalyticsSummaryData>(API_ENDPOINTS.analyticsSummary),
     getAnalyticsDashboard: () => request<AnalyticsDashboardData>(API_ENDPOINTS.analyticsDashboard),
     queryAnalytics: (payload: AnalyticsRequest) =>

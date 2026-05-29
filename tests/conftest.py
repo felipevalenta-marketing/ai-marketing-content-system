@@ -7,6 +7,24 @@ from pathlib import Path
 
 import pytest
 
+from src.auth.auth_manager import AuthManager, AuthService
+from src.users.user_manager import UserManager
+
+
+def build_auth_services(tmp_path: Path, secret: str = "test-secret") -> tuple[dict[str, object], dict[str, str]]:
+    users = UserManager(storage_path=tmp_path / "users")
+    auth = AuthService(AuthManager(user_manager=users, jwt_secret=secret, jwt_expiration_hours=24))
+    services = {"users": users, "auth": auth}
+    headers = {"Authorization": ""}
+    return services, headers
+
+
+@pytest.fixture
+def auth_services(tmp_path: Path) -> dict[str, object]:
+    users = UserManager(storage_path=tmp_path / "users")
+    auth = AuthService(AuthManager(user_manager=users, jwt_secret="test-secret", jwt_expiration_hours=24))
+    return {"users": users, "auth": auth}
+
 
 @pytest.fixture
 def sample_brand_name() -> str:

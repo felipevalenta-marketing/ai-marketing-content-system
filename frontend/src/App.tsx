@@ -10,13 +10,18 @@ import { StorageExplorer } from "./pages/StorageExplorer";
 import { AnalyticsCenter } from "./pages/AnalyticsCenter";
 import { GovernanceCenter } from "./pages/GovernanceCenter";
 import { SystemConfig } from "./pages/SystemConfig";
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
+import { Profile } from "./pages/Profile";
 import type { SnapshotStore } from "./pages/shared";
 import { useApi } from "./hooks/useApi";
+import { useAuth } from "./hooks/useAuth";
 import { useConfig } from "./hooks/useConfig";
 import { useHealth } from "./hooks/useHealth";
 import { useLocalState } from "./hooks/useLocalState";
 import { Card } from "./components/Card";
 import { SectionHeader } from "./components/SectionHeader";
+import { AuthGuard } from "./components/AuthGuard";
 import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "./types/api";
 import { createApiClient } from "./api/client";
 
@@ -30,12 +35,16 @@ type PageKey =
   | "storage"
   | "analytics"
   | "governance"
-  | "config";
+  | "config"
+  | "login"
+  | "register"
+  | "profile";
 
 const SNAPSHOT_DEFAULT: SnapshotStore = {};
 
 export default function App() {
   const { apiBaseUrl, setApiBaseUrl, client } = useApi();
+  const auth = useAuth(client);
   const { data: health, loading: healthLoading, error: healthError, refresh: refreshHealth } = useHealth(apiBaseUrl);
   const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl);
   const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", "dashboard");
@@ -122,6 +131,18 @@ export default function App() {
   }, [activeBrand, config?.default_brand, setActiveBrand]);
 
   useEffect(() => {
+    if (!auth.loading && !auth.isAuthenticated && activePage !== "login" && activePage !== "register") {
+      setActivePage("login");
+    }
+  }, [activePage, auth.isAuthenticated, auth.loading, setActivePage]);
+
+  useEffect(() => {
+    if (auth.isAuthenticated && (activePage === "login" || activePage === "register")) {
+      setActivePage("dashboard");
+    }
+  }, [activePage, auth.isAuthenticated, setActivePage]);
+
+  useEffect(() => {
     if (!brands.length) {
       return;
     }
@@ -176,11 +197,33 @@ export default function App() {
         return <GovernanceCenter {...pageProps} />;
       case "config":
         return <SystemConfig {...pageProps} />;
+      case "profile":
+        return <Profile client={client} auth={auth} onNavigate={setActivePage} />;
+      case "login":
+        return <Login client={client} auth={auth} onNavigate={setActivePage} />;
+      case "register":
+        return <Register client={client} auth={auth} onNavigate={setActivePage} />;
       case "dashboard":
       default:
         return <Dashboard {...pageProps} onNavigate={setActivePage} onCheckHealth={refreshHealth} />;
     }
   })();
+
+  const authOnlyPage = (() => {
+    switch (activePage) {
+      case "register":
+        return <Register client={client} auth={auth} onNavigate={setActivePage} />;
+      case "profile":
+        return <Profile client={client} auth={auth} onNavigate={setActivePage} />;
+      case "login":
+      default:
+        return <Login client={client} auth={auth} onNavigate={setActivePage} />;
+    }
+  })();
+
+  if (!auth.loading && !auth.isAuthenticated) {
+    return <div className="auth-layout">{authOnlyPage}</div>;
+  }
 
   return (
     <AppShell
@@ -193,13 +236,20 @@ export default function App() {
       brandProfile={brandProfile}
       brandValidation={brandValidation}
       brandDefaults={brandDefaults}
+      currentUser={auth.currentUser}
+      onLogout={async () => {
+        await auth.logout();
+        setActivePage("login");
+      }}
+      onNavigateProfile={() => setActivePage("profile")}
       onActiveBrandChange={setActiveBrand}
       activePage={activePage}
       onSelectPage={setActivePage}
       onRefreshHealth={refreshHealth}
       onRefreshConfig={refreshConfig}
     >
-      <div className="stack">
+      <AuthGuard isAuthenticated={auth.isAuthenticated} loading={auth.loading} onGoLogin={() => setActivePage("login")}>
+        <div className="stack">
         {healthLoading || configLoading ? (
           <Card>
             <SectionHeader title="Booting UI" description="Loading system health and configuration from the API." />
@@ -211,7 +261,8 @@ export default function App() {
           </Card>
         ) : null}
         {currentPage}
-      </div>
+        </div>
+      </AuthGuard>
     </AppShell>
   );
 }

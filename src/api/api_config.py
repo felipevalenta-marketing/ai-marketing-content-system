@@ -7,6 +7,7 @@ from typing import Any
 import os
 
 from src.cli.cli_config import build_safe_config_summary
+from src.pipeline.pipeline_config import PipelineConfig
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -37,7 +38,9 @@ class ApiConfig:
 
 def build_api_config_summary() -> dict[str, Any]:
     config = ApiConfig()
+    pipeline_config = PipelineConfig()
     summary = build_safe_config_summary()
+    jwt_secret_present = bool(os.getenv("JWT_SECRET_KEY", "").strip())
     summary.update(
         {
             "api_layer_enabled": config.enable_api_layer,
@@ -48,6 +51,11 @@ def build_api_config_summary() -> dict[str, Any]:
             "cors_origins": list(config.cors_origins),
             "api_service_name": config.service_name,
             "api_version": config.api_version,
+            "enable_authentication": pipeline_config.enable_authentication,
+            "jwt_expiration_hours": pipeline_config.jwt_expiration_hours,
+            "user_storage_path": pipeline_config.user_storage_path,
+            "jwt_secret_present": jwt_secret_present,
+            "warnings": ([] if jwt_secret_present else ["JWT secret is not configured. Authentication will remain disabled until JWT_SECRET_KEY is provided."]),
         }
     )
     return summary

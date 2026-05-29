@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+import os
 
 from fastapi import FastAPI, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,11 +19,13 @@ from src.analytics.analytics_engine import AnalyticsEngine
 from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
 from src.cli.cli_config import build_safe_config_summary
+from src.auth.auth_manager import AuthManager, AuthService
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
 from src.reporting.reporting_engine import ReportingEngine
 from src.reports.markdown_generator import MarkdownReportGenerator
 from src.storage.storage_manager import StorageManager
+from src.users.user_manager import UserManager
 from src.utils.logger import get_logger
 from src.workflows.workflow_engine import WorkflowEngine
 
@@ -40,6 +43,14 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     )
     logger = get_logger("api")
     storage_manager = StorageManager(storage_root=pipeline_config.storage_root, logger=logger)
+    user_manager = UserManager(storage_path=pipeline_config.user_storage_path, logger=logger)
+    auth_manager = AuthManager(
+        user_manager=user_manager,
+        jwt_secret=str(os.getenv("JWT_SECRET_KEY", "")).strip(),
+        jwt_expiration_hours=pipeline_config.jwt_expiration_hours,
+        logger=logger,
+    )
+    auth_service = AuthService(auth_manager)
     brand_manager = BrandManager(
         brand_root=pipeline_config.brand_root,
         default_brand=pipeline_config.default_brand,
@@ -59,6 +70,8 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "assets": AssetCoordinator(output_root=pipeline_config.asset_output_root, logger=logger),
         "markdown_report": MarkdownReportGenerator(output_root=pipeline_config.markdown_report_output_root, logger=logger),
         "storage": storage_manager,
+        "users": user_manager,
+        "auth": auth_service,
         "reporting": reporting_engine,
         "brands": brand_manager,
         "logger": logger,

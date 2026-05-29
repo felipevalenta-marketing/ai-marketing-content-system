@@ -48,17 +48,24 @@ def _seed_storage(storage: StorageManager) -> None:
     )
 
 
-def test_api_analytics_endpoints(tmp_path) -> None:
+def test_api_analytics_endpoints(tmp_path, auth_services) -> None:
     storage = StorageManager(storage_root=tmp_path / "data")
     _seed_storage(storage)
     analytics = AnalyticsEngine(storage_manager=storage)
-    app = create_app(services={"storage": storage, "analytics": analytics})
+    app = create_app(services={"storage": storage, "analytics": analytics, **auth_services})
     client = TestClient(app)
 
-    health = client.get("/analytics/health")
-    summary = client.get("/analytics/summary")
-    dashboard = client.get("/analytics/dashboard")
-    query = client.post("/analytics/query", json={"analytics_type": "token_analytics", "brand": "wenzel_partner", "platform": "instagram", "filters": {}})
+    register = client.post(
+        "/auth/register",
+        json={"email": "analytics@example.com", "password": "Password123", "display_name": "Analytics User"},
+    )
+    token = register.json()["data"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    health = client.get("/analytics/health", headers=headers)
+    summary = client.get("/analytics/summary", headers=headers)
+    dashboard = client.get("/analytics/dashboard", headers=headers)
+    query = client.post("/analytics/query", json={"analytics_type": "token_analytics", "brand": "wenzel_partner", "platform": "instagram", "filters": {}}, headers=headers)
 
     assert health.status_code == 200
     assert summary.status_code == 200
@@ -79,4 +86,3 @@ def test_api_analytics_endpoints(tmp_path) -> None:
     assert summary_payload["data"]["analytics_type"] == "executive_dashboard"
     assert dashboard_payload["data"]["cards"]
     assert query_payload["data"]["analytics_type"] == "token_analytics"
-

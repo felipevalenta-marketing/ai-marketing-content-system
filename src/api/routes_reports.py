@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request
 from src.api.api_result import build_api_response
 from src.api.runtime import get_service
 from src.api.schemas import ApiResponse, MarkdownReportRequest
+from src.auth.current_user import get_current_user_result
 from src.reports.markdown_generator import MarkdownReportGenerator
 
 
@@ -17,6 +18,9 @@ router = APIRouter(tags=["reports"])
 
 @router.post("/reports/markdown", summary="Generate a markdown report", description="Render a professional markdown report from structured payloads.", request_model=MarkdownReportRequest, response_model=ApiResponse)
 def generate_markdown_report(request: Request, payload: MarkdownReportRequest) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "reports/markdown"}), 401
     generator = get_service(request, "markdown_report")
     if generator is None:
         generator = MarkdownReportGenerator()
@@ -27,6 +31,9 @@ def generate_markdown_report(request: Request, payload: MarkdownReportRequest) -
 
 @router.get("/reports/latest", summary="Get latest report metadata", description="Return the latest persisted report metadata when available.", response_model=ApiResponse)
 def latest_report(request: Request) -> dict[str, Any]:
+    auth_result = get_current_user_result(request)
+    if not auth_result.get("success"):
+        return build_api_response(success=False, data=None, warnings=auth_result.get("warnings", []), errors=auth_result.get("errors", []), metadata={"route": "reports/latest"}), 401
     storage = get_service(request, "storage")
     if storage is None:
         return build_api_response(success=False, data=None, errors=["Storage service is unavailable."], metadata={"route": "reports/latest"})

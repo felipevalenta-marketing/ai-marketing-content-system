@@ -1,8 +1,9 @@
 import type { ApiClient } from "../api/client";
-import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData } from "../types/api";
+import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData, UserProfile } from "../types/api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { BrandSelector } from "./BrandSelector";
+import { UserMenu } from "./UserMenu";
 import { StatusPill } from "./StatusPill";
 
 interface TopbarProps {
@@ -15,6 +16,9 @@ interface TopbarProps {
   brandProfile?: BrandProfile | null;
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
+  currentUser?: UserProfile | null;
+  onLogout?: () => void;
+  onNavigateProfile?: () => void;
   onActiveBrandChange: (value: string) => void;
   onRefreshHealth: () => void;
   onRefreshConfig: () => void;
@@ -30,6 +34,9 @@ export function Topbar({
   brandProfile,
   brandValidation,
   brandDefaults,
+  currentUser,
+  onLogout,
+  onNavigateProfile,
   onActiveBrandChange,
   onRefreshHealth,
   onRefreshConfig,
@@ -72,6 +79,7 @@ export function Topbar({
           <Button type="button" variant="secondary" onClick={onRefreshConfig}>
             Refresh Config
           </Button>
+          <UserMenu user={currentUser ?? null} onProfile={onNavigateProfile ?? (() => undefined)} onLogout={onLogout ?? (() => undefined)} />
         </div>
       </div>
     </header>
