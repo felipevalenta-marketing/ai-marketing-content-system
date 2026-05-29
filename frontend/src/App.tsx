@@ -48,6 +48,11 @@ import type {
   TeamProfile,
   StorageObservabilityData,
   WorkflowObservabilityData,
+  SecurityConfigurationData,
+  SecurityDependencyData,
+  SecurityFindingsData,
+  SecurityHealthData,
+  SecurityStatusData,
 } from "./types/api";
 import { createApiClient } from "./api/client";
 
@@ -101,6 +106,11 @@ export default function App() {
   const [recentErrors, setRecentErrors] = useState<ObservabilityErrorsData | null>(null);
   const [workflowObservability, setWorkflowObservability] = useState<WorkflowObservabilityData | null>(null);
   const [storageObservability, setStorageObservability] = useState<StorageObservabilityData | null>(null);
+  const [securityStatus, setSecurityStatus] = useState<SecurityStatusData | null>(null);
+  const [securityHealth, setSecurityHealth] = useState<SecurityHealthData | null>(null);
+  const [securityFindings, setSecurityFindings] = useState<SecurityFindingsData | null>(null);
+  const [securityDependencies, setSecurityDependencies] = useState<SecurityDependencyData | null>(null);
+  const [securityConfiguration, setSecurityConfiguration] = useState<SecurityConfigurationData | null>(null);
   const permissions = auth.permissions;
   const role = auth.role;
 
@@ -143,6 +153,11 @@ export default function App() {
       setRecentErrors(null);
       setWorkflowObservability(null);
       setStorageObservability(null);
+      setSecurityStatus(null);
+      setSecurityHealth(null);
+      setSecurityFindings(null);
+      setSecurityDependencies(null);
+      setSecurityConfiguration(null);
       return;
     }
     let active = true;
@@ -158,7 +173,12 @@ export default function App() {
       client.getRecentErrors(),
       client.getWorkflowObservability(),
       client.getStorageObservability(),
-    ]).then(([healthResponse, statusResponse, domainsResponse, tokensResponse, costsResponse, configurationResponse, metricsResponse, runtimeResponse, errorsResponse, workflowResponse, storageResponse]) => {
+      client.getSecurityStatus(),
+      client.getSecurityHealth(),
+      client.getSecurityFindings(),
+      client.getSecurityDependencies(),
+      client.getSecurityConfiguration(),
+    ]).then(([healthResponse, statusResponse, domainsResponse, tokensResponse, costsResponse, configurationResponse, metricsResponse, runtimeResponse, errorsResponse, workflowResponse, storageResponse, securityStatusResponse, securityHealthResponse, securityFindingsResponse, securityDependenciesResponse, securityConfigurationResponse]) => {
       if (!active) {
         return;
       }
@@ -173,6 +193,11 @@ export default function App() {
       setRecentErrors(errorsResponse.success && errorsResponse.data ? errorsResponse.data : null);
       setWorkflowObservability(workflowResponse.success && workflowResponse.data ? (workflowResponse.data as WorkflowObservabilityData) : null);
       setStorageObservability(storageResponse.success && storageResponse.data ? (storageResponse.data as StorageObservabilityData) : null);
+      setSecurityStatus(securityStatusResponse.success && securityStatusResponse.data ? (securityStatusResponse.data as SecurityStatusData) : null);
+      setSecurityHealth(securityHealthResponse.success && securityHealthResponse.data ? (securityHealthResponse.data as SecurityHealthData) : null);
+      setSecurityFindings(securityFindingsResponse.success && securityFindingsResponse.data ? (securityFindingsResponse.data as SecurityFindingsData) : null);
+      setSecurityDependencies(securityDependenciesResponse.success && securityDependenciesResponse.data ? (securityDependenciesResponse.data as SecurityDependencyData) : null);
+      setSecurityConfiguration(securityConfigurationResponse.success && securityConfigurationResponse.data ? (securityConfigurationResponse.data as SecurityConfigurationData) : null);
     });
     return () => {
       active = false;
@@ -375,6 +400,11 @@ export default function App() {
       recentErrors,
       workflowObservability,
       storageObservability,
+      securityStatus,
+      securityHealth,
+      securityFindings,
+      securityDependencies,
+      securityConfiguration,
     };
     switch (activePage) {
       case "content":

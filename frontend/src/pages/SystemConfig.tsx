@@ -9,11 +9,12 @@ import { getRoleLabel, getRoleTone } from "../utils/formatting";
 import { ConfigurationCard } from "../components/ConfigurationCard";
 import { FeatureFlagBadge } from "../components/FeatureFlagBadge";
 import { OrganizationCard } from "../components/OrganizationCard";
+import { SecurityStatusCard } from "../components/SecurityStatusCard";
 import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
+export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
   const canManageConfig = Boolean(role === "admin" || role === "manager");
   const [editableFlags, setEditableFlags] = useState<Record<string, boolean>>({});
   const [updateMessage, setUpdateMessage] = useState<string>("");
@@ -159,6 +160,13 @@ export function SystemConfig({ client, config, observabilityHealth, observabilit
           </div>
         ) : null}
       </ConfigurationCard>
+      <SecurityStatusCard
+        securityStatus={securityStatus ?? null}
+        securityHealth={securityHealth ?? null}
+        securityFindings={securityFindings ?? null}
+        securityDependencies={securityDependencies ?? null}
+        securityConfiguration={securityConfiguration ?? null}
+      />
       <ConfigurationCard title="Observability" description="Safe runtime visibility and request-level diagnostics.">
         <div className="metric-grid">
           <MetricCard label="Health" value={observabilityHealthStatus} hint="Observability" />

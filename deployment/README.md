@@ -39,6 +39,11 @@ API:
 - `http://localhost:8000/health`
 - `http://localhost:8000/health/ready`
 - `http://localhost:8000/health/live`
+- `http://localhost:8000/security/status`
+- `http://localhost:8000/security/health`
+- `http://localhost:8000/security/findings`
+- `http://localhost:8000/security/dependencies`
+- `http://localhost:8000/security/configuration`
 - `http://localhost:8000/observability/health`
 - `http://localhost:8000/observability/status`
 - `http://localhost:8000/observability/domains`
@@ -95,4 +100,5 @@ python scripts/check_env.py
 - The API uses structured, redacted request logs for safe runtime diagnostics.
 - Request logs never include passwords, bearer tokens, API keys, or raw prompts.
 - Observability endpoints are authenticated and sanitized before exposure.
+- Security endpoints are authenticated and limited to manager/admin access.
 - The `/health` family stays public, while the detailed observability endpoints require auth.

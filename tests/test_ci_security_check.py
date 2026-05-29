@@ -19,6 +19,9 @@ def test_security_scan_ignores_env_example_placeholders(tmp_path: Path) -> None:
     result = scan_repository(tmp_path)
     assert result["success"] is True
     assert result["errors"] == []
+    assert "security_ready" in result
+    assert "security_score" in result
+    assert "checklist" in result
 
 
 def test_security_scan_detects_committed_env_file(tmp_path: Path) -> None:

@@ -55,3 +55,13 @@ docker compose up --build
 GitHub Actions validation and release-readiness checks are documented in [docs/CI_CD.md](docs/CI_CD.md).
 Use the documented local commands there to mirror the CI pipeline on your machine.
 The CI layer now also includes pipeline health, dependency validation, documentation validation, structure validation, and release readiness scoring.
+
+## Security
+
+Security hardening checks and the local security scanner are available through:
+
+```bash
+python scripts/ci_security_check.py
+```
+
+The security layer adds API hardening, request sanitization, response sanitization, rate limiting, JWT validation, path protection, and secret scanning without changing business logic.

@@ -21,6 +21,8 @@ def main() -> int:
     from src.observability.observability_health import build_observability_configuration, build_observability_health, get_system_status_summary
     from src.observability.metrics_registry import get_metrics_registry
     from src.observability.runtime_monitor import build_runtime_diagnostics
+    from src.security.security_health import build_security_health
+    from src.security.security_config import build_security_configuration
 
     app = create_app(ApiConfig())
     payload = build_health_payload(app.state.config)
@@ -28,6 +30,8 @@ def main() -> int:
     observability_configuration = build_observability_configuration(app)
     system_status = get_system_status_summary(app)
     runtime = build_runtime_diagnostics(app)
+    security_health = build_security_health(app)
+    security_configuration = build_security_configuration(app)
     metrics_snapshot = get_metrics_registry().get_metrics()
     config_summary = build_api_config_summary()
     storage_root = Path(getattr(getattr(app.state, "services", {}).get("storage"), "storage_root", "data")) if isinstance(getattr(app.state, "services", {}), dict) else Path("data")
@@ -80,6 +84,8 @@ def main() -> int:
         "observability_import_ok": bool(observability_health.get("status")),
         "observability_config_ok": bool(observability_configuration.get("observability_enabled", True)),
         "system_status_ok": bool(system_status.get("observability")),
+        "security_import_ok": bool(security_health.get("security_status")),
+        "security_config_ok": bool(security_configuration.get("security_enabled", True)),
         "runtime_snapshot_ok": bool(runtime.get("python_version")),
         "metrics_snapshot_ok": isinstance(metrics_snapshot, dict),
         "warnings": [],
@@ -100,6 +106,10 @@ def main() -> int:
         observability_configuration_response = client.get("/observability/configuration")
         observability_metrics_response = client.get("/observability/metrics")
         observability_runtime_response = client.get("/observability/runtime")
+        security_status_response = client.get("/security/status")
+        security_health_response = client.get("/security/health")
+        security_findings_response = client.get("/security/findings")
+        security_dependencies_response = client.get("/security/dependencies")
         result["observability_health_ok"] = observability_health_response.status_code in {200, 401}
         result["observability_status_ok"] = observability_status_response.status_code in {200, 401}
         result["observability_domains_ok"] = observability_domains_response.status_code in {200, 401}
@@ -108,6 +118,10 @@ def main() -> int:
         result["observability_configuration_ok"] = observability_configuration_response.status_code in {200, 401}
         result["observability_metrics_ok"] = observability_metrics_response.status_code in {200, 401}
         result["observability_runtime_ok"] = observability_runtime_response.status_code in {200, 401}
+        result["security_status_ok"] = security_status_response.status_code in {200, 401}
+        result["security_health_ok"] = security_health_response.status_code in {200, 401}
+        result["security_findings_ok"] = security_findings_response.status_code in {200, 401}
+        result["security_dependencies_ok"] = security_dependencies_response.status_code in {200, 401}
     except Exception as exc:
         result["health_endpoint_ok"] = False
         result["readiness_endpoint_ok"] = False
@@ -120,6 +134,10 @@ def main() -> int:
         result["observability_configuration_ok"] = False
         result["observability_metrics_ok"] = False
         result["observability_runtime_ok"] = False
+        result["security_status_ok"] = False
+        result["security_health_ok"] = False
+        result["security_findings_ok"] = False
+        result["security_dependencies_ok"] = False
         result["warnings"].append(str(exc))
 
     if not result["storage_root_writable"]:
@@ -128,7 +146,7 @@ def main() -> int:
         result["errors"].append("Config summary exposed secret-like values.")
 
     print(json.dumps(result, indent=2))
-    return 0 if result.get("health_endpoint_ok") and result.get("readiness_endpoint_ok") and result.get("liveness_endpoint_ok") and result.get("observability_health_ok") and result.get("observability_status_ok") and result.get("observability_domains_ok") and result.get("observability_tokens_ok") and result.get("observability_costs_ok") and result.get("observability_configuration_ok") and result.get("observability_metrics_ok") and result.get("observability_runtime_ok") and not result["errors"] else 1
+    return 0 if result.get("health_endpoint_ok") and result.get("readiness_endpoint_ok") and result.get("liveness_endpoint_ok") and result.get("observability_health_ok") and result.get("observability_status_ok") and result.get("observability_domains_ok") and result.get("observability_tokens_ok") and result.get("observability_costs_ok") and result.get("observability_configuration_ok") and result.get("observability_metrics_ok") and result.get("observability_runtime_ok") and result.get("security_status_ok") and result.get("security_health_ok") and result.get("security_findings_ok") and result.get("security_dependencies_ok") and not result["errors"] else 1
 
 
 if __name__ == "__main__":

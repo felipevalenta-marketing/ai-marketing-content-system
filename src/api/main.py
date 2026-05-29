@@ -31,9 +31,12 @@ from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
 from src.observability.log_config import configure_logging
 from src.observability.request_logger import install_request_logging
+from src.security.security_policy import resolve_cors_origins
+from src.security.security_middleware import install_security_middleware
 from src.reporting.reporting_engine import ReportingEngine
 from src.reports.markdown_generator import MarkdownReportGenerator
 from src.storage.storage_manager import StorageManager
+from src.security.security_manager import SecurityManager
 from src.users.user_manager import UserManager
 from src.utils.logger import get_logger
 from src.workflows.workflow_engine import WorkflowEngine
@@ -81,6 +84,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     membership_manager.team_manager = team_manager
     team_manager.organization_manager = organization_manager
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
+    security_manager = SecurityManager(configuration_manager, logger=logger)
     workflow = WorkflowEngine(config=replace(pipeline_config, enable_persistence=False), pipeline=pipeline, storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
     analytics = AnalyticsEngine(storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
     return {
@@ -102,6 +106,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "memberships": membership_manager,
         "brand_access": brand_access_manager,
         "configuration": configuration_manager,
+        "security": security_manager,
         "logger": logger,
         "pipeline_config": pipeline_config,
     }
@@ -115,11 +120,15 @@ def create_app(config: ApiConfig | None = None, services: dict[str, Any] | None 
     app.state.services = services or build_services(api_config)
     app.state.pipeline_config = app.state.services.get("pipeline_config") if isinstance(app.state.services, dict) else None
     app.state.started_at = getattr(app.state, "started_at", None) or datetime.now(timezone.utc).isoformat()
-    app.state.cors_origins = list(api_config.cors_origins)
+    cors_policy = resolve_cors_origins(app)
+    app.state.cors_origins = list(cors_policy.get("allow_origins", list(api_config.cors_origins)))
+    app.state.cors_warnings = list(cors_policy.get("warnings", []))
     pipeline_config = app.state.services.get("pipeline_config") if isinstance(app.state.services, dict) else None
     if getattr(pipeline_config, "enable_observability", True):
         if getattr(pipeline_config, "enable_request_logging", True):
             install_request_logging(app)
+    if getattr(pipeline_config, "enable_security_hardening", True):
+        install_security_middleware(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(api_config.cors_origins),

@@ -48,6 +48,12 @@ http://127.0.0.1:8000
 The app also honors `VITE_API_BASE_URL=http://localhost:8000` at build time.
 You can edit the base URL in the top bar of the app at runtime, and the value is stored locally for convenience.
 
+If you need a build-time override in local or CI runs, set:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000
+```
+
 ## Pages
 
 - Dashboard

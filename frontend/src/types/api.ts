@@ -97,6 +97,76 @@ export interface ObservabilityConfigurationData {
   [key: string]: unknown;
 }
 
+export interface SecurityHealthData {
+  security_score?: number;
+  security_status?: string;
+  baseline_ready?: boolean;
+  baseline_score?: number;
+  baseline_status?: string;
+  warnings?: string[];
+  recommendations?: string[];
+  status?: string;
+  checks?: Record<string, boolean>;
+  configuration?: Record<string, boolean>;
+  findings?: Array<Record<string, unknown>>;
+  dependencies?: Record<string, unknown>;
+  policy?: Record<string, unknown>;
+  recent_security_warnings?: string[];
+  security_ready?: boolean;
+  release_ready?: boolean;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+export interface SecurityStatusData {
+  security_score?: number;
+  security_status?: string;
+  baseline_ready?: boolean;
+  baseline_score?: number;
+  baseline_status?: string;
+  security_ready?: boolean;
+  release_ready?: boolean;
+  active_protections?: Record<string, boolean>;
+  findings?: Array<Record<string, unknown>>;
+  findings_count?: number;
+  dependency_report?: Record<string, unknown>;
+  secret_scan_report?: Record<string, unknown>;
+  security_policy?: Record<string, unknown>;
+  security_events?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SecurityFindingsData {
+  findings?: Array<Record<string, unknown>>;
+  count?: number;
+  warnings?: string[];
+  errors?: string[];
+  secret_scan?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SecurityDependencyData {
+  dependencies_valid?: boolean;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SecurityConfigurationData {
+  security_enabled?: boolean;
+  active_protections?: Record<string, boolean>;
+  configuration?: Record<string, unknown>;
+  release_ready?: boolean;
+  security_score?: number;
+  baseline_ready?: boolean;
+  baseline_score?: number;
+  [key: string]: unknown;
+}
+
 export interface ObservabilityMetricsData {
   total_requests?: number;
   requests_by_path?: Record<string, number>;
@@ -212,6 +282,7 @@ export interface ConfigResponseData {
   analytics_include_tokens?: boolean;
   analytics_include_costs?: boolean;
   analytics_include_governance?: boolean;
+  security_configuration?: Record<string, boolean>;
   configuration?: ConfigurationSummaryData;
   configuration_health?: ConfigurationHealthData;
   platform_config?: PlatformConfigData;

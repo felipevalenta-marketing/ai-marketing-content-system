@@ -29,6 +29,11 @@ import type {
   CostObservabilityData,
   StorageObservabilityData,
   WorkflowObservabilityData,
+  SecurityConfigurationData,
+  SecurityDependencyData,
+  SecurityFindingsData,
+  SecurityHealthData,
+  SecurityStatusData,
   MarkdownReportRequest,
   StorageRecord,
   RegisterRequest,
@@ -118,6 +123,11 @@ export interface ApiClient {
   getRecentErrors(): Promise<ApiResponse<ObservabilityErrorsData>>;
   getWorkflowObservability(): Promise<ApiResponse<WorkflowObservabilityData>>;
   getStorageObservability(): Promise<ApiResponse<StorageObservabilityData>>;
+  getSecurityStatus(): Promise<ApiResponse<SecurityStatusData>>;
+  getSecurityHealth(): Promise<ApiResponse<SecurityHealthData>>;
+  getSecurityFindings(): Promise<ApiResponse<SecurityFindingsData>>;
+  getSecurityDependencies(): Promise<ApiResponse<SecurityDependencyData>>;
+  getSecurityConfiguration(): Promise<ApiResponse<SecurityConfigurationData>>;
   generateContent(payload: GenerateRequest): Promise<ApiResponse<unknown>>;
   runWorkflow(payload: WorkflowRequest): Promise<ApiResponse<unknown>>;
   runCampaign(payload: CampaignRequest): Promise<ApiResponse<unknown>>;
@@ -344,6 +354,11 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     getRecentErrors: () => request<ObservabilityErrorsData>(API_ENDPOINTS.observabilityErrors),
     getWorkflowObservability: () => request<WorkflowObservabilityData>(API_ENDPOINTS.observabilityWorkflows),
     getStorageObservability: () => request<StorageObservabilityData>(API_ENDPOINTS.observabilityStorage),
+    getSecurityStatus: () => request<SecurityStatusData>(API_ENDPOINTS.securityStatus),
+    getSecurityHealth: () => request<SecurityHealthData>(API_ENDPOINTS.securityHealth),
+    getSecurityFindings: () => request<SecurityFindingsData>(API_ENDPOINTS.securityFindings),
+    getSecurityDependencies: () => request<SecurityDependencyData>(API_ENDPOINTS.securityDependencies),
+    getSecurityConfiguration: () => request<SecurityConfigurationData>(API_ENDPOINTS.securityConfiguration),
     generateContent: (payload: GenerateRequest) =>
       request(API_ENDPOINTS.generate, {
         method: "POST",

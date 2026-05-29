@@ -3,6 +3,7 @@ import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData,
 import type { OrganizationProfile, OrganizationRegistryEntry, TeamProfile, MembershipProfile } from "../types/api";
 import type { OrganizationContext } from "../types/api";
 import type { ObservabilityConfigurationData, ObservabilityDomainsData, ObservabilityErrorsData, ObservabilityHealthData, ObservabilityMetricsData, ObservabilityStatusData, RuntimeDiagnosticsData, StorageObservabilityData, WorkflowObservabilityData, TokenObservabilityData, CostObservabilityData } from "../types/api";
+import type { SecurityConfigurationData, SecurityDependencyData, SecurityFindingsData, SecurityHealthData, SecurityStatusData } from "../types/api";
 import type { ApiClient } from "../api/client";
 
 export interface SnapshotEntry {
@@ -46,6 +47,11 @@ export interface WorkspaceProps {
   recentErrors?: ObservabilityErrorsData | null;
   workflowObservability?: WorkflowObservabilityData | null;
   storageObservability?: StorageObservabilityData | null;
+  securityStatus?: SecurityStatusData | null;
+  securityHealth?: SecurityHealthData | null;
+  securityFindings?: SecurityFindingsData | null;
+  securityDependencies?: SecurityDependencyData | null;
+  securityConfiguration?: SecurityConfigurationData | null;
 }
 
 export function getSnapshot<T = unknown>(snapshots: SnapshotStore, key: string): T | null {
