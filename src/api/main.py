@@ -151,12 +151,12 @@ def main() -> int:
     try:
         import uvicorn  # type: ignore
 
-        uvicorn.run("src.api.main:app", host="127.0.0.1", port=8000, reload=True)
+        uvicorn.run("src.api.main:app", host=api_config.api_host, port=api_config.api_port, reload=True)
         return 0
     except Exception:
         print("uvicorn is not installed in this environment.")
         print("Run the API after installing dependencies:")
-        print("  uvicorn src.api.main:app --reload")
+        print(f"  uvicorn src.api.main:app --host {api_config.api_host} --port {api_config.api_port} --reload")
         print(f"Frontend: {Path('frontend').resolve() / 'index.html'}")
         print(f"Config: {build_safe_config_summary()}")
         return 0

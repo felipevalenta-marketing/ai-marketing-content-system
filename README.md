@@ -36,3 +36,16 @@ npm run build
 ```
 
 Open `http://127.0.0.1:5173` for the UI platform. If `uvicorn` is not installed yet, run `python -m src.api.main` to print local startup instructions and the frontend path.
+
+## Deployment
+
+For Docker and production-like local deployment instructions, see [deployment/README.md](deployment/README.md).
+
+The standard local deployment flow is:
+
+```bash
+cp .env.example .env
+python scripts/check_env.py
+docker compose config
+docker compose up --build
+```

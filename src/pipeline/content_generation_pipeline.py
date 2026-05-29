@@ -285,6 +285,8 @@ class ContentGenerationPipeline:
 
         normalized_request = self._normalize_request(request)
         metadata_payload = metadata or {}
+        organization_id = safe_text(normalized_request.get("organization_id") or metadata_payload.get("organization_id") or safe_dict(metadata_payload.get("request")).get("organization_id"), limit=120)
+        team_id = safe_text(normalized_request.get("team_id") or metadata_payload.get("team_id") or safe_dict(metadata_payload.get("request")).get("team_id"), limit=120)
         brand_profile_value = safe_dict(context.get("brand_profile"))
         brand_validation_value = safe_dict(context.get("brand_validation"))
         brand_defaults_value = safe_dict(context.get("brand_defaults"))
@@ -451,10 +453,16 @@ class ContentGenerationPipeline:
                 model_cost_summary=model_cost_summary,
                 warnings=warnings or [],
             )
+            if organization_id:
+                result["organization_id"] = organization_id
+            if team_id:
+                result["team_id"] = team_id
         result.setdefault("brand_id", normalized_request["brand"])
         result.setdefault("brand_profile", brand_profile_value)
         result.setdefault("brand_validation", brand_validation_value)
         result.setdefault("brand_defaults", brand_defaults_value)
+        result.setdefault("organization_id", organization_id)
+        result.setdefault("team_id", team_id)
         return self._attach_reporting(result, request=normalized_request, context=context)
 
     def _generate(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -2089,6 +2097,8 @@ class ContentGenerationPipeline:
         content_type = safe_text(payload.get("content_type") or record_type, limit=120)
         campaign_type = safe_text(payload.get("campaign_type") or request.get("campaign_type") or metadata.get("campaign_type"), limit=120)
         execution_id = safe_text(execution.get("started_at") or metadata.get("execution_id") or "", limit=120)
+        organization_id = safe_text(request.get("organization_id") or metadata.get("organization_id") or metadata.get("request", {}).get("organization_id"), limit=120)
+        team_id = safe_text(request.get("team_id") or metadata.get("team_id") or metadata.get("request", {}).get("team_id"), limit=120)
         record_id = build_record_id(record_type, {"brand": brand, "execution_id": execution_id, "campaign_id": campaign_type})
         return {
             "record_id": record_id,
@@ -2100,6 +2110,8 @@ class ContentGenerationPipeline:
             "content_type": content_type,
             "campaign_type": campaign_type,
             "execution_id": execution_id,
+            "organization_id": organization_id,
+            "team_id": team_id,
             "source_module": {
                 "creative_direction": "creative",
                 "image_prompt": "media",
@@ -2112,6 +2124,8 @@ class ContentGenerationPipeline:
                 "content_type": content_type,
                 "campaign_type": campaign_type,
                 "execution_id": execution_id,
+                "organization_id": organization_id,
+                "team_id": team_id,
                 "source": "pipeline",
             },
             "warnings": safe_list(payload.get("warnings")),

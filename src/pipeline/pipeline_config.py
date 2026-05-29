@@ -84,11 +84,25 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_csv(name: str, default: list[str]) -> list[str]:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return list(default)
+    values = [item.strip() for item in raw_value.split(",")]
+    cleaned = [item for item in values if item]
+    return cleaned or list(default)
+
+
 @dataclass(frozen=True)
 class PipelineConfig:
     """Runtime configuration for the generation pipeline."""
 
     brands_root: str = "brands"
+    app_env: str = field(default_factory=lambda: os.getenv("APP_ENV", "development").strip() or "development")
+    api_host: str = field(default_factory=lambda: os.getenv("API_HOST", "127.0.0.1").strip() or "127.0.0.1")
+    api_port: int = field(default_factory=lambda: _env_int("API_PORT", 8000))
+    cors_origins: list[str] = field(default_factory=lambda: _env_csv("CORS_ORIGINS", ["http://127.0.0.1:5173", "http://localhost:5173", "http://localhost:3000"]))
+    log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "info").strip() or "info")
     default_brand: str = field(default_factory=lambda: os.getenv("DEFAULT_BRAND", "wenzel_partner"))
     enable_multi_brand_management: bool = field(default_factory=lambda: _env_flag("ENABLE_MULTI_BRAND_MANAGEMENT", True))
     brand_root: str = field(default_factory=lambda: os.getenv("BRAND_ROOT", "brands"))
@@ -146,6 +160,11 @@ class PipelineConfig:
     enable_rbac: bool = field(default_factory=lambda: _env_flag("ENABLE_RBAC", True))
     default_user_role: str = field(default_factory=lambda: os.getenv("DEFAULT_USER_ROLE", "viewer"))
     first_user_admin: bool = field(default_factory=lambda: _env_flag("FIRST_USER_ADMIN", True))
+    enable_organizations: bool = field(default_factory=lambda: _env_flag("ENABLE_ORGANIZATIONS", True))
+    enable_teams: bool = field(default_factory=lambda: _env_flag("ENABLE_TEAMS", True))
+    max_organizations: int = field(default_factory=lambda: _env_int("MAX_ORGANIZATIONS", 100))
+    max_teams: int = field(default_factory=lambda: _env_int("MAX_TEAMS", 500))
+    max_members_per_organization: int = field(default_factory=lambda: _env_int("MAX_MEMBERS_PER_ORGANIZATION", 1000))
     enable_analytics: bool = field(default_factory=lambda: _env_flag("ENABLE_ANALYTICS", True))
     analytics_default_type: str = field(default_factory=lambda: os.getenv("ANALYTICS_DEFAULT_TYPE", "executive_dashboard"))
     analytics_include_storage: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_STORAGE", True))

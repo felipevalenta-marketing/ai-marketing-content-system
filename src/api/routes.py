@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTMLResponse, Request
 
 from src.api.api_config import ApiConfig
-from src.api.health import build_health_payload
+from src.api.health import build_health_payload, build_liveness_payload, build_readiness_payload
 from src.api.routes_assets import router as assets_router
 from src.api.routes_auth import router as auth_router
 from src.api.routes_brands import router as brands_router
@@ -44,7 +44,18 @@ router.include_router(config_router)
 
 @router.get("/health", summary="Health check", description="Return a lightweight service health summary.")
 def health(request: Request) -> dict[str, object]:
-    return build_api_response(success=True, data=build_health_payload(), metadata={"route": "health"})
+    config = getattr(request.app.state, "config", None)
+    return build_api_response(success=True, data=build_health_payload(config), metadata={"route": "health"})
+
+
+@router.get("/health/ready", summary="Readiness check", description="Return API readiness status.")
+def health_ready(request: Request) -> dict[str, object]:
+    return build_api_response(success=True, data=build_readiness_payload(request.app), metadata={"route": "health.ready"})
+
+
+@router.get("/health/live", summary="Liveness check", description="Return API liveness status.")
+def health_live(request: Request) -> dict[str, object]:
+    return build_api_response(success=True, data=build_liveness_payload(request.app), metadata={"route": "health.live"})
 
 
 def build_docs_html(app) -> str:
