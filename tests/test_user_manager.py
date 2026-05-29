@@ -10,6 +10,7 @@ def test_user_manager_create_update_and_list(tmp_path: Path) -> None:
     created = manager.create_user("User@Example.com", "hashed", "Test User")
     assert created["success"] is True
     user_id = created["user"]["user_id"]
+    assert created["user"]["role"] == "admin"
     assert manager.get_user_by_email("user@example.com")["email"] == "user@example.com"
 
     updated = manager.update_user(user_id, {"display_name": "Updated User", "settings": {"theme": "dark"}})

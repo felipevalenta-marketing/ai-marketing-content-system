@@ -30,8 +30,8 @@ def test_api_storage_records_and_latest(tmp_path, auth_services) -> None:
     token = register.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    list_response = client.get("/storage/records", params={"record_type": "report"})
-    item_response = client.get(f"/storage/records/report/{saved['record_id']}")
+    list_response = client.get("/storage/records", params={"record_type": "report"}, headers=headers)
+    item_response = client.get(f"/storage/records/report/{saved['record_id']}", headers=headers)
     latest_response = client.get("/reports/latest", headers=headers)
 
     assert list_response.status_code == 200

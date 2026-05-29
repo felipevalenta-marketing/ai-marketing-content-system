@@ -15,6 +15,8 @@ export interface WorkspaceProps {
   onSnapshot: (key: string, data: unknown) => void;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
+  role?: string;
+  permissions?: string[];
   activeBrand?: string;
   brandProfile?: BrandProfile | null;
   brandValidation?: Record<string, unknown> | null;

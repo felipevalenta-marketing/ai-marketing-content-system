@@ -28,7 +28,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, brandProfile, brandValidation, brandDefaults, brands, onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, brandProfile, brandValidation, brandDefaults, brands, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -52,6 +52,7 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
   const analyticsRecords = Number((analyticsSummaryData?.metadata as any)?.records_collected ?? dashboardHealth?.records_count ?? 0);
   const analyticsIsEmpty = hasAnalytics && analyticsRecords <= 0;
   const brandValidationData = brandValidation as any;
+  const can = (permission: string) => permissions.includes("admin:all") || permissions.includes(permission);
 
   return (
     <div className="stack">
@@ -238,18 +239,10 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
         <Card>
           <SectionHeader title="Quick Actions" description="Move quickly between common workflows." />
           <div className="grid-2">
-            <Button type="button" variant="primary" onClick={() => onNavigate("content")}>
-              Generate Content
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onNavigate("workflow")}>
-              Run Workflow
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onNavigate("reports")}>
-              View Reports
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onNavigate("storage")}>
-              Browse Storage
-            </Button>
+            {can("generation:create") ? <Button type="button" variant="primary" onClick={() => onNavigate("content")}>Generate Content</Button> : null}
+            {can("workflow:run") ? <Button type="button" variant="secondary" onClick={() => onNavigate("workflow")}>Run Workflow</Button> : null}
+            {can("report:read") ? <Button type="button" variant="secondary" onClick={() => onNavigate("reports")}>View Reports</Button> : null}
+            {can("storage:read") ? <Button type="button" variant="secondary" onClick={() => onNavigate("storage")}>Browse Storage</Button> : null}
           </div>
         </Card>
       </div>

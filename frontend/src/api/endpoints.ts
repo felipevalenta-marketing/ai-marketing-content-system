@@ -4,6 +4,7 @@ export const API_ENDPOINTS = {
   authLogout: "/auth/logout",
   authMe: "/auth/me",
   usersProfile: "/users/profile",
+  usersList: "/users",
   health: "/health",
   config: "/config",
   generate: "/generate",
@@ -18,6 +19,10 @@ export const API_ENDPOINTS = {
   markdownReport: "/reports/markdown",
   latestReports: "/reports/latest",
   storageRecords: "/storage/records",
+  rbacRoles: "/rbac/roles",
+  rbacPermissions: "/rbac/permissions",
+  rbacMe: "/rbac/me",
+  userRole: (userId: string) => `/users/${encodeURIComponent(userId)}/role`,
 } as const;
 
 export const REPORT_TYPES = [
@@ -38,14 +43,14 @@ export const REPORT_TYPES = [
 ] as const;
 
 export const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", hint: "Overview" },
-  { id: "content", label: "Content Studio", hint: "Generate" },
-  { id: "workflow", label: "Workflow Center", hint: "Orchestrate" },
-  { id: "campaign", label: "Campaign Studio", hint: "Compose" },
-  { id: "assets", label: "Asset Studio", hint: "Coordinate" },
-  { id: "reports", label: "Reports Center", hint: "Markdown" },
-  { id: "storage", label: "Storage Explorer", hint: "Browse" },
-  { id: "analytics", label: "Analytics Center", hint: "Metrics" },
-  { id: "governance", label: "Governance Center", hint: "Review" },
-  { id: "config", label: "System Config", hint: "Settings" },
+  { id: "dashboard", label: "Dashboard", hint: "Overview", anyOf: ["analytics:read"] },
+  { id: "content", label: "Content Studio", hint: "Generate", permission: "generation:create" },
+  { id: "workflow", label: "Workflow Center", hint: "Orchestrate", permission: "workflow:run" },
+  { id: "campaign", label: "Campaign Studio", hint: "Compose", permission: "campaign:create" },
+  { id: "assets", label: "Asset Studio", hint: "Coordinate", permission: "asset:create" },
+  { id: "reports", label: "Reports Center", hint: "Markdown", permission: "report:read" },
+  { id: "storage", label: "Storage Explorer", hint: "Browse", permission: "storage:read" },
+  { id: "analytics", label: "Analytics Center", hint: "Metrics", permission: "analytics:read" },
+  { id: "governance", label: "Governance Center", hint: "Review", anyOf: ["analytics:read", "report:read"] },
+  { id: "config", label: "System Config", hint: "Settings", permission: "system:read" },
 ] as const;

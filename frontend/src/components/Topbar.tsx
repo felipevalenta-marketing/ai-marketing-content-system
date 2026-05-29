@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { BrandSelector } from "./BrandSelector";
 import { UserMenu } from "./UserMenu";
 import { StatusPill } from "./StatusPill";
+import { getRoleLabel, getRoleTone } from "../utils/formatting";
 
 interface TopbarProps {
   client: ApiClient;
@@ -17,6 +18,8 @@ interface TopbarProps {
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
   currentUser?: UserProfile | null;
+  role: string;
+  permissions: string[];
   onLogout?: () => void;
   onNavigateProfile?: () => void;
   onActiveBrandChange: (value: string) => void;
@@ -35,6 +38,8 @@ export function Topbar({
   brandValidation,
   brandDefaults,
   currentUser,
+  role,
+  permissions,
   onLogout,
   onNavigateProfile,
   onActiveBrandChange,
@@ -69,6 +74,7 @@ export function Topbar({
         <div className="topbar__meta">
           <StatusPill status={status} />
           <Badge tone="neutral">{environment}</Badge>
+          <Badge tone={getRoleTone(role)}>{getRoleLabel(role)}</Badge>
           <Badge tone={brandProfile?.status === "partial" || brandProfile?.status === "incomplete" ? "warning" : brandProfile?.status === "invalid" ? "error" : "success"}>
             {brandProfile?.display_name ?? activeBrand}
           </Badge>
@@ -79,7 +85,7 @@ export function Topbar({
           <Button type="button" variant="secondary" onClick={onRefreshConfig}>
             Refresh Config
           </Button>
-          <UserMenu user={currentUser ?? null} onProfile={onNavigateProfile ?? (() => undefined)} onLogout={onLogout ?? (() => undefined)} />
+          <UserMenu user={currentUser ?? null} role={role} permissions={permissions} onProfile={onNavigateProfile ?? (() => undefined)} onLogout={onLogout ?? (() => undefined)} />
         </div>
       </div>
     </header>

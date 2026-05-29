@@ -19,7 +19,13 @@ import type {
   MarkdownReportRequest,
   StorageRecord,
   RegisterRequest,
+  AccessSummary,
+  PermissionInfo,
+  PermissionDomainInfo,
+  RoleInfo,
   UserProfile,
+  UserListResponse,
+  UserRoleUpdateRequest,
   UserProfileUpdateRequest,
   WorkflowRequest,
 } from "../types/api";
@@ -34,11 +40,16 @@ export interface ApiClient {
   validateBrand(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandDefaults(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandHealth(brandId: string): Promise<ApiResponse<BrandHealth>>;
+  getRoles(): Promise<ApiResponse<{ roles?: RoleInfo[]; permissions?: PermissionInfo[] }>>;
+  getPermissions(): Promise<ApiResponse<{ permissions?: PermissionInfo[]; grouped?: Record<string, PermissionInfo[]>; domains?: PermissionDomainInfo[] }>>;
+  getMyAccess(): Promise<ApiResponse<AccessSummary>>;
   register(payload: RegisterRequest): Promise<ApiResponse<AuthResult>>;
   login(payload: LoginRequest): Promise<ApiResponse<AuthResult>>;
   logout(): Promise<ApiResponse<AuthResult>>;
   getCurrentUser(): Promise<ApiResponse<AuthResult>>;
   updateProfile(payload: UserProfileUpdateRequest): Promise<ApiResponse<AuthResult>>;
+  listUsers(): Promise<ApiResponse<UserListResponse>>;
+  updateUserRole(userId: string, role: string): Promise<ApiResponse<Record<string, unknown>>>;
   getAnalyticsSummary(): Promise<ApiResponse<AnalyticsSummaryData>>;
   getAnalyticsDashboard(): Promise<ApiResponse<AnalyticsDashboardData>>;
   queryAnalytics(payload: AnalyticsRequest): Promise<ApiResponse<AnalyticsResult>>;
@@ -149,6 +160,9 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     validateBrand: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/validate`),
     getBrandDefaults: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/defaults`),
     getBrandHealth: (brandId: string) => request<BrandHealth>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/health`),
+    getRoles: () => request<{ roles?: RoleInfo[]; permissions?: PermissionInfo[] }>(API_ENDPOINTS.rbacRoles),
+    getPermissions: () => request<{ permissions?: PermissionInfo[]; grouped?: Record<string, PermissionInfo[]>; domains?: PermissionDomainInfo[] }>(API_ENDPOINTS.rbacPermissions),
+    getMyAccess: () => request<AccessSummary>(API_ENDPOINTS.rbacMe),
     register: (payload: RegisterRequest) =>
       request<AuthResult>(API_ENDPOINTS.authRegister, {
         method: "POST",
@@ -168,6 +182,12 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
       request<AuthResult>(API_ENDPOINTS.usersProfile, {
         method: "PATCH",
         body: JSON.stringify(payload),
+      }),
+    listUsers: () => request<UserListResponse>(API_ENDPOINTS.usersList),
+    updateUserRole: (userId: string, role: string) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.userRole(userId), {
+        method: "PATCH",
+        body: JSON.stringify({ role } satisfies UserRoleUpdateRequest),
       }),
     getAnalyticsSummary: () => request<AnalyticsSummaryData>(API_ENDPOINTS.analyticsSummary),
     getAnalyticsDashboard: () => request<AnalyticsDashboardData>(API_ENDPOINTS.analyticsDashboard),

@@ -3,11 +3,13 @@ import { EmptyState } from "../components/EmptyState";
 import { JsonViewer } from "../components/JsonViewer";
 import { MetricCard } from "../components/MetricCard";
 import { SectionHeader } from "../components/SectionHeader";
+import { Badge } from "../components/Badge";
+import { getRoleLabel, getRoleTone } from "../utils/formatting";
 import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ config, activeBrand, brandProfile, brandValidation, brandDefaults, brands }: SystemConfigProps) {
+export function SystemConfig({ config, activeBrand, brandProfile, brandValidation, brandDefaults, brands, role }: SystemConfigProps) {
   if (!config) {
     return (
       <Card>
@@ -23,6 +25,10 @@ export function SystemConfig({ config, activeBrand, brandProfile, brandValidatio
   return (
     <div className="stack">
       <SectionHeader title="System Config" description="Safe runtime configuration summary with secrets removed." />
+      <div className="row">
+        <Badge tone={getRoleTone(role)}>{getRoleLabel(role)}</Badge>
+        <span className="muted">Current access level</span>
+      </div>
       <div className="metric-grid">
         <MetricCard label="Environment" value={String(config.app_env ?? "development")} hint="Runtime" />
         <MetricCard label="API Key Present" value={String(config.openai_api_key_present ?? false)} hint="Boolean only" />

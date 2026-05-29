@@ -10,6 +10,8 @@ USER_CONTRACT: dict[str, Any] = {
     "email": "",
     "display_name": "",
     "status": "active",
+    "role": "viewer",
+    "permissions": [],
     "created_at": "",
     "updated_at": "",
     "settings": {},

@@ -28,9 +28,12 @@ class FakePipeline:
         }
 
 
-def test_api_generate_returns_sanitized_response() -> None:
-    app = create_app(services={"pipeline": FakePipeline()})
+def test_api_generate_returns_sanitized_response(auth_services) -> None:
+    app = create_app(services={"pipeline": FakePipeline(), **auth_services})
     client = TestClient(app)
+
+    register = client.post("/auth/register", json={"email": "generate@example.com", "password": "Password123", "display_name": "Generate User"})
+    token = register.json()["data"]["access_token"]
 
     response = client.post(
         "/generate",
@@ -43,6 +46,7 @@ def test_api_generate_returns_sanitized_response() -> None:
             "markdown": True,
             "dry_run": True,
         },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     payload = response.json()

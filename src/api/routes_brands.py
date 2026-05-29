@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from src.api.api_result import build_api_response
+from src.rbac.rbac_dependencies import authorize_request
 
 
 router = APIRouter(prefix="/brands", tags=["brands"])
@@ -24,6 +25,9 @@ def _query_bool(request: Request, key: str, fallback: bool = False) -> bool:
 
 @router.get("", summary="List brands", description="Return the available brand profiles.")
 def list_brands(request: Request, active_only: bool = False, include_invalid: bool = False) -> dict[str, object]:
+    user, denial = authorize_request(request, "brand:read")
+    if denial is not None:
+        return denial
     manager = _manager(request)
     if manager is None:
         return build_api_response(success=False, data=None, errors=["Brand manager unavailable."], metadata={"route": "brands.list"})
@@ -35,6 +39,9 @@ def list_brands(request: Request, active_only: bool = False, include_invalid: bo
 
 @router.get("/{brand_id}", summary="Get brand profile", description="Return a safe profile for a specific brand.")
 def get_brand(brand_id: str, request: Request) -> dict[str, object]:
+    user, denial = authorize_request(request, "brand:read")
+    if denial is not None:
+        return denial
     manager = _manager(request)
     if manager is None:
         return build_api_response(success=False, data=None, errors=["Brand manager unavailable."], metadata={"route": "brands.get"})
@@ -44,6 +51,9 @@ def get_brand(brand_id: str, request: Request) -> dict[str, object]:
 
 @router.get("/{brand_id}/validate", summary="Validate brand", description="Validate a brand folder and its recommended files.")
 def validate_brand(brand_id: str, request: Request) -> dict[str, object]:
+    user, denial = authorize_request(request, "brand:read")
+    if denial is not None:
+        return denial
     manager = _manager(request)
     if manager is None:
         return build_api_response(success=False, data=None, errors=["Brand manager unavailable."], metadata={"route": "brands.validate"})
@@ -53,6 +63,9 @@ def validate_brand(brand_id: str, request: Request) -> dict[str, object]:
 
 @router.get("/{brand_id}/defaults", summary="Get brand defaults", description="Return safe defaults for a brand.")
 def brand_defaults(brand_id: str, request: Request) -> dict[str, object]:
+    user, denial = authorize_request(request, "brand:read")
+    if denial is not None:
+        return denial
     manager = _manager(request)
     if manager is None:
         return build_api_response(success=False, data=None, errors=["Brand manager unavailable."], metadata={"route": "brands.defaults"})
@@ -62,6 +75,9 @@ def brand_defaults(brand_id: str, request: Request) -> dict[str, object]:
 
 @router.get("/{brand_id}/health", summary="Get brand health", description="Return a safe health score for a brand.")
 def brand_health(brand_id: str, request: Request) -> dict[str, object]:
+    user, denial = authorize_request(request, "brand:read")
+    if denial is not None:
+        return denial
     manager = _manager(request)
     if manager is None:
         return build_api_response(success=False, data=None, errors=["Brand manager unavailable."], metadata={"route": "brands.health"})

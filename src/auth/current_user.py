@@ -34,11 +34,11 @@ def get_current_user(request: Request) -> dict[str, Any]:
 def get_current_user_result(request: Request) -> dict[str, Any]:
     auth_service = get_service(request, "auth")
     if auth_service is None:
-        return {"success": False, "user": {}, "token": "", "warnings": [], "errors": ["Authentication service is unavailable."], "metadata": {}}
+        return {"success": False, "user": {}, "access_token": "", "token_type": "bearer", "warnings": [], "errors": ["Authentication service is unavailable."], "metadata": {}}
     token = extract_bearer_token(request)
     result = auth_service.authenticate(token)
     if not isinstance(result, dict):
-        return {"success": False, "user": {}, "token": "", "warnings": [], "errors": ["Authentication required."], "metadata": {}}
+        return {"success": False, "user": {}, "access_token": "", "token_type": "bearer", "warnings": [], "errors": ["Authentication required."], "metadata": {}}
     return result
 
 

@@ -48,6 +48,27 @@ export function formatStatusTone(status?: string): "ok" | "warn" | "error" | "ne
   return "neutral";
 }
 
+export function getRoleTone(role?: string): "success" | "warning" | "error" | "neutral" {
+  const normalized = (role ?? "").toLowerCase();
+  if (normalized === "admin") {
+    return "success";
+  }
+  if (normalized === "manager") {
+    return "warning";
+  }
+  if (normalized === "disabled") {
+    return "error";
+  }
+  return "neutral";
+}
+
+export function getRoleLabel(role?: string): string {
+  if (!role) {
+    return "Viewer";
+  }
+  return toTitleCase(role.replace(/[-_]+/g, " "));
+}
+
 export function getStatusLabel(value?: string): string {
   if (!value) {
     return "Unknown";

@@ -38,6 +38,9 @@ export interface ConfigResponseData {
   enable_frontend_demo?: boolean;
   api_debug?: boolean;
   enable_authentication?: boolean;
+  enable_rbac?: boolean;
+  default_user_role?: string;
+  first_user_admin?: boolean;
   jwt_expiration_hours?: number;
   user_storage_path?: string;
   cors_origins?: string[];
@@ -340,11 +343,53 @@ export interface UserProfile {
   email?: string;
   display_name?: string;
   status?: "active" | "inactive" | "suspended" | string;
+  role?: string;
+  permissions?: string[];
   created_at?: string;
   updated_at?: string;
   settings?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+export interface AccessSummary {
+  role?: string;
+  role_label?: string;
+  role_type?: string;
+  role_level?: number;
+  role_hierarchy?: Array<Record<string, unknown>>;
+  permissions?: string[];
+  access?: Record<string, boolean>;
+  permission_domains?: Array<Record<string, unknown>>;
+  summary?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface RoleInfo {
+  role?: string;
+  label?: string;
+  description?: string;
+  permissions?: string[];
+  level?: number;
+  type?: string;
+  inherits_from?: string[];
+}
+
+export interface PermissionInfo {
+  permission?: string;
+  domain?: string;
+  label?: string;
+  description?: string;
+}
+
+export interface PermissionDomainInfo {
+  domain?: string;
+  label?: string;
+  description?: string;
+  permission_count?: number;
+  permissions?: PermissionInfo[];
 }
 
 export interface AuthResult {
@@ -355,6 +400,7 @@ export interface AuthResult {
   warnings?: string[];
   errors?: string[];
   metadata?: Record<string, unknown>;
+  access?: AccessSummary;
   [key: string]: unknown;
 }
 
@@ -372,4 +418,13 @@ export interface LoginRequest {
 export interface UserProfileUpdateRequest {
   display_name?: string | null;
   settings?: Record<string, unknown>;
+}
+
+export interface UserRoleUpdateRequest {
+  role: string;
+}
+
+export interface UserListResponse {
+  users?: UserProfile[];
+  count?: number;
 }

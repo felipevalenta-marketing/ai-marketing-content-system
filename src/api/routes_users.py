@@ -10,9 +10,22 @@ from src.api.api_result import build_api_response
 from src.api.runtime import get_service
 from src.api.schemas import ApiResponse, UserProfileUpdateRequest
 from src.auth.current_user import get_current_user_result
+from src.rbac.rbac_dependencies import authorize_request
 
 
 router = APIRouter(tags=["users"])
+
+
+@router.get("/users", summary="List users", description="List safe user profiles.", response_model=ApiResponse)
+def list_users(request: Request) -> dict[str, Any]:
+    user, denial = authorize_request(request, "user:manage")
+    if denial is not None:
+        return denial
+    user_manager = get_service(request, "users")
+    if user_manager is None:
+        return build_api_response(success=False, data=None, errors=["User service is unavailable."], metadata={"route": "users.list"})
+    users = user_manager.list_users()
+    return build_api_response(success=True, data={"users": users, "count": len(users)}, metadata={"route": "users.list"})
 
 
 @router.get("/users/profile", summary="Get profile", description="Return the authenticated user's profile.", response_model=ApiResponse)

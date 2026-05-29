@@ -6,13 +6,15 @@ from src.cli.cli_app import build_parser
 from src.api.main import create_app
 
 
-def test_api_health_and_config_hide_secrets(monkeypatch) -> None:
+def test_api_health_and_config_hide_secrets(monkeypatch, auth_services) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-secret")
-    app = create_app(services={})
+    app = create_app(services={**auth_services})
     client = TestClient(app)
 
     health = client.get("/health")
-    config = client.get("/config")
+    register = client.post("/auth/register", json={"email": "config@example.com", "password": "Password123", "display_name": "Config User"})
+    token = register.json()["data"]["access_token"]
+    config = client.get("/config", headers={"Authorization": f"Bearer {token}"})
 
     assert health.status_code == 200
     assert health.json()["success"] is True

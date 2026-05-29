@@ -16,6 +16,8 @@ interface AppShellProps {
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
   currentUser?: UserProfile | null;
+  role: string;
+  permissions: string[];
   onLogout?: () => void;
   onNavigateProfile?: () => void;
   onActiveBrandChange: (value: string) => void;
@@ -37,6 +39,8 @@ export function AppShell({
   brandValidation,
   brandDefaults,
   currentUser,
+  role,
+  permissions,
   onLogout,
   onNavigateProfile,
   onActiveBrandChange,
@@ -65,7 +69,7 @@ export function AppShell({
         onRefreshConfig={onRefreshConfig}
       />
       <div className="app-layout">
-        <Sidebar activePage={activePage} onSelectPage={onSelectPage} config={config} />
+        <Sidebar activePage={activePage} onSelectPage={onSelectPage} config={config} role={role} permissions={permissions} />
         <main className="main">{children}</main>
       </div>
     </div>

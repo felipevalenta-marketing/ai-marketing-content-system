@@ -17,7 +17,7 @@ def _make_brand(root: Path, brand_id: str, *, active: bool = True, config: str |
         (brand / "brand.json").write_text(config, encoding="utf-8")
 
 
-def test_api_brands_endpoints_surface_health_and_defaults(tmp_path: Path) -> None:
+def test_api_brands_endpoints_surface_health_and_defaults(tmp_path: Path, auth_services) -> None:
     brand_root = tmp_path / "brands"
     brand_root.mkdir()
     _make_brand(
@@ -27,15 +27,19 @@ def test_api_brands_endpoints_surface_health_and_defaults(tmp_path: Path) -> Non
     )
     _make_brand(brand_root, "inactive_brand", config='{"brand_id":"inactive_brand","active":false}')
 
-    app = create_app(services={"brands": BrandManager(brand_root=str(brand_root))})
+    app = create_app(services={"brands": BrandManager(brand_root=str(brand_root)), **auth_services})
     client = TestClient(app)
 
-    listing = client.get("/brands")
-    active_listing = client.get("/brands", params={"active_only": True})
-    profile = client.get("/brands/wenzel_partner")
-    health = client.get("/brands/wenzel_partner/health")
-    defaults = client.get("/brands/wenzel_partner/defaults")
-    validation = client.get("/brands/wenzel_partner/validate")
+    register = client.post("/auth/register", json={"email": "brands@example.com", "password": "Password123", "display_name": "Brand User"})
+    token = register.json()["data"]["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    listing = client.get("/brands", headers=headers)
+    active_listing = client.get("/brands", params={"active_only": True}, headers=headers)
+    profile = client.get("/brands/wenzel_partner", headers=headers)
+    health = client.get("/brands/wenzel_partner/health", headers=headers)
+    defaults = client.get("/brands/wenzel_partner/defaults", headers=headers)
+    validation = client.get("/brands/wenzel_partner/validate", headers=headers)
 
     assert listing.status_code == 200
     assert listing.json()["success"] is True

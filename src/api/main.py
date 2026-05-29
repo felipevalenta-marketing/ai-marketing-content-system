@@ -20,6 +20,7 @@ from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
 from src.cli.cli_config import build_safe_config_summary
 from src.auth.auth_manager import AuthManager, AuthService
+from src.rbac.rbac_manager import RBACManager
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
 from src.reporting.reporting_engine import ReportingEngine
@@ -43,7 +44,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     )
     logger = get_logger("api")
     storage_manager = StorageManager(storage_root=pipeline_config.storage_root, logger=logger)
-    user_manager = UserManager(storage_path=pipeline_config.user_storage_path, logger=logger)
+    user_manager = UserManager(storage_path=pipeline_config.user_storage_path, logger=logger, default_role=pipeline_config.default_user_role, first_user_admin=pipeline_config.first_user_admin)
     auth_manager = AuthManager(
         user_manager=user_manager,
         jwt_secret=str(os.getenv("JWT_SECRET_KEY", "")).strip(),
@@ -51,6 +52,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         logger=logger,
     )
     auth_service = AuthService(auth_manager)
+    rbac_manager = RBACManager(user_manager=user_manager, logger=logger)
     brand_manager = BrandManager(
         brand_root=pipeline_config.brand_root,
         default_brand=pipeline_config.default_brand,
@@ -72,6 +74,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "storage": storage_manager,
         "users": user_manager,
         "auth": auth_service,
+        "rbac": rbac_manager,
         "reporting": reporting_engine,
         "brands": brand_manager,
         "logger": logger,

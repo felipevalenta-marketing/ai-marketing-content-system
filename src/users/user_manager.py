@@ -12,18 +12,21 @@ import uuid
 from src.reporting.report_metrics import safe_dict, safe_list, safe_text, utc_now_iso
 from src.users.user_profile import build_safe_user_profile
 from src.users.user_validator import normalize_email, validate_email, validate_user_status
+from src.rbac.role_registry import normalize_role_name, is_valid_role
 
 
 class UserManager:
-    def __init__(self, storage_path: str = "data/users", logger: Any | None = None) -> None:
+    def __init__(self, storage_path: str = "data/users", logger: Any | None = None, default_role: str = "viewer", first_user_admin: bool = True) -> None:
         self.storage_path = Path(storage_path)
         self.logger = logger
+        self.default_role = normalize_role_name(default_role) or "viewer"
+        self.first_user_admin = bool(first_user_admin)
         self.storage_path.mkdir(parents=True, exist_ok=True)
         self.file_path = self.storage_path / "users.json"
         if not self.file_path.exists():
             self._save({"users": []})
 
-    def create_user(self, email: str, password_hash: str, display_name: str, settings: dict[str, Any] | None = None, metadata: dict[str, Any] | None = None, status: str = "active", created_by: str | None = None) -> dict[str, Any]:
+    def create_user(self, email: str, password_hash: str, display_name: str, settings: dict[str, Any] | None = None, metadata: dict[str, Any] | None = None, status: str = "active", created_by: str | None = None, role: str | None = None) -> dict[str, Any]:
         normalized_email = normalize_email(email)
         validation = validate_email(normalized_email)
         if not validation["valid"]:
@@ -34,11 +37,19 @@ class UserManager:
         if not status_validation["valid"]:
             return {"success": False, "user": {}, "warnings": [], "errors": status_validation["errors"], "metadata": {}}
         now = utc_now_iso()
+        existing_users = self._load().get("users", [])
+        assigned_role = normalize_role_name(role or "")
+        if not assigned_role:
+            assigned_role = "admin" if self.first_user_admin and not existing_users else self.default_role
+        if not is_valid_role(assigned_role):
+            assigned_role = self.default_role
         user = {
             "user_id": f"usr_{uuid.uuid4().hex}",
             "email": normalized_email,
             "display_name": safe_text(display_name or normalized_email.split("@", 1)[0], limit=120),
             "status": str(status or "active").strip().lower() or "active",
+            "role": assigned_role,
+            "permissions": [],
             "created_at": now,
             "updated_at": now,
             "password_hash": safe_text(password_hash, limit=512),
@@ -80,7 +91,7 @@ class UserManager:
                 return dict(user)
         return None
 
-    def update_user(self, user_id: str, updates: dict[str, Any], updated_by: str | None = None) -> dict[str, Any]:
+    def update_user(self, user_id: str, updates: dict[str, Any], updated_by: str | None = None, allow_role: bool = False) -> dict[str, Any]:
         store = self._load()
         users = store.get("users", [])
         for index, user in enumerate(users):
@@ -101,6 +112,10 @@ class UserManager:
                 if not status_validation["valid"]:
                     return {"success": False, "user": {}, "warnings": [], "errors": status_validation["errors"], "metadata": {}}
                 user["status"] = str(updates.get("status")).strip().lower()
+            if allow_role and "role" in updates:
+                candidate_role = normalize_role_name(updates.get("role"))
+                if is_valid_role(candidate_role):
+                    user["role"] = candidate_role
             metadata = safe_dict(user.get("metadata"))
             metadata["updated_by"] = updated_by or user_id
             user["metadata"] = metadata

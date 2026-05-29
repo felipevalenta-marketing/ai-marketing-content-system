@@ -16,12 +16,29 @@ interface ProfileProps {
 export function Profile({ auth, onNavigate }: ProfileProps) {
   const [displayName, setDisplayName] = useState("");
   const [settingsText, setSettingsText] = useState("{}");
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [usersError, setUsersError] = useState("");
   const user = auth.currentUser;
 
   useEffect(() => {
     setDisplayName(String(user?.display_name ?? ""));
     setSettingsText(JSON.stringify(user?.settings ?? {}, null, 2));
   }, [user]);
+
+  useEffect(() => {
+    if (!auth.hasAnyPermission(["user:manage", "admin:all"])) {
+      return;
+    }
+    void client.listUsers().then((response) => {
+      if (response.success && response.data?.users) {
+        setUsers(response.data.users as UserProfile[]);
+        setUsersError("");
+      } else {
+        setUsers([]);
+        setUsersError(response.errors?.[0] ?? "Unable to load users.");
+      }
+    });
+  }, [auth.currentUser?.user_id, auth.permissions.join("|"), auth.role, client]);
 
   if (!user) {
     return (
@@ -43,6 +60,16 @@ export function Profile({ auth, onNavigate }: ProfileProps) {
       display_name: displayName,
       settings: parsedSettings,
     });
+  };
+
+  const handleRoleChange = async (userId: string, role: string) => {
+    const response = await client.updateUserRole(userId, role);
+    if (response.success) {
+      const refreshed = await client.listUsers();
+      if (refreshed.success && refreshed.data?.users) {
+        setUsers(refreshed.data.users as UserProfile[]);
+      }
+    }
   };
 
   return (
@@ -75,6 +102,40 @@ export function Profile({ auth, onNavigate }: ProfileProps) {
           </div>
         </form>
       </div>
+      {auth.hasAnyPermission(["user:manage", "admin:all"]) ? (
+        <Card>
+          <SectionHeader title="User Management" description="Manage user roles with RBAC permissions." />
+          {usersError ? <p className="error-text">{usersError}</p> : null}
+          {users.length ? (
+            <div className="stack">
+              {users.map((entry) => (
+                <div key={String(entry.user_id)} className="metric-card">
+                  <div className="row-between">
+                    <div>
+                      <strong>{entry.display_name ?? entry.email}</strong>
+                      <p className="muted">{entry.email}</p>
+                    </div>
+                    <select
+                      className="select"
+                      value={String(entry.role ?? "viewer")}
+                      onChange={async (event) => handleRoleChange(String(entry.user_id ?? ""), event.target.value)}
+                      disabled={String(entry.user_id) === String(user.user_id)}
+                    >
+                      <option value="admin">admin</option>
+                      <option value="manager">manager</option>
+                      <option value="editor">editor</option>
+                      <option value="viewer">viewer</option>
+                      <option value="disabled">disabled</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No users loaded" description="Users appear here when the API exposes list access." />
+          )}
+        </Card>
+      ) : null}
     </Card>
   );
 }

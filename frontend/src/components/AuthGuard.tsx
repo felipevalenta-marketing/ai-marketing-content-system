@@ -7,16 +7,40 @@ import { LoadingState } from "./LoadingState";
 interface AuthGuardProps {
   isAuthenticated: boolean;
   loading: boolean;
+  permissions?: string[];
+  permission?: string;
+  anyOf?: string[];
+  allOf?: string[];
   onGoLogin: () => void;
   children: ReactNode;
 }
 
-export function AuthGuard({ isAuthenticated, loading, onGoLogin, children }: AuthGuardProps) {
+function hasPermission(permissions: string[], permission: string): boolean {
+  return permissions.includes("admin:all") || permissions.includes(permission);
+}
+
+export function AuthGuard({ isAuthenticated, loading, permissions = [], permission, anyOf, allOf, onGoLogin, children }: AuthGuardProps) {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       onGoLogin();
     }
   }, [isAuthenticated, loading, onGoLogin]);
+
+  const allowed = (() => {
+    if (!permission && !anyOf?.length && !allOf?.length) {
+      return true;
+    }
+    if (permission) {
+      return hasPermission(permissions, permission);
+    }
+    if (anyOf?.length) {
+      return anyOf.some((item) => hasPermission(permissions, item));
+    }
+    if (allOf?.length) {
+      return allOf.every((item) => hasPermission(permissions, item));
+    }
+    return true;
+  })();
 
   if (loading) {
     return <LoadingState label="Checking authentication..." />;
@@ -34,6 +58,14 @@ export function AuthGuard({ isAuthenticated, loading, onGoLogin, children }: Aut
             </Button>
           }
         />
+      </Card>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <Card>
+        <EmptyState title="Access denied" description="Your role does not grant access to this area." />
       </Card>
     );
   }

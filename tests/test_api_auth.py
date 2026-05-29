@@ -14,6 +14,7 @@ def test_api_auth_register_login_and_me(auth_services) -> None:
     assert register.json()["success"] is True
     token = register.json()["data"]["access_token"]
     assert token
+    assert "password_hash" not in register.json()["data"]["user"]
 
     login = client.post("/auth/login", json={"email": "auth@example.com", "password": "Password123"})
     assert login.status_code == 200
@@ -27,6 +28,7 @@ def test_api_auth_register_login_and_me(auth_services) -> None:
     assert me.status_code == 200
     assert me.json()["success"] is True
     assert me.json()["data"]["email"] == "auth@example.com"
+    assert "access_token" not in me.json()["data"]
 
     logout = client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"})
     assert logout.status_code == 200

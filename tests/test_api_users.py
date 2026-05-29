@@ -17,6 +17,7 @@ def test_api_users_profile_get_and_patch(auth_services) -> None:
     assert profile.status_code == 200
     assert profile.json()["success"] is True
     assert profile.json()["data"]["email"] == "profile@example.com"
+    assert "password_hash" not in profile.json()["data"]
 
     updated = client.patch("/users/profile", headers=headers, json={"display_name": "Updated Name", "settings": {"theme": "dark"}})
     assert updated.status_code == 200

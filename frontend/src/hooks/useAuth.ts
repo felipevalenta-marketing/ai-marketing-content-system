@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ApiClient } from "../api/client";
-import type { AuthResult, LoginRequest, RegisterRequest, UserProfile, UserProfileUpdateRequest } from "../types/api";
+import type { AccessSummary, AuthResult, LoginRequest, RegisterRequest, UserProfile, UserProfileUpdateRequest } from "../types/api";
 
 const AUTH_TOKEN_KEY = "amcs:auth-token";
 
@@ -27,6 +27,9 @@ function writeToken(token: string) {
 export interface UseAuthResult {
   token: string;
   currentUser: UserProfile | null;
+  access: AccessSummary | null;
+  role: string;
+  permissions: string[];
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
@@ -35,17 +38,32 @@ export interface UseAuthResult {
   logout: () => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
   updateProfile: (payload: UserProfileUpdateRequest) => Promise<AuthResult>;
+  refreshAccess: () => Promise<void>;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  hasAllPermissions: (permissions: string[]) => boolean;
 }
 
 export function useAuth(client: ApiClient): UseAuthResult {
   const [token, setToken] = useState<string>(() => readToken());
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [access, setAccess] = useState<AccessSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(Boolean(token));
   const [error, setError] = useState<string | null>(null);
+
+  const refreshAccess = async () => {
+    const response = await client.getMyAccess();
+    if (response.success && response.data) {
+      setAccess(response.data as AccessSummary);
+    } else {
+      setAccess(null);
+    }
+  };
 
   const refreshCurrentUser = async () => {
     if (!readToken()) {
       setCurrentUser(null);
+      setAccess(null);
       setLoading(false);
       return;
     }
@@ -54,8 +72,10 @@ export function useAuth(client: ApiClient): UseAuthResult {
     if (response.success && response.data?.user) {
       setCurrentUser(response.data.user as UserProfile);
       setError(null);
+      await refreshAccess();
     } else {
       setCurrentUser(null);
+      setAccess(null);
       setError(response.errors?.[0] ?? "Authentication required.");
       writeToken("");
       setToken("");
@@ -76,6 +96,7 @@ export function useAuth(client: ApiClient): UseAuthResult {
       if (response.data.user) {
         setCurrentUser(response.data.user as UserProfile);
       }
+      await refreshAccess();
       setError(null);
     } else {
       setError(response.errors?.[0] ?? "Login failed.");
@@ -93,6 +114,7 @@ export function useAuth(client: ApiClient): UseAuthResult {
       if (response.data.user) {
         setCurrentUser(response.data.user as UserProfile);
       }
+      await refreshAccess();
       setError(null);
     } else {
       setError(response.errors?.[0] ?? "Registration failed.");
@@ -106,6 +128,7 @@ export function useAuth(client: ApiClient): UseAuthResult {
     writeToken("");
     setToken("");
     setCurrentUser(null);
+    setAccess(null);
     setError(null);
   };
 
@@ -122,6 +145,9 @@ export function useAuth(client: ApiClient): UseAuthResult {
   return {
     token,
     currentUser,
+    access,
+    role: String(access?.role ?? currentUser?.role ?? "viewer"),
+    permissions: Array.isArray(access?.permissions) ? access.permissions : Array.isArray(currentUser?.permissions) ? currentUser.permissions : [],
     loading,
     error,
     isAuthenticated: Boolean(token && currentUser),
@@ -130,5 +156,9 @@ export function useAuth(client: ApiClient): UseAuthResult {
     logout,
     refreshCurrentUser,
     updateProfile,
+    refreshAccess,
+    hasPermission: (permission: string) => Boolean(access?.access?.[permission] ?? access?.permissions?.includes(permission)),
+    hasAnyPermission: (permissions: string[]) => permissions.some((permission) => Boolean(access?.access?.[permission] ?? access?.permissions?.includes(permission))),
+    hasAllPermissions: (permissions: string[]) => permissions.every((permission) => Boolean(access?.access?.[permission] ?? access?.permissions?.includes(permission))),
   };
 }

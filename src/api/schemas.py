@@ -192,11 +192,17 @@ class UserProfileUpdateRequest(BaseApiModel):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class RoleAssignmentRequest(BaseApiModel):
+    role: str = Field(default="viewer")
+
+
 class UserProfileResponse(BaseApiModel):
     user_id: str = ""
     email: str = ""
     display_name: str = ""
     status: str = "active"
+    role: str = "viewer"
+    permissions: list[str] = Field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
     settings: dict[str, Any] = Field(default_factory=dict)

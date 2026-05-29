@@ -19,9 +19,12 @@ import { useAuth } from "./hooks/useAuth";
 import { useConfig } from "./hooks/useConfig";
 import { useHealth } from "./hooks/useHealth";
 import { useLocalState } from "./hooks/useLocalState";
+import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 import { SectionHeader } from "./components/SectionHeader";
 import { AuthGuard } from "./components/AuthGuard";
+import { PermissionGate } from "./components/PermissionGate";
+import { EmptyState } from "./components/EmptyState";
 import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "./types/api";
 import { createApiClient } from "./api/client";
 
@@ -57,6 +60,8 @@ export default function App() {
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(null);
   const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(null);
   const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(null);
+  const permissions = auth.permissions;
+  const role = auth.role;
 
   useEffect(() => {
     let active = true;
@@ -143,6 +148,12 @@ export default function App() {
   }, [activePage, auth.isAuthenticated, setActivePage]);
 
   useEffect(() => {
+    if (auth.isAuthenticated) {
+      void refreshConfig();
+    }
+  }, [auth.isAuthenticated, refreshConfig]);
+
+  useEffect(() => {
     if (!brands.length) {
       return;
     }
@@ -163,15 +174,17 @@ export default function App() {
   };
 
   const currentPage = (() => {
-    const pageProps = {
-      client,
-      snapshots,
-      onSnapshot,
-      health: health ?? null,
-      config: config ?? null,
-      activeBrand,
-      brandProfile,
-      brandValidation,
+      const pageProps = {
+        client,
+        snapshots,
+        onSnapshot,
+        health: health ?? null,
+        config: config ?? null,
+        role,
+        permissions,
+        activeBrand,
+        brandProfile,
+        brandValidation,
       brandDefaults,
       brands,
       analyticsSummary,
@@ -209,6 +222,29 @@ export default function App() {
     }
   })();
 
+  const pagePermission = (() => {
+    switch (activePage) {
+      case "content":
+        return "generation:create";
+      case "workflow":
+        return "workflow:run";
+      case "campaign":
+        return "campaign:create";
+      case "assets":
+        return "asset:create";
+      case "reports":
+        return "report:read";
+      case "storage":
+        return "storage:read";
+      case "analytics":
+        return "analytics:read";
+      case "config":
+        return "system:read";
+      default:
+        return "";
+    }
+  })();
+
   const authOnlyPage = (() => {
     switch (activePage) {
       case "register":
@@ -237,6 +273,8 @@ export default function App() {
       brandValidation={brandValidation}
       brandDefaults={brandDefaults}
       currentUser={auth.currentUser}
+      role={role}
+      permissions={permissions}
       onLogout={async () => {
         await auth.logout();
         setActivePage("login");
@@ -260,7 +298,19 @@ export default function App() {
             <SectionHeader title="API Warning" description={healthError || configError || ""} />
           </Card>
         ) : null}
-        {currentPage}
+        <PermissionGate
+          permission={pagePermission || undefined}
+          permissions={permissions}
+          fallback={
+            <EmptyState
+              title="Access limited"
+              description="Your current role does not allow access to this section."
+              action={<Button type="button" variant="primary" onClick={() => setActivePage("dashboard")}>Back to Dashboard</Button>}
+            />
+          }
+        >
+          {currentPage}
+        </PermissionGate>
         </div>
       </AuthGuard>
     </AppShell>
