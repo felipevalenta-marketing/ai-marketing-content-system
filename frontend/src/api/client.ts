@@ -34,6 +34,16 @@ import type {
   SecurityFindingsData,
   SecurityHealthData,
   SecurityStatusData,
+  ReleaseChecklistData,
+  ReleaseCertificationData,
+  ReleaseHealthData,
+  ReleaseGovernanceData,
+  ReleaseExecutiveSummaryData,
+  ReleaseMaturityData,
+  ReleaseReadinessData,
+  ReleaseReportData,
+  ReleaseScoreData,
+  ReleaseStatusData,
   MarkdownReportRequest,
   StorageRecord,
   RegisterRequest,
@@ -128,6 +138,16 @@ export interface ApiClient {
   getSecurityFindings(): Promise<ApiResponse<SecurityFindingsData>>;
   getSecurityDependencies(): Promise<ApiResponse<SecurityDependencyData>>;
   getSecurityConfiguration(): Promise<ApiResponse<SecurityConfigurationData>>;
+  getReleaseStatus(): Promise<ApiResponse<ReleaseStatusData>>;
+  getReleaseCertification(): Promise<ApiResponse<ReleaseCertificationData>>;
+  getReleaseMaturity(): Promise<ApiResponse<ReleaseMaturityData>>;
+  getReleaseGovernance(): Promise<ApiResponse<ReleaseGovernanceData>>;
+  getReleaseExecutiveSummary(): Promise<ApiResponse<ReleaseExecutiveSummaryData>>;
+  getReleaseReadiness(): Promise<ApiResponse<ReleaseReadinessData>>;
+  getReleaseHealth(): Promise<ApiResponse<ReleaseHealthData>>;
+  getReleaseChecklist(): Promise<ApiResponse<ReleaseChecklistData>>;
+  getReleaseReport(): Promise<ApiResponse<ReleaseReportData>>;
+  getReleaseScore(): Promise<ApiResponse<ReleaseScoreData>>;
   generateContent(payload: GenerateRequest): Promise<ApiResponse<unknown>>;
   runWorkflow(payload: WorkflowRequest): Promise<ApiResponse<unknown>>;
   runCampaign(payload: CampaignRequest): Promise<ApiResponse<unknown>>;
@@ -359,6 +379,16 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     getSecurityFindings: () => request<SecurityFindingsData>(API_ENDPOINTS.securityFindings),
     getSecurityDependencies: () => request<SecurityDependencyData>(API_ENDPOINTS.securityDependencies),
     getSecurityConfiguration: () => request<SecurityConfigurationData>(API_ENDPOINTS.securityConfiguration),
+    getReleaseStatus: () => request<ReleaseStatusData>(API_ENDPOINTS.releaseStatus),
+    getReleaseCertification: () => request<ReleaseCertificationData>(API_ENDPOINTS.releaseCertification),
+    getReleaseMaturity: () => request<ReleaseMaturityData>(API_ENDPOINTS.releaseMaturity),
+    getReleaseGovernance: () => request<ReleaseGovernanceData>(API_ENDPOINTS.releaseGovernance),
+    getReleaseExecutiveSummary: () => request<ReleaseExecutiveSummaryData>(API_ENDPOINTS.releaseExecutiveSummary),
+    getReleaseReadiness: () => request<ReleaseReadinessData>(API_ENDPOINTS.releaseReadiness),
+    getReleaseHealth: () => request<ReleaseHealthData>(API_ENDPOINTS.releaseHealth),
+    getReleaseChecklist: () => request<ReleaseChecklistData>(API_ENDPOINTS.releaseChecklist),
+    getReleaseReport: () => request<ReleaseReportData>(API_ENDPOINTS.releaseReport),
+    getReleaseScore: () => request<ReleaseScoreData>(API_ENDPOINTS.releaseScore),
     generateContent: (payload: GenerateRequest) =>
       request(API_ENDPOINTS.generate, {
         method: "POST",

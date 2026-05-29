@@ -4,6 +4,7 @@ import { EmptyState } from "../components/EmptyState";
 import { MetricCard } from "../components/MetricCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { StatusPill } from "../components/StatusPill";
+import { ReleaseStatusCard } from "../components/ReleaseStatusCard";
 import { extractMarkdown, formatCount, formatCurrency, formatPercent, getStatusLabel } from "../utils/formatting";
 import type { WorkspaceProps } from "./shared";
 import { getSnapshot } from "./shared";
@@ -28,7 +29,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -151,6 +152,19 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
           </div>
         ) : null}
       </Card>
+
+      <ReleaseStatusCard
+        releaseStatus={releaseStatus ?? null}
+        releaseCertification={releaseCertification ?? null}
+        releaseMaturity={releaseMaturity ?? null}
+        releaseGovernance={releaseGovernance ?? null}
+        releaseReadiness={releaseReadiness ?? null}
+        releaseHealth={releaseHealth ?? null}
+        releaseChecklist={releaseChecklist ?? null}
+        releaseReport={releaseReport ?? null}
+        releaseArtifacts={releaseStatus?.release_artifacts ? { generated: true, path: "docs/RELEASE_ARTIFACTS.md", content: String(releaseStatus.release_artifacts) } : null}
+        releaseScore={releaseScore ?? null}
+      />
 
       <Card>
         <SectionHeader title="Organization Management" description="Active organization, team, and access context." />

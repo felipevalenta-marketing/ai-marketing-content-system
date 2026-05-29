@@ -9,12 +9,13 @@ import { getRoleLabel, getRoleTone } from "../utils/formatting";
 import { ConfigurationCard } from "../components/ConfigurationCard";
 import { FeatureFlagBadge } from "../components/FeatureFlagBadge";
 import { OrganizationCard } from "../components/OrganizationCard";
+import { ReleaseStatusCard } from "../components/ReleaseStatusCard";
 import { SecurityStatusCard } from "../components/SecurityStatusCard";
 import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
+export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
   const canManageConfig = Boolean(role === "admin" || role === "manager");
   const [editableFlags, setEditableFlags] = useState<Record<string, boolean>>({});
   const [updateMessage, setUpdateMessage] = useState<string>("");
@@ -166,6 +167,18 @@ export function SystemConfig({ client, config, observabilityHealth, observabilit
         securityFindings={securityFindings ?? null}
         securityDependencies={securityDependencies ?? null}
         securityConfiguration={securityConfiguration ?? null}
+      />
+      <ReleaseStatusCard
+        releaseStatus={releaseStatus ?? null}
+        releaseCertification={releaseCertification ?? null}
+        releaseMaturity={releaseMaturity ?? null}
+        releaseGovernance={releaseGovernance ?? null}
+        releaseReadiness={releaseReadiness ?? null}
+        releaseHealth={releaseHealth ?? null}
+        releaseChecklist={releaseChecklist ?? null}
+        releaseReport={releaseReport ?? null}
+        releaseArtifacts={releaseStatus?.release_artifacts ? { generated: true, path: "docs/RELEASE_ARTIFACTS.md", content: String(releaseStatus.release_artifacts) } : null}
+        releaseScore={releaseScore ?? null}
       />
       <ConfigurationCard title="Observability" description="Safe runtime visibility and request-level diagnostics.">
         <div className="metric-grid">

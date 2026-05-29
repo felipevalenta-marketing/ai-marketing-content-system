@@ -5,6 +5,7 @@ It does not deploy to a cloud provider, configure HTTPS, implement CI/CD, or add
 
 For CI and release readiness, see [docs/CI_CD.md](../docs/CI_CD.md).
 That document also covers pipeline health, quality gates, dependency validation, documentation validation, structure validation, and release readiness scoring.
+The final MVP acceptance layer lives in [docs/MVP_ACCEPTANCE.md](../docs/MVP_ACCEPTANCE.md), [docs/RELEASE_NOTES.md](../docs/RELEASE_NOTES.md), [docs/DEPLOYMENT_GUIDE.md](../docs/DEPLOYMENT_GUIDE.md), [docs/MVP_READINESS_REPORT.md](../docs/MVP_READINESS_REPORT.md), [docs/MVP_EXECUTIVE_SUMMARY.md](../docs/MVP_EXECUTIVE_SUMMARY.md), and [docs/RELEASE_ARTIFACTS.md](../docs/RELEASE_ARTIFACTS.md).
 
 ## Prerequisites
 
@@ -86,6 +87,14 @@ For a quick environment check before running containers:
 python scripts/check_env.py
 ```
 
+For final MVP release validation and acceptance:
+
+```bash
+python scripts/release_readiness.py
+python scripts/mvp_acceptance_check.py
+python scripts/generate_release_report.py
+```
+
 ## Troubleshooting
 
 - Missing env values: run `python scripts/check_env.py`.
@@ -102,3 +111,4 @@ python scripts/check_env.py
 - Observability endpoints are authenticated and sanitized before exposure.
 - Security endpoints are authenticated and limited to manager/admin access.
 - The `/health` family stays public, while the detailed observability endpoints require auth.
+- The release readiness routes require manager/admin access and only summarize existing platform state.

@@ -128,7 +128,13 @@ Release readiness:
 
 ```bash
 python scripts/ci_release_check.py
+python scripts/release_readiness.py
+python scripts/mvp_acceptance_check.py
+python scripts/generate_release_report.py
 ```
+
+The release readiness layer documents the final MVP acceptance report and does not introduce new product features.
+The final release artifact set also includes `docs/MVP_EXECUTIVE_SUMMARY.md` and `docs/RELEASE_ARTIFACTS.md`.
 
 ## Environment variables used in CI
 
@@ -140,6 +146,13 @@ python scripts/ci_release_check.py
 - `ENABLE_RBAC=true`
 - `ENABLE_ANALYTICS=true`
 - `ENABLE_OBSERVABILITY=true`
+- `ENABLE_SECURITY_HARDENING=true`
+- `ENABLE_SECURITY_HEADERS=true`
+- `ENABLE_RATE_LIMITING=true`
+- `ENABLE_SECRET_SCANNING=true`
+- `ENABLE_DEPENDENCY_VALIDATION=true`
+- `ENABLE_INPUT_SANITIZATION=true`
+- `ENABLE_OUTPUT_SANITIZATION=true`
 - `ENABLE_PERSISTENCE=false`
 - `STORAGE_ROOT=data`
 - `VITE_API_BASE_URL=http://localhost:8000`

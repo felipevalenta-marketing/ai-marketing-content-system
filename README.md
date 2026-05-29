@@ -56,6 +56,25 @@ GitHub Actions validation and release-readiness checks are documented in [docs/C
 Use the documented local commands there to mirror the CI pipeline on your machine.
 The CI layer now also includes pipeline health, dependency validation, documentation validation, structure validation, and release readiness scoring.
 
+## MVP Release Readiness
+
+The final MVP acceptance layer is documented in:
+
+- [docs/MVP_ACCEPTANCE.md](docs/MVP_ACCEPTANCE.md)
+- [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md)
+- [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
+- [docs/MVP_READINESS_REPORT.md](docs/MVP_READINESS_REPORT.md)
+- [docs/MVP_EXECUTIVE_SUMMARY.md](docs/MVP_EXECUTIVE_SUMMARY.md)
+- [docs/RELEASE_ARTIFACTS.md](docs/RELEASE_ARTIFACTS.md)
+
+You can generate the release readiness summary locally with:
+
+```bash
+python scripts/release_readiness.py
+python scripts/mvp_acceptance_check.py
+python scripts/generate_release_report.py
+```
+
 ## Security
 
 Security hardening checks and the local security scanner are available through:

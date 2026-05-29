@@ -53,6 +53,16 @@ import type {
   SecurityFindingsData,
   SecurityHealthData,
   SecurityStatusData,
+  ReleaseChecklistData,
+  ReleaseCertificationData,
+  ReleaseHealthData,
+  ReleaseGovernanceData,
+  ReleaseExecutiveSummaryData,
+  ReleaseMaturityData,
+  ReleaseReadinessData,
+  ReleaseReportData,
+  ReleaseScoreData,
+  ReleaseStatusData,
 } from "./types/api";
 import { createApiClient } from "./api/client";
 
@@ -111,6 +121,16 @@ export default function App() {
   const [securityFindings, setSecurityFindings] = useState<SecurityFindingsData | null>(null);
   const [securityDependencies, setSecurityDependencies] = useState<SecurityDependencyData | null>(null);
   const [securityConfiguration, setSecurityConfiguration] = useState<SecurityConfigurationData | null>(null);
+  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatusData | null>(null);
+  const [releaseCertification, setReleaseCertification] = useState<ReleaseCertificationData | null>(null);
+  const [releaseMaturity, setReleaseMaturity] = useState<ReleaseMaturityData | null>(null);
+  const [releaseGovernance, setReleaseGovernance] = useState<ReleaseGovernanceData | null>(null);
+  const [releaseExecutiveSummary, setReleaseExecutiveSummary] = useState<ReleaseExecutiveSummaryData | null>(null);
+  const [releaseReadiness, setReleaseReadiness] = useState<ReleaseReadinessData | null>(null);
+  const [releaseHealth, setReleaseHealth] = useState<ReleaseHealthData | null>(null);
+  const [releaseChecklist, setReleaseChecklist] = useState<ReleaseChecklistData | null>(null);
+  const [releaseReport, setReleaseReport] = useState<ReleaseReportData | null>(null);
+  const [releaseScore, setReleaseScore] = useState<ReleaseScoreData | null>(null);
   const permissions = auth.permissions;
   const role = auth.role;
 
@@ -158,6 +178,16 @@ export default function App() {
       setSecurityFindings(null);
       setSecurityDependencies(null);
       setSecurityConfiguration(null);
+      setReleaseStatus(null);
+      setReleaseCertification(null);
+      setReleaseMaturity(null);
+      setReleaseGovernance(null);
+      setReleaseExecutiveSummary(null);
+      setReleaseReadiness(null);
+      setReleaseHealth(null);
+      setReleaseChecklist(null);
+      setReleaseReport(null);
+      setReleaseScore(null);
       return;
     }
     let active = true;
@@ -178,7 +208,16 @@ export default function App() {
       client.getSecurityFindings(),
       client.getSecurityDependencies(),
       client.getSecurityConfiguration(),
-    ]).then(([healthResponse, statusResponse, domainsResponse, tokensResponse, costsResponse, configurationResponse, metricsResponse, runtimeResponse, errorsResponse, workflowResponse, storageResponse, securityStatusResponse, securityHealthResponse, securityFindingsResponse, securityDependenciesResponse, securityConfigurationResponse]) => {
+      client.getReleaseStatus(),
+      client.getReleaseCertification(),
+      client.getReleaseMaturity(),
+      client.getReleaseGovernance(),
+      client.getReleaseExecutiveSummary(),
+      client.getReleaseReadiness(),
+      client.getReleaseHealth(),
+      client.getReleaseChecklist(),
+      client.getReleaseScore(),
+    ]).then(([healthResponse, statusResponse, domainsResponse, tokensResponse, costsResponse, configurationResponse, metricsResponse, runtimeResponse, errorsResponse, workflowResponse, storageResponse, securityStatusResponse, securityHealthResponse, securityFindingsResponse, securityDependenciesResponse, securityConfigurationResponse, releaseStatusResponse, releaseCertificationResponse, releaseMaturityResponse, releaseGovernanceResponse, releaseExecutiveSummaryResponse, releaseReadinessResponse, releaseHealthResponse, releaseChecklistResponse, releaseScoreResponse]) => {
       if (!active) {
         return;
       }
@@ -198,6 +237,15 @@ export default function App() {
       setSecurityFindings(securityFindingsResponse.success && securityFindingsResponse.data ? (securityFindingsResponse.data as SecurityFindingsData) : null);
       setSecurityDependencies(securityDependenciesResponse.success && securityDependenciesResponse.data ? (securityDependenciesResponse.data as SecurityDependencyData) : null);
       setSecurityConfiguration(securityConfigurationResponse.success && securityConfigurationResponse.data ? (securityConfigurationResponse.data as SecurityConfigurationData) : null);
+      setReleaseStatus(releaseStatusResponse.success && releaseStatusResponse.data ? (releaseStatusResponse.data as ReleaseStatusData) : null);
+      setReleaseCertification(releaseCertificationResponse.success && releaseCertificationResponse.data ? (releaseCertificationResponse.data as ReleaseCertificationData) : null);
+      setReleaseMaturity(releaseMaturityResponse.success && releaseMaturityResponse.data ? (releaseMaturityResponse.data as ReleaseMaturityData) : null);
+      setReleaseGovernance(releaseGovernanceResponse.success && releaseGovernanceResponse.data ? (releaseGovernanceResponse.data as ReleaseGovernanceData) : null);
+      setReleaseExecutiveSummary(releaseExecutiveSummaryResponse.success && releaseExecutiveSummaryResponse.data ? (releaseExecutiveSummaryResponse.data as ReleaseExecutiveSummaryData) : null);
+      setReleaseReadiness(releaseReadinessResponse.success && releaseReadinessResponse.data ? (releaseReadinessResponse.data as ReleaseReadinessData) : null);
+      setReleaseHealth(releaseHealthResponse.success && releaseHealthResponse.data ? (releaseHealthResponse.data as ReleaseHealthData) : null);
+      setReleaseChecklist(releaseChecklistResponse.success && releaseChecklistResponse.data ? (releaseChecklistResponse.data as ReleaseChecklistData) : null);
+      setReleaseScore(releaseScoreResponse.success && releaseScoreResponse.data ? (releaseScoreResponse.data as ReleaseScoreData) : null);
     });
     return () => {
       active = false;
@@ -405,6 +453,16 @@ export default function App() {
       securityFindings,
       securityDependencies,
       securityConfiguration,
+      releaseStatus,
+      releaseCertification,
+      releaseMaturity,
+      releaseGovernance,
+      releaseExecutiveSummary,
+      releaseReadiness,
+      releaseHealth,
+      releaseChecklist,
+      releaseReport,
+      releaseScore,
     };
     switch (activePage) {
       case "content":

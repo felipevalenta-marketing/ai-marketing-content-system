@@ -167,6 +167,138 @@ export interface SecurityConfigurationData {
   [key: string]: unknown;
 }
 
+export interface ReleaseScoreData {
+  release_score?: number;
+  overall_score?: number;
+  release_status?: string;
+  recommendations?: string[];
+  factors?: Record<string, boolean>;
+  domain_scores?: Record<string, number>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseCertificationData {
+  mvp_certified?: boolean;
+  production_ready?: boolean;
+  certification_status?: string;
+  version?: string;
+  release_score?: number;
+  maturity_level?: string;
+  maturity_score?: number;
+  governance_status?: string;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseMaturityData {
+  maturity_score?: number;
+  maturity_level?: string;
+  factors?: Record<string, boolean>;
+  warnings?: string[];
+  recommendations?: string[];
+  [key: string]: unknown;
+}
+
+export interface ReleaseGovernanceData {
+  governance_status?: string;
+  release_blocked?: boolean;
+  release_warning?: boolean;
+  approval_recommended?: boolean;
+  warnings?: string[];
+  blocked_reasons?: string[];
+  rules?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseExecutiveSummaryData {
+  content?: string;
+  generated?: boolean;
+  path?: string;
+  generated_at?: string;
+  [key: string]: unknown;
+}
+
+export interface ReleaseArtifactIndexData {
+  generated?: boolean;
+  path?: string;
+  content?: string;
+}
+
+export interface ReleaseHealthData {
+  overall_health?: string;
+  health_score?: number;
+  checks?: Record<string, boolean>;
+  platform_health?: Record<string, unknown>;
+  observability_health?: Record<string, unknown>;
+  security_health?: Record<string, unknown>;
+  configuration_health?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseChecklistData {
+  completed?: number;
+  pending?: number;
+  blocked?: number;
+  total?: number;
+  items?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseReportData {
+  generated?: boolean;
+  path?: string;
+  content?: string;
+  summary?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ReleaseReadinessData {
+  mvp_ready?: boolean;
+  release_ready?: boolean;
+  version?: string;
+  acceptance_score?: number;
+  status?: string;
+  score?: ReleaseScoreData;
+  health?: ReleaseHealthData;
+  validation?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+  [key: string]: unknown;
+}
+
+export interface ReleaseStatusData {
+  mvp_ready?: boolean;
+  release_ready?: boolean;
+  production_ready?: boolean;
+  version?: string;
+  maturity_level?: string;
+  maturity_score?: number;
+  certification_status?: string;
+  readiness_status?: string;
+  release_score?: number;
+  overall_score?: number;
+  release_status?: string;
+  recommendations?: string[];
+  domain_scores?: Record<string, number>;
+  domains?: Array<Record<string, unknown>>;
+  readiness_domains?: Array<Record<string, unknown>>;
+  release_health?: ReleaseHealthData;
+  release_checklist?: ReleaseChecklistData;
+  release_audit?: Record<string, unknown>;
+  maturity?: ReleaseMaturityData;
+  governance?: ReleaseGovernanceData;
+  certification?: ReleaseCertificationData;
+  executive_summary?: string;
+  release_artifacts?: string;
+  final_mvp_declaration?: Record<string, unknown>;
+  mvp_acceptance?: ReleaseReadinessData;
+  warnings?: string[];
+  errors?: string[];
+  [key: string]: unknown;
+}
+
 export interface ObservabilityMetricsData {
   total_requests?: number;
   requests_by_path?: Record<string, number>;
@@ -283,6 +415,7 @@ export interface ConfigResponseData {
   analytics_include_costs?: boolean;
   analytics_include_governance?: boolean;
   security_configuration?: Record<string, boolean>;
+  release_configuration?: Record<string, boolean>;
   configuration?: ConfigurationSummaryData;
   configuration_health?: ConfigurationHealthData;
   platform_config?: PlatformConfigData;

@@ -34,6 +34,7 @@ from src.observability.request_logger import install_request_logging
 from src.security.security_policy import resolve_cors_origins
 from src.security.security_middleware import install_security_middleware
 from src.reporting.reporting_engine import ReportingEngine
+from src.release.release_manager import ReleaseManager
 from src.reports.markdown_generator import MarkdownReportGenerator
 from src.storage.storage_manager import StorageManager
 from src.security.security_manager import SecurityManager
@@ -107,6 +108,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "brand_access": brand_access_manager,
         "configuration": configuration_manager,
         "security": security_manager,
+        "release": ReleaseManager(),
         "logger": logger,
         "pipeline_config": pipeline_config,
     }
