@@ -9,9 +9,11 @@ interface SidebarProps {
   config: ConfigResponseData | null;
   role: string;
   permissions: string[];
+  activeOrganizationId?: string;
+  activeTeamId?: string;
 }
 
-export function Sidebar({ activePage, onSelectPage, config, role, permissions }: SidebarProps) {
+export function Sidebar({ activePage, onSelectPage, config, role, permissions, activeOrganizationId, activeTeamId }: SidebarProps) {
   const enabledModules = config?.feature_flags ? Object.values(config.feature_flags).filter(Boolean).length : 0;
   const hasPermission = (permission?: string) => {
     if (!permission) return true;
@@ -34,6 +36,8 @@ export function Sidebar({ activePage, onSelectPage, config, role, permissions }:
           <strong>Workspace</strong>
           <span>{config?.default_brand ?? "wenzel_partner"}</span>
           <Badge tone={getRoleTone(role)}>{getRoleLabel(role)}</Badge>
+          <span className="muted">{activeOrganizationId ? `Org: ${activeOrganizationId}` : "No organization selected"}</span>
+          <span className="muted">{activeTeamId ? `Team: ${activeTeamId}` : "No team selected"}</span>
         </div>
         <div className="section" style={{ marginTop: 16 }}>
           <span className="badge badge-neutral">{enabledModules} enabled modules</span>

@@ -23,8 +23,15 @@ def list_records(request: Request) -> dict[str, Any]:
     storage = get_service(request, "storage")
     if storage is None:
         return build_api_response(success=False, data=None, errors=["Storage service is unavailable."], metadata={"route": "storage/records"})
-    record_type = request.query_params.get("record_type") if getattr(request, "query_params", None) else None
+    query = getattr(request, "query_params", {})
+    record_type = query.get("record_type") if hasattr(query, "get") else None
+    organization_id = query.get("organization_id") if hasattr(query, "get") else None
+    team_id = query.get("team_id") if hasattr(query, "get") else None
     records = storage.list_records(record_type=record_type or None)
+    if organization_id:
+        records = [record for record in records if str(record.get("organization_id", "")) == str(organization_id) or str(record.get("metadata", {}).get("organization_id", "")) == str(organization_id)]
+    if team_id:
+        records = [record for record in records if str(record.get("team_id", "")) == str(team_id) or str(record.get("metadata", {}).get("team_id", "")) == str(team_id)]
     return build_api_response(success=True, data={"records": records, "count": len(records), "record_type": record_type or None}, metadata={"route": "storage/records"})
 
 
@@ -36,7 +43,14 @@ def list_records_by_type(request: Request, record_type: str) -> dict[str, Any]:
     storage = get_service(request, "storage")
     if storage is None:
         return build_api_response(success=False, data=None, errors=["Storage service is unavailable."], metadata={"route": "storage/records/type"})
+    query = getattr(request, "query_params", {})
+    organization_id = query.get("organization_id") if hasattr(query, "get") else None
+    team_id = query.get("team_id") if hasattr(query, "get") else None
     records = storage.list_records(record_type=record_type)
+    if organization_id:
+        records = [record for record in records if str(record.get("organization_id", "")) == str(organization_id) or str(record.get("metadata", {}).get("organization_id", "")) == str(organization_id)]
+    if team_id:
+        records = [record for record in records if str(record.get("team_id", "")) == str(team_id) or str(record.get("metadata", {}).get("team_id", "")) == str(team_id)]
     return build_api_response(success=True, data={"records": records, "count": len(records), "record_type": record_type}, metadata={"route": "storage/records/type"})
 
 

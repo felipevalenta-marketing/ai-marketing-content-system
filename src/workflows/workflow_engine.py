@@ -8,6 +8,7 @@ from typing import Any
 
 from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
+from src.brands.brand_manager import BrandManager
 from src.creative.creative_direction_engine import CreativeDirectionEngine
 from src.governance.content_governance import ContentGovernanceEngine
 from src.llm.openai_client import OpenAIClient
@@ -46,6 +47,12 @@ class WorkflowEngine:
     ) -> None:
         self.config = config or PipelineConfig()
         self.logger = logger or get_logger(self.__class__.__name__)
+        self.brand_manager = BrandManager(
+            brand_root=self.config.brand_root,
+            default_brand=self.config.default_brand,
+            require_valid_brand=self.config.require_valid_brand,
+            logger=self.logger,
+        )
         self.pipeline = pipeline or self._build_pipeline()
         self.reporting_engine = reporting_engine or getattr(
             self.pipeline,
@@ -75,6 +82,15 @@ class WorkflowEngine:
         return ContentGenerationPipeline(config=self.config, logger=self.logger)
 
     def create_workflow(self, request: dict[str, Any]) -> dict[str, Any]:
+        brand_resolution = self._resolve_brand_context(request)
+        if not brand_resolution.get("success", False):
+            return build_validation_failure_result(
+                errors=list(brand_resolution.get("errors", [])),
+                warnings=list(brand_resolution.get("warnings", [])),
+                workflow_id="",
+                workflow_type=safe_text(request.get("workflow_type"), limit=80),
+                metadata={"brand_resolution": brand_resolution},
+            )
         plan = self.plan_workflow(request)
         validation = self.validate_workflow(plan)
         if not validation["valid"]:
@@ -102,7 +118,25 @@ class WorkflowEngine:
     def run_workflow(self, plan: dict[str, Any], request: dict[str, Any] | None = None) -> dict[str, Any]:
         request_payload = dict(request or plan.get("metadata", {}).get("request", {}) or {})
         request_payload.setdefault("workflow_type", plan.get("workflow_type", ""))
+        brand_resolution = self._resolve_brand_context(request_payload)
+        request_payload.update(
+            {
+                "brand": brand_resolution.get("brand_id") or request_payload.get("brand", ""),
+                "brand_id": brand_resolution.get("brand_id") or request_payload.get("brand", ""),
+                "brand_profile": brand_resolution.get("brand_profile", {}),
+                "brand_validation": brand_resolution.get("brand_validation", {}),
+                "brand_defaults": brand_resolution.get("defaults", {}),
+            }
+        )
         request_payload.setdefault("dry_run", bool(request_payload.get("dry_run")))
+        if not brand_resolution.get("success", False):
+            return build_validation_failure_result(
+                errors=list(brand_resolution.get("errors", [])),
+                warnings=list(brand_resolution.get("warnings", [])),
+                workflow_id=plan.get("workflow_id", ""),
+                workflow_type=plan.get("workflow_type", ""),
+                metadata={"brand_resolution": brand_resolution, "plan": plan},
+            )
         if bool(request_payload.get("dry_run")):
             return self.build_result(
                 workflow_id=plan.get("workflow_id", ""),
@@ -118,6 +152,9 @@ class WorkflowEngine:
                 warnings=list(plan.get("warnings", [])),
                 errors=list(plan.get("errors", [])),
                 metadata={"plan": plan, "request": request_payload},
+                brand_id=request_payload.get("brand_id", ""),
+                brand_profile=request_payload.get("brand_profile", {}),
+                brand_validation=request_payload.get("brand_validation", {}),
             )
         self._started_at = datetime.now(timezone.utc).isoformat()
         return self.workflow_runner.run(plan, request_payload)
@@ -316,6 +353,14 @@ class WorkflowEngine:
 
     def build_result(self, **kwargs: Any) -> dict[str, Any]:
         result = build_success_result(**kwargs)
+        metadata = kwargs.get("metadata", {}) if isinstance(kwargs.get("metadata"), dict) else {}
+        request = deepcopy(metadata.get("request", {})) if isinstance(metadata.get("request"), dict) else {}
+        organization_id = safe_text(kwargs.get("organization_id") or metadata.get("organization_id") or request.get("organization_id"), limit=120)
+        team_id = safe_text(kwargs.get("team_id") or metadata.get("team_id") or request.get("team_id"), limit=120)
+        if organization_id:
+            result["organization_id"] = organization_id
+        if team_id:
+            result["team_id"] = team_id
         status = normalize_workflow_status(result.get("status"))
         result["status"] = status
         result["success"] = status not in {"failed"}
@@ -331,6 +376,10 @@ class WorkflowEngine:
             except Exception:
                 result["duration_seconds"] = 0.0
         return result
+
+    def _resolve_brand_context(self, request: dict[str, Any]) -> dict[str, Any]:
+        brand_value = safe_text(request.get("brand") or self.config.default_brand, limit=120)
+        return self.brand_manager.resolve_request_brand(brand_value)
 
     def _get_step_output(self, state: dict[str, Any], step_type: str) -> Any:
         for key, value in state.get("step_outputs", {}).items():
@@ -354,6 +403,8 @@ class WorkflowEngine:
         payload.setdefault("brand", request.get("brand", ""))
         payload.setdefault("platform", request.get("platform", ""))
         payload.setdefault("content_type", request.get("content_type", ""))
+        payload.setdefault("organization_id", request.get("organization_id", ""))
+        payload.setdefault("team_id", request.get("team_id", ""))
         payload.setdefault("workflow_id", state.get("workflow_id", ""))
         payload.setdefault("workflow_type", state.get("workflow_type", ""))
         payload.setdefault("workflow_status", state.get("step_statuses", {}).get("approval_gate", "completed"))

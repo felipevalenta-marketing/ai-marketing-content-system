@@ -1,5 +1,7 @@
 import type { ConfigResponseData, HealthResponseData } from "../types/api";
 import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "../types/api";
+import type { OrganizationProfile, OrganizationRegistryEntry, TeamProfile, MembershipProfile } from "../types/api";
+import type { OrganizationContext } from "../types/api";
 import type { ApiClient } from "../api/client";
 
 export interface SnapshotEntry {
@@ -18,10 +20,17 @@ export interface WorkspaceProps {
   role?: string;
   permissions?: string[];
   activeBrand?: string;
+  activeOrganizationId?: string;
+  activeTeamId?: string;
   brandProfile?: BrandProfile | null;
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
   brands?: BrandRegistryEntry[];
+  organizations?: OrganizationRegistryEntry[];
+  organizationProfile?: OrganizationProfile | null;
+  organizationContext?: OrganizationContext | null;
+  organizationTeams?: TeamProfile[];
+  organizationMembers?: MembershipProfile[];
   analyticsSummary?: AnalyticsSummaryData | null;
   analyticsDashboard?: AnalyticsDashboardData | null;
   analyticsHealth?: AnalyticsHealthData | null;

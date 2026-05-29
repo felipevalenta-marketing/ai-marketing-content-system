@@ -25,7 +25,19 @@ import { SectionHeader } from "./components/SectionHeader";
 import { AuthGuard } from "./components/AuthGuard";
 import { PermissionGate } from "./components/PermissionGate";
 import { EmptyState } from "./components/EmptyState";
-import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "./types/api";
+import type {
+  AnalyticsDashboardData,
+  AnalyticsHealthData,
+  AnalyticsSummaryData,
+  BrandDefaults,
+  BrandProfile,
+  BrandRegistryEntry,
+  OrganizationContext,
+  MembershipProfile,
+  OrganizationProfile,
+  OrganizationRegistryEntry,
+  TeamProfile,
+} from "./types/api";
 import { createApiClient } from "./api/client";
 
 type PageKey =
@@ -52,8 +64,15 @@ export default function App() {
   const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl);
   const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", "dashboard");
   const [activeBrand, setActiveBrand] = useLocalState<string>("amcs:active-brand", "wenzel_partner");
+  const [activeOrganizationId, setActiveOrganizationId] = useLocalState<string>("amcs:active-organization", "");
+  const [activeTeamId, setActiveTeamId] = useLocalState<string>("amcs:active-team", "");
   const [snapshots, setSnapshots] = useLocalState<SnapshotStore>("amcs:snapshots", SNAPSHOT_DEFAULT);
   const [brands, setBrands] = useState<BrandRegistryEntry[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationRegistryEntry[]>([]);
+  const [organizationProfile, setOrganizationProfile] = useState<OrganizationProfile | null>(null);
+  const [organizationContext, setOrganizationContext] = useState<OrganizationContext | null>(null);
+  const [organizationTeams, setOrganizationTeams] = useState<TeamProfile[]>([]);
+  const [organizationMembers, setOrganizationMembers] = useState<MembershipProfile[]>([]);
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [brandValidation, setBrandValidation] = useState<Record<string, unknown> | null>(null);
   const [brandDefaults, setBrandDefaults] = useState<BrandDefaults | null>(null);
@@ -108,6 +127,75 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    client.getOrganizations().then((response) => {
+      if (!active) {
+        return;
+      }
+      if (response.success && response.data?.organizations) {
+        const entries = response.data.organizations as OrganizationRegistryEntry[];
+        setOrganizations(entries);
+        if (!activeOrganizationId && entries[0]?.organization_id) {
+          setActiveOrganizationId(String(entries[0].organization_id));
+        } else if (activeOrganizationId && !entries.some((organization) => organization.organization_id === activeOrganizationId)) {
+          setActiveOrganizationId(String(entries[0]?.organization_id ?? ""));
+        }
+      } else {
+        setOrganizations([]);
+        setActiveOrganizationId("");
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeOrganizationId, client, setActiveOrganizationId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!activeOrganizationId) {
+      setOrganizationProfile(null);
+      setOrganizationContext(null);
+      setOrganizationTeams([]);
+      setOrganizationMembers([]);
+      return () => {
+        active = false;
+      };
+    }
+    Promise.all([
+      client.getOrganizationProfile(activeOrganizationId),
+      client.getOrganizationContext(activeOrganizationId),
+      client.getOrganizationTeams(activeOrganizationId),
+      client.getMembers(activeOrganizationId),
+      client.getOrganizationBrands(activeOrganizationId),
+    ]).then(([profileResponse, contextResponse, teamsResponse, membersResponse]) => {
+      if (!active) {
+        return;
+      }
+      setOrganizationProfile(profileResponse.success && profileResponse.data ? (profileResponse.data as OrganizationProfile) : null);
+      setOrganizationContext(contextResponse.success && contextResponse.data ? (contextResponse.data as OrganizationContext) : null);
+      setOrganizationTeams(teamsResponse.success && teamsResponse.data?.teams ? (teamsResponse.data.teams as TeamProfile[]) : []);
+      setOrganizationMembers(membersResponse.success && membersResponse.data?.memberships ? (membersResponse.data.memberships as MembershipProfile[]) : []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeOrganizationId, client]);
+
+  useEffect(() => {
+    if (!activeOrganizationId || !organizationTeams.length) {
+      if (!activeTeamId) {
+        return;
+      }
+      setActiveTeamId("");
+      return;
+    }
+    const selectedTeam = organizationTeams.find((team) => String(team.team_id ?? "") === activeTeamId);
+    if (!selectedTeam) {
+      setActiveTeamId(String(organizationTeams[0]?.team_id ?? ""));
+    }
+  }, [activeOrganizationId, activeTeamId, organizationTeams, setActiveTeamId]);
+
+  useEffect(() => {
+    let active = true;
     if (!activeBrand) {
       return () => {
         active = false;
@@ -154,6 +242,15 @@ export default function App() {
   }, [auth.isAuthenticated, refreshConfig]);
 
   useEffect(() => {
+    if (organizationProfile?.organization_id && organizationProfile.organization_id !== activeOrganizationId) {
+      setActiveOrganizationId(String(organizationProfile.organization_id));
+    }
+    if (organizationProfile?.owner_user_id && !activeOrganizationId) {
+      setActiveOrganizationId(String(organizationProfile.organization_id ?? ""));
+    }
+  }, [activeOrganizationId, organizationProfile?.organization_id, organizationProfile?.owner_user_id, setActiveOrganizationId]);
+
+  useEffect(() => {
     if (!brands.length) {
       return;
     }
@@ -174,19 +271,25 @@ export default function App() {
   };
 
   const currentPage = (() => {
-      const pageProps = {
-        client,
-        snapshots,
-        onSnapshot,
-        health: health ?? null,
-        config: config ?? null,
-        role,
-        permissions,
-        activeBrand,
-        brandProfile,
-        brandValidation,
+    const pageProps = {
+      client,
+      snapshots,
+      onSnapshot,
+      health: health ?? null,
+      config: config ?? null,
+      role,
+      permissions,
+      activeBrand,
+      activeOrganizationId,
+      activeTeamId,
+      brandProfile,
+      brandValidation,
       brandDefaults,
       brands,
+      organizations,
+      organizationProfile,
+      organizationTeams,
+      organizationMembers,
       analyticsSummary,
       analyticsDashboard,
       analyticsHealth,
@@ -239,7 +342,7 @@ export default function App() {
       case "analytics":
         return "analytics:read";
       case "config":
-        return "";
+        return "system:read";
       default:
         return "";
     }
@@ -269,18 +372,27 @@ export default function App() {
       health={health ?? null}
       config={config ?? null}
       activeBrand={activeBrand}
+      activeOrganizationId={activeOrganizationId}
+      activeTeamId={activeTeamId}
       brandProfile={brandProfile}
       brandValidation={brandValidation}
       brandDefaults={brandDefaults}
       currentUser={auth.currentUser}
       role={role}
       permissions={permissions}
+      organizations={organizations}
+      organizationProfile={organizationProfile}
+      organizationContext={organizationContext}
+      organizationTeams={organizationTeams}
+      organizationMembers={organizationMembers}
       onLogout={async () => {
         await auth.logout();
         setActivePage("login");
       }}
       onNavigateProfile={() => setActivePage("profile")}
       onActiveBrandChange={setActiveBrand}
+      onActiveOrganizationChange={setActiveOrganizationId}
+      onActiveTeamChange={setActiveTeamId}
       activePage={activePage}
       onSelectPage={setActivePage}
       onRefreshHealth={refreshHealth}
@@ -309,7 +421,7 @@ export default function App() {
             />
           }
         >
-          {currentPage}
+        {currentPage}
         </PermissionGate>
         </div>
       </AuthGuard>

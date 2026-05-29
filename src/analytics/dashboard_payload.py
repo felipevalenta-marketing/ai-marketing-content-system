@@ -21,6 +21,8 @@ class DashboardPayloadBuilder:
             "cost_usage": self._build_usage_table(sections.get("costs"), usage_type="costs"),
             "governance": self._build_governance_table(sections.get("governance")),
             "storage": self._build_storage_table(sections.get("storage")),
+            "organization": self._build_breakdown_table(sections.get("organization_breakdown")),
+            "team": self._build_breakdown_table(sections.get("team_breakdown")),
         }
         summaries = {
             "executive": safe_dict(analytics.get("executive_summary")),
@@ -103,6 +105,14 @@ class DashboardPayloadBuilder:
             {"label": "Latest Execution", "value": safe_text(payload.get("latest_execution_at"), limit=80)},
             {"label": "Latest Report", "value": safe_text(payload.get("latest_report_at"), limit=80)},
         ]
+
+    def _build_breakdown_table(self, summary: dict[str, Any] | None) -> list[dict[str, Any]]:
+        payload = safe_dict(summary)
+        groups = safe_dict(payload.get("groups"))
+        rows: list[dict[str, Any]] = []
+        for key, value in list(groups.items())[:10]:
+            rows.append({"label": safe_text(key, limit=80), "value": safe_int(value, 0)})
+        return rows
 
     def _build_health(self, analytics: dict[str, Any]) -> dict[str, Any]:
         sections = safe_dict(analytics.get("sections"))

@@ -13,7 +13,7 @@ import type { WorkspaceProps } from "./shared";
 
 interface StorageExplorerProps extends WorkspaceProps {}
 
-export function StorageExplorer({ client }: StorageExplorerProps) {
+export function StorageExplorer({ client, activeOrganizationId, activeTeamId }: StorageExplorerProps) {
   const [recordType, setRecordType] = useLocalState<string>("amcs:storage-record-type", "");
   const [records, setRecords] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
@@ -23,7 +23,7 @@ export function StorageExplorer({ client }: StorageExplorerProps) {
   const loadRecords = async () => {
     setLoading(true);
     setError("");
-    const response = await client.listStorageRecords(recordType || undefined);
+    const response = await client.listStorageRecords(recordType || undefined, { organizationId: activeOrganizationId, teamId: activeTeamId });
     if (response.success && response.data) {
       const data = response.data as any;
       const items = data.records ?? [];
@@ -40,7 +40,7 @@ export function StorageExplorer({ client }: StorageExplorerProps) {
   useEffect(() => {
     void loadRecords();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.baseUrl, recordType]);
+  }, [activeOrganizationId, activeTeamId, client.baseUrl, recordType]);
 
   const loadSelected = async (record: StorageRecord) => {
     if (!record.record_type || !record.record_id) {
@@ -61,6 +61,10 @@ export function StorageExplorer({ client }: StorageExplorerProps) {
     <div className="content-grid">
       <Card>
         <SectionHeader title="Storage Explorer" description="Browse structured local records safely by type or identifier." />
+        <div className="row wrap">
+          <span className="muted">Organization: {activeOrganizationId || "All"}</span>
+          <span className="muted">Team: {activeTeamId || "All"}</span>
+        </div>
         <div className="form-grid">
           <div className="field field--full">
             <label htmlFor="recordType">Record Type</label>

@@ -14,10 +14,12 @@ from src.api.routes_config import router as config_router
 from src.api.routes_generate import router as generate_router
 from src.api.routes_analytics import router as analytics_router
 from src.api.routes_configuration import router as configuration_router
+from src.api.routes_organizations import router as organizations_router
 from src.api.routes_rbac import router as rbac_router
 from src.api.routes_reports import router as reports_router
 from src.api.routes_storage import router as storage_router
 from src.api.routes_users import router as users_router
+from src.api.routes_teams import router as teams_router
 from src.api.routes_workflows import router as workflows_router
 from src.api.api_result import build_api_response
 
@@ -30,6 +32,8 @@ router.include_router(rbac_router)
 router.include_router(brands_router)
 router.include_router(analytics_router)
 router.include_router(configuration_router)
+router.include_router(organizations_router)
+router.include_router(teams_router)
 router.include_router(workflows_router)
 router.include_router(campaigns_router)
 router.include_router(assets_router)

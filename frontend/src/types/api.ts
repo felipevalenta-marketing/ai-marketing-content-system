@@ -129,6 +129,8 @@ export interface AnalyticsRequest {
   analytics_type: string;
   brand?: string;
   platform?: string;
+  organization_id?: string;
+  team_id?: string;
   date_range?: DateRange;
   filters?: Record<string, unknown>;
   include_storage?: boolean;
@@ -245,6 +247,8 @@ export interface GenerateRequest {
   brand: string;
   platform: string;
   content_type: string;
+  organization_id?: string;
+  team_id?: string;
   objective: string;
   audience: string;
   location: string;
@@ -261,6 +265,8 @@ export interface WorkflowRequest {
   workflow_type: string;
   brand: string;
   platform: string;
+  organization_id?: string;
+  team_id?: string;
   platforms: string[];
   content_type: string;
   campaign_type: string;
@@ -277,6 +283,8 @@ export interface WorkflowRequest {
 export interface CampaignRequest {
   brand: string;
   platform: string;
+  organization_id?: string;
+  team_id?: string;
   campaign_type: string;
   objective: string;
   audience: string;
@@ -289,6 +297,8 @@ export interface CampaignRequest {
 export interface AssetRequest {
   brand: string;
   platform: string;
+  organization_id?: string;
+  team_id?: string;
   content_type: string;
   campaign_type: string;
   objective: string;
@@ -302,6 +312,8 @@ export interface MarkdownReportRequest {
   report_type: string;
   title?: string;
   brand?: string;
+  organization_id?: string;
+  team_id?: string;
   platform?: string;
   campaign_type?: string;
   content_type?: string;
@@ -325,6 +337,9 @@ export interface StorageRecord {
   created_at?: string;
   updated_at?: string;
   brand?: string;
+  brand_id?: string;
+  organization_id?: string;
+  team_id?: string;
   platform?: string;
   content_type?: string;
   campaign_type?: string;
@@ -409,6 +424,9 @@ export interface UserProfile {
   status?: "active" | "inactive" | "suspended" | string;
   role?: string;
   permissions?: string[];
+  organizations?: string[];
+  active_organization_id?: string;
+  active_team_id?: string;
   created_at?: string;
   updated_at?: string;
   settings?: Record<string, unknown>;
@@ -466,6 +484,118 @@ export interface AuthResult {
   metadata?: Record<string, unknown>;
   access?: AccessSummary;
   [key: string]: unknown;
+}
+
+export interface OrganizationSettings {
+  default_brand?: string;
+  default_platform?: string;
+  default_language?: string;
+  timezone?: string;
+  features?: Record<string, unknown>;
+  limits?: Record<string, unknown>;
+}
+
+export interface OrganizationProfile {
+  success?: boolean;
+  organization_id?: string;
+  name?: string;
+  slug?: string;
+  status?: "active" | "inactive" | "suspended" | string;
+  owner_user_id?: string;
+  settings?: OrganizationSettings;
+  metadata?: Record<string, unknown>;
+  team_count?: number;
+  member_count?: number;
+  brand_count?: number;
+  active_brand_ids?: string[];
+  health_score?: number;
+  health_status?: string;
+  teams?: TeamProfile[];
+  members?: MembershipProfile[];
+  brands?: BrandAccessProfile["brand_access"];
+  health?: OrganizationHealth;
+  tenant_ready?: boolean;
+  tenant_configuration?: Record<string, unknown>;
+  tenant_limits?: Record<string, unknown>;
+  analytics?: Record<string, unknown>;
+  role_bridge?: Record<string, string>;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface OrganizationRegistryEntry extends OrganizationProfile {
+  health_score?: number;
+  health_status?: string;
+}
+
+export interface OrganizationHealth {
+  health_score?: number;
+  health_status?: string;
+  warnings?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface OrganizationContext {
+  organization_id?: string;
+  team_id?: string;
+  brand_id?: string;
+  tenant_ready?: boolean;
+  organization?: OrganizationProfile;
+  organization_profile?: OrganizationProfile;
+  active_team?: TeamProfile;
+  active_brand?: Record<string, unknown>;
+  teams?: TeamProfile[];
+  members?: MembershipProfile[];
+  brands?: BrandAccessProfile["brand_access"];
+  role_bridge?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  validation?: {
+    valid?: boolean;
+    warnings?: string[];
+    errors?: string[];
+  };
+  health?: OrganizationHealth;
+}
+
+export interface OrganizationRegistry {
+  success?: boolean;
+  organizations?: OrganizationRegistryEntry[];
+  count?: number;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface TeamProfile {
+  success?: boolean;
+  team_id?: string;
+  organization_id?: string;
+  name?: string;
+  slug?: string;
+  status?: "active" | "inactive" | "archived" | string;
+  metadata?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface MembershipProfile {
+  success?: boolean;
+  membership_id?: string;
+  organization_id?: string;
+  team_id?: string;
+  user_id?: string;
+  role?: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface BrandAccessProfile {
+  success?: boolean;
+  brand_access?: Array<Record<string, unknown>>;
+  count?: number;
+  warnings?: string[];
+  errors?: string[];
 }
 
 export interface RegisterRequest {

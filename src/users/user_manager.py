@@ -54,6 +54,9 @@ class UserManager:
             "updated_at": now,
             "password_hash": safe_text(password_hash, limit=512),
             "settings": safe_dict(settings),
+            "organizations": list(safe_dict(metadata).get("organizations", [])) if isinstance(safe_dict(metadata).get("organizations", []), list) else [],
+            "active_organization_id": safe_text(safe_dict(metadata).get("active_organization_id", ""), limit=120),
+            "active_team_id": safe_text(safe_dict(metadata).get("active_team_id", ""), limit=120),
             "metadata": {
                 **safe_dict(metadata),
                 "created_by": created_by or "self",
@@ -107,6 +110,12 @@ class UserManager:
                 user["display_name"] = safe_text(updates["display_name"], limit=120)
             if "settings" in updates and isinstance(updates["settings"], dict):
                 user["settings"] = safe_dict(updates["settings"])
+            if "organizations" in updates and isinstance(updates["organizations"], list):
+                user["organizations"] = [safe_text(item, limit=120) for item in updates["organizations"] if safe_text(item, limit=120)]
+            if "active_organization_id" in updates:
+                user["active_organization_id"] = safe_text(updates.get("active_organization_id"), limit=120)
+            if "active_team_id" in updates:
+                user["active_team_id"] = safe_text(updates.get("active_team_id"), limit=120)
             if "status" in updates:
                 status_validation = validate_user_status(updates.get("status"))
                 if not status_validation["valid"]:

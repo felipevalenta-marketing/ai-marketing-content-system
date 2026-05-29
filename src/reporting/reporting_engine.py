@@ -89,6 +89,8 @@ class ReportingEngine:
             "errors": self._collect_errors({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report, "markdown_report": markdown_report}),
             "metadata": {
                 "brand": self._extract_brand(payload),
+                "organization_id": safe_text(payload.get("organization_id") or safe_dict(payload.get("metadata")).get("organization_id") or "", limit=120),
+                "team_id": safe_text(payload.get("team_id") or safe_dict(payload.get("metadata")).get("team_id") or "", limit=120),
                 "report_name": report_name or safe_text(consolidated.get("title", "report"), limit=80),
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),

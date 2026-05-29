@@ -314,6 +314,10 @@ class AnalyticsEngine:
             base_filters["brand"] = request.get("brand")
         if request.get("platform"):
             base_filters["platform"] = request.get("platform")
+        if request.get("organization_id"):
+            base_filters["organization_id"] = request.get("organization_id")
+        if request.get("team_id"):
+            base_filters["team_id"] = request.get("team_id")
         base_filters["date_range"] = safe_dict(request.get("date_range"))
         collected: dict[str, list[dict[str, Any]]] = {}
         if not include_storage:
@@ -362,6 +366,8 @@ class AnalyticsEngine:
             "governance": self.aggregator.aggregate_governance(governance_records),
             "storage": {"records_count": len(storage_records), "latest_execution_at": latest_execution_at, "latest_report_at": latest_report_at},
             "brand_breakdown": self.aggregator.aggregate_by_brand(storage_records),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(storage_records),
+            "team_breakdown": self.aggregator.aggregate_by_team(storage_records),
             "platform_breakdown": self.aggregator.aggregate_by_platform(storage_records),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(storage_records),
             "report_summary": report_summary,
@@ -372,6 +378,8 @@ class AnalyticsEngine:
             "analytics_type": "executive_dashboard",
             "filters": safe_dict(request.get("filters")),
             "date_range": safe_dict(request.get("date_range")),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(storage_records),
+            "team_breakdown": self.aggregator.aggregate_by_team(storage_records),
         }
 
     def _workflow_sections(self, collected: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
@@ -398,6 +406,8 @@ class AnalyticsEngine:
             "costs": self.aggregator.aggregate_costs(collected.get("cost_usage", [])),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(campaigns),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(campaigns),
+            "team_breakdown": self.aggregator.aggregate_by_team(campaigns),
             "platform_breakdown": self.aggregator.aggregate_by_platform(campaigns),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(campaigns),
         }
@@ -410,6 +420,8 @@ class AnalyticsEngine:
             "costs": self.aggregator.aggregate_costs(collected.get("cost_usage", [])),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(generations),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(generations),
+            "team_breakdown": self.aggregator.aggregate_by_team(generations),
             "platform_breakdown": self.aggregator.aggregate_by_platform(generations),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(generations),
         }
@@ -428,6 +440,8 @@ class AnalyticsEngine:
             "costs": self.aggregator.aggregate_costs(collected.get("cost_usage", [])),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(assets),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(assets),
+            "team_breakdown": self.aggregator.aggregate_by_team(assets),
             "platform_breakdown": self.aggregator.aggregate_by_platform(assets),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(assets),
         }
@@ -438,6 +452,8 @@ class AnalyticsEngine:
             "tokens": self.aggregator.aggregate_tokens(tokens),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(tokens),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(tokens),
+            "team_breakdown": self.aggregator.aggregate_by_team(tokens),
             "platform_breakdown": self.aggregator.aggregate_by_platform(tokens),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(tokens),
         }
@@ -448,6 +464,8 @@ class AnalyticsEngine:
             "costs": self.aggregator.aggregate_costs(costs),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(costs),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(costs),
+            "team_breakdown": self.aggregator.aggregate_by_team(costs),
             "platform_breakdown": self.aggregator.aggregate_by_platform(costs),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(costs),
         }
@@ -458,6 +476,8 @@ class AnalyticsEngine:
             "governance": self.aggregator.aggregate_governance(governance),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(governance),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(governance),
+            "team_breakdown": self.aggregator.aggregate_by_team(governance),
             "platform_breakdown": self.aggregator.aggregate_by_platform(governance),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(governance),
         }
@@ -468,6 +488,8 @@ class AnalyticsEngine:
             "reports": self.aggregator.aggregate_counts(reports),
             "storage": {"records_count": len(self._flatten_records(collected))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(reports),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(reports),
+            "team_breakdown": self.aggregator.aggregate_by_team(reports),
             "platform_breakdown": self.aggregator.aggregate_by_platform(reports),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(reports),
         }
@@ -477,6 +499,8 @@ class AnalyticsEngine:
         return {
             "storage": {"records_count": len(records), "latest_execution_at": self._latest_timestamp(records), "latest_report_at": self._latest_timestamp(collected.get("report", []))},
             "brand_breakdown": self.aggregator.aggregate_by_brand(records),
+            "organization_breakdown": self.aggregator.aggregate_by_organization(records),
+            "team_breakdown": self.aggregator.aggregate_by_team(records),
             "platform_breakdown": self.aggregator.aggregate_by_platform(records),
             "content_type_breakdown": self.aggregator.aggregate_by_content_type(records),
         }

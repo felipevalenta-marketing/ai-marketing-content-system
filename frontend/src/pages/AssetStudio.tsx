@@ -20,7 +20,7 @@ interface AssetStudioProps extends WorkspaceProps {
 
 const DEFAULT_FORM: AssetRequest = { ...ASSET_DEFAULTS };
 
-export function AssetStudio({ client, onSnapshot, activeBrand }: AssetStudioProps) {
+export function AssetStudio({ client, onSnapshot, activeBrand, activeOrganizationId, activeTeamId }: AssetStudioProps) {
   const [form, setForm] = useLocalState<AssetRequest>("amcs:assets-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,14 @@ export function AssetStudio({ client, onSnapshot, activeBrand }: AssetStudioProp
       setForm((current) => ({ ...current, brand: activeBrand } as AssetRequest));
     }
   }, [activeBrand, form.brand, setForm]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      organization_id: activeOrganizationId ?? "",
+      team_id: activeTeamId ?? "",
+    } as AssetRequest));
+  }, [activeOrganizationId, activeTeamId, setForm]);
 
   const update = (key: keyof AssetRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as AssetRequest));

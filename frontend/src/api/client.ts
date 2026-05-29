@@ -25,6 +25,18 @@ import type {
   PermissionInfo,
   PermissionDomainInfo,
   RoleInfo,
+  OrganizationProfile,
+  OrganizationRegistry,
+  TeamProfile,
+  MembershipProfile,
+  BrandAccessProfile,
+  OrganizationRequest,
+  OrganizationUpdateRequest,
+  TeamRequest,
+  TeamUpdateRequest,
+  MembershipRequest,
+  MembershipUpdateRequest,
+  BrandAccessRequest,
   UserProfile,
   UserListResponse,
   UserRoleUpdateRequest,
@@ -50,6 +62,26 @@ export interface ApiClient {
   validateBrand(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandDefaults(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getBrandHealth(brandId: string): Promise<ApiResponse<BrandHealth>>;
+  getOrganizations(): Promise<ApiResponse<OrganizationRegistry>>;
+  createOrganization(payload: OrganizationRequest): Promise<ApiResponse<OrganizationProfile>>;
+  getOrganization(organizationId: string): Promise<ApiResponse<OrganizationProfile>>;
+  getOrganizationProfile(organizationId: string): Promise<ApiResponse<OrganizationProfile>>;
+  getOrganizationHealth(organizationId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getOrganizationContext(organizationId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  updateOrganization(organizationId: string, payload: OrganizationUpdateRequest): Promise<ApiResponse<OrganizationProfile>>;
+  deleteOrganization(organizationId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getOrganizationTeams(organizationId: string): Promise<ApiResponse<{ teams?: TeamProfile[]; count?: number }>>;
+  createTeam(organizationId: string, payload: TeamRequest): Promise<ApiResponse<TeamProfile>>;
+  getTeam(teamId: string): Promise<ApiResponse<TeamProfile>>;
+  updateTeam(teamId: string, payload: TeamUpdateRequest): Promise<ApiResponse<TeamProfile>>;
+  deleteTeam(teamId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getMembers(organizationId: string): Promise<ApiResponse<{ memberships?: MembershipProfile[]; count?: number }>>;
+  addMember(organizationId: string, payload: MembershipRequest): Promise<ApiResponse<MembershipProfile>>;
+  updateMembership(membershipId: string, payload: MembershipUpdateRequest): Promise<ApiResponse<MembershipProfile>>;
+  removeMember(membershipId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getOrganizationBrands(organizationId: string): Promise<ApiResponse<BrandAccessProfile>>;
+  grantBrandAccess(organizationId: string, payload: BrandAccessRequest): Promise<ApiResponse<Record<string, unknown>>>;
+  revokeBrandAccess(organizationId: string, brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
   getRoles(): Promise<ApiResponse<{ roles?: RoleInfo[]; permissions?: PermissionInfo[] }>>;
   getPermissions(): Promise<ApiResponse<{ permissions?: PermissionInfo[]; grouped?: Record<string, PermissionInfo[]>; domains?: PermissionDomainInfo[] }>>;
   getMyAccess(): Promise<ApiResponse<AccessSummary>>;
@@ -70,7 +102,7 @@ export interface ApiClient {
   runAssets(payload: AssetRequest): Promise<ApiResponse<unknown>>;
   generateMarkdownReport(payload: MarkdownReportRequest): Promise<ApiResponse<unknown>>;
   getLatestReports(): Promise<ApiResponse<unknown>>;
-  listStorageRecords(recordType?: string): Promise<ApiResponse<{ records?: StorageRecord[]; count?: number; record_type?: string | null }>>;
+  listStorageRecords(recordType?: string, filters?: { organizationId?: string; teamId?: string }): Promise<ApiResponse<{ records?: StorageRecord[]; count?: number; record_type?: string | null }>>;
   getStorageRecord(recordType: string, recordId: string): Promise<ApiResponse<StorageRecord>>;
 }
 
@@ -182,6 +214,66 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     validateBrand: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/validate`),
     getBrandDefaults: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/defaults`),
     getBrandHealth: (brandId: string) => request<BrandHealth>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/health`),
+    getOrganizations: () => request<OrganizationRegistry>(API_ENDPOINTS.organizations),
+    createOrganization: (payload: OrganizationRequest) =>
+      request<OrganizationProfile>(API_ENDPOINTS.organizations, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getOrganization: (organizationId: string) => request<OrganizationProfile>(API_ENDPOINTS.organization(organizationId)),
+    getOrganizationProfile: (organizationId: string) => request<OrganizationProfile>(API_ENDPOINTS.organizationProfile(organizationId)),
+    getOrganizationHealth: (organizationId: string) => request<Record<string, unknown>>(API_ENDPOINTS.organizationHealth(organizationId)),
+    getOrganizationContext: (organizationId: string) => request<Record<string, unknown>>(API_ENDPOINTS.organizationContext(organizationId)),
+    updateOrganization: (organizationId: string, payload: OrganizationUpdateRequest) =>
+      request<OrganizationProfile>(API_ENDPOINTS.organization(organizationId), {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    deleteOrganization: (organizationId: string) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.organization(organizationId), {
+        method: "DELETE",
+      }),
+    getOrganizationTeams: (organizationId: string) => request<{ teams?: TeamProfile[]; count?: number }>(API_ENDPOINTS.organizationTeams(organizationId)),
+    createTeam: (organizationId: string, payload: TeamRequest) =>
+      request<TeamProfile>(API_ENDPOINTS.organizationTeams(organizationId), {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getTeam: (teamId: string) => request<TeamProfile>(API_ENDPOINTS.team(teamId)),
+    updateTeam: (teamId: string, payload: TeamUpdateRequest) =>
+      request<TeamProfile>(API_ENDPOINTS.team(teamId), {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    deleteTeam: (teamId: string) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.team(teamId), {
+        method: "DELETE",
+      }),
+    getMembers: (organizationId: string) => request<{ memberships?: MembershipProfile[]; count?: number }>(API_ENDPOINTS.organizationMembers(organizationId)),
+    addMember: (organizationId: string, payload: MembershipRequest) =>
+      request<MembershipProfile>(API_ENDPOINTS.organizationMembers(organizationId), {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    updateMembership: (membershipId: string, payload: MembershipUpdateRequest) =>
+      request<MembershipProfile>(API_ENDPOINTS.membership(membershipId), {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    removeMember: (membershipId: string) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.membership(membershipId), {
+        method: "DELETE",
+      }),
+    getOrganizationBrands: (organizationId: string) => request<BrandAccessProfile>(API_ENDPOINTS.organizationBrands(organizationId)),
+    grantBrandAccess: (organizationId: string, payload: BrandAccessRequest) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.organizationBrands(organizationId), {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    revokeBrandAccess: (organizationId: string, brandId: string) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.organizationBrand(organizationId, brandId), {
+        method: "DELETE",
+      }),
     getRoles: () => request<{ roles?: RoleInfo[]; permissions?: PermissionInfo[] }>(API_ENDPOINTS.rbacRoles),
     getPermissions: () => request<{ permissions?: PermissionInfo[]; grouped?: Record<string, PermissionInfo[]>; domains?: PermissionDomainInfo[] }>(API_ENDPOINTS.rbacPermissions),
     getMyAccess: () => request<AccessSummary>(API_ENDPOINTS.rbacMe),
@@ -245,9 +337,17 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
         body: JSON.stringify(payload),
       }),
     getLatestReports: () => request(API_ENDPOINTS.latestReports),
-    listStorageRecords: (recordType?: string) => {
+    listStorageRecords: (recordType?: string, filters?: { organizationId?: string; teamId?: string }) => {
       const suffix = recordType ? `?record_type=${encodeURIComponent(recordType)}` : "";
-      return request<{ records?: StorageRecord[]; count?: number; record_type?: string | null }>(`${API_ENDPOINTS.storageRecords}${suffix}`);
+      const extra = filters
+        ? `${recordType ? "&" : "?"}${[
+            filters.organizationId ? `organization_id=${encodeURIComponent(filters.organizationId)}` : "",
+            filters.teamId ? `team_id=${encodeURIComponent(filters.teamId)}` : "",
+          ]
+            .filter(Boolean)
+            .join("&")}`
+        : "";
+      return request<{ records?: StorageRecord[]; count?: number; record_type?: string | null }>(`${API_ENDPOINTS.storageRecords}${suffix}${extra}`);
     },
     getStorageRecord: (recordType: string, recordId: string) =>
       request<StorageRecord>(`${API_ENDPOINTS.storageRecords}/${encodeURIComponent(recordType)}/${encodeURIComponent(recordId)}`),

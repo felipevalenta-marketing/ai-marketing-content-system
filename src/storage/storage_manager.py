@@ -176,7 +176,23 @@ class StorageManager:
 
     def _build_record(self, result: dict[str, Any], record_type: str) -> dict[str, Any]:
         metadata = safe_dict(result.get("metadata"))
+        request_metadata = safe_dict(metadata.get("request"))
+        input_request = safe_dict(result.get("input_request"))
         payload = self._build_payload(result)
+        organization_id = safe_text(
+            result.get("organization_id")
+            or metadata.get("organization_id")
+            or request_metadata.get("organization_id")
+            or input_request.get("organization_id"),
+            limit=120,
+        )
+        team_id = safe_text(
+            result.get("team_id")
+            or metadata.get("team_id")
+            or request_metadata.get("team_id")
+            or input_request.get("team_id"),
+            limit=120,
+        )
         record = {
             "record_id": build_record_id(record_type, {
                 "brand": result.get("brand") or metadata.get("brand", ""),
@@ -188,6 +204,8 @@ class StorageManager:
             "updated_at": self._timestamp(result, metadata),
             "brand": safe_text(result.get("brand") or metadata.get("brand"), limit=120),
             "brand_id": safe_text(result.get("brand_id") or metadata.get("brand_id") or result.get("brand") or metadata.get("brand"), limit=120),
+            "organization_id": organization_id,
+            "team_id": team_id,
             "platform": safe_text(result.get("platform") or metadata.get("platform"), limit=120),
             "content_type": safe_text(result.get("content_type") or metadata.get("content_type"), limit=120),
             "campaign_type": safe_text(result.get("campaign_type") or metadata.get("campaign_type"), limit=120),
@@ -237,6 +255,8 @@ class StorageManager:
         normalized.setdefault("updated_at", normalized["created_at"])
         normalized.setdefault("brand", "")
         normalized.setdefault("brand_id", normalized.get("brand", ""))
+        normalized.setdefault("organization_id", safe_text(normalized.get("organization_id") or normalized.get("metadata", {}).get("organization_id", ""), limit=120))
+        normalized.setdefault("team_id", safe_text(normalized.get("team_id") or normalized.get("metadata", {}).get("team_id", ""), limit=120))
         normalized.setdefault("platform", "")
         normalized.setdefault("content_type", "")
         normalized.setdefault("campaign_type", "")

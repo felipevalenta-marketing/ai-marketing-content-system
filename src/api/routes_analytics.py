@@ -33,13 +33,15 @@ def _query_request(request: Request, analytics_type: str) -> dict[str, Any]:
     }
     filters = {
         key: query.get(key, "")
-        for key in ("campaign_type", "content_type", "workflow_type", "asset_type", "brand", "platform")
+        for key in ("campaign_type", "content_type", "workflow_type", "asset_type", "brand", "platform", "organization_id", "team_id")
         if hasattr(query, "get") and query.get(key)
     }
     return {
         "analytics_type": analytics_type,
         "brand": query.get("brand", "") if hasattr(query, "get") else "",
         "platform": query.get("platform", "") if hasattr(query, "get") else "",
+        "organization_id": query.get("organization_id", "") if hasattr(query, "get") else "",
+        "team_id": query.get("team_id", "") if hasattr(query, "get") else "",
         "date_range": date_range,
         "filters": filters,
         "include_storage": True,
@@ -88,5 +90,7 @@ def analytics_query(request: Request, payload: AnalyticsRequest) -> dict[str, An
         return denial
     engine = _get_engine(request)
     request_payload = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    request_payload["organization_id"] = payload.organization_id
+    request_payload["team_id"] = payload.team_id
     result = engine.generate_analytics(request_payload)
     return build_api_response(success=bool(result.get("success", False)), data=result, warnings=result.get("warnings", []), errors=result.get("errors", []), metadata={"route": "analytics/query"})

@@ -28,7 +28,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, brandProfile, brandValidation, brandDefaults, brands, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -71,6 +71,30 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
       </div>
 
       <Card>
+        <SectionHeader title="Organization Management" description="Active organization, team, and access context." />
+        <div className="metric-grid">
+          <MetricCard label="Active Org" value={String(activeOrganizationId ?? "none")} hint={String(organizationProfile?.name ?? "Select an organization")} />
+          <MetricCard label="Active Team" value={String(activeTeamId ?? "none")} hint={String(organizationTeams?.length ?? 0)} />
+          <MetricCard label="Organizations" value={String(organizations?.length ?? 0)} hint="Accessible orgs" />
+          <MetricCard label="Members" value={String(organizationMembers?.length ?? 0)} hint="Org membership" />
+          <MetricCard label="Org Health" value={String(organizationProfile?.health_score ?? "-")} hint={String(organizationProfile?.health_status ?? "health")} />
+        </div>
+        {organizations?.length ? (
+          <div className="stack">
+            {organizations.slice(0, 3).map((organization) => (
+              <div className="metric-card" key={String(organization.organization_id)}>
+                <p className="metric-card__label">{String(organization.name ?? organization.organization_id)}</p>
+                <p className="metric-card__value">{String(organization.status ?? "active")}</p>
+                <p className="metric-card__hint">{String(organization.member_count ?? 0)} members | {String(organization.team_count ?? 0)} teams</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No organizations yet" description="Create an organization to organize brands, teams, and members." />
+        )}
+      </Card>
+
+      <Card>
         <SectionHeader title="Brand Management" description="Selected brand, validation status, and safe defaults." />
         <div className="grid-2">
           <MetricCard label="Active Brand" value={String(activeBrand ?? config?.default_brand ?? "-")} hint={String(brandProfile?.display_name ?? "Selected")} />
@@ -96,7 +120,7 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
                 {brands.slice(0, 5).map((brand) => (
                   <li key={String(brand.brand_id ?? brand.display_name)}>
                     {String(brand.display_name ?? brand.brand_id)}
-                    {typeof brand.health_score === "number" ? ` · ${brand.health_score}/100` : ""}
+                    {typeof brand.health_score === "number" ? ` | ${brand.health_score}/100` : ""}
                   </li>
                 ))}
               </ul>

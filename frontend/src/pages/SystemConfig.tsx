@@ -8,11 +8,12 @@ import { Button } from "../components/Button";
 import { getRoleLabel, getRoleTone } from "../utils/formatting";
 import { ConfigurationCard } from "../components/ConfigurationCard";
 import { FeatureFlagBadge } from "../components/FeatureFlagBadge";
+import { OrganizationCard } from "../components/OrganizationCard";
 import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ client, config, activeBrand, brandProfile, brandValidation, brandDefaults, brands, role }: SystemConfigProps) {
+export function SystemConfig({ client, config, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
   const canManageConfig = Boolean(role === "admin" || role === "manager");
   const [editableFlags, setEditableFlags] = useState<Record<string, boolean>>({});
   const [updateMessage, setUpdateMessage] = useState<string>("");
@@ -161,6 +162,21 @@ export function SystemConfig({ client, config, activeBrand, brandProfile, brandV
         ) : (
           <EmptyState title="No brands found" description="Create a brand folder under brands/ to start." />
         )}
+      </ConfigurationCard>
+      <ConfigurationCard title="Organization Access" description="Current organization context and membership summary.">
+        {!canManageConfig ? (
+          <div className="panel panel--muted">
+            <p className="panel__title">Read-only mode</p>
+            <p className="muted">Your current role can review organization settings, but editing requires manager or admin access.</p>
+          </div>
+        ) : null}
+        <OrganizationCard organization={organizationProfile ?? null} />
+        <div className="metric-grid">
+          <MetricCard label="Active Organization" value={String(activeOrganizationId ?? "none")} hint="Selected in the top bar" />
+          <MetricCard label="Active Team" value={String(activeTeamId ?? "none")} hint="Selected in the top bar" />
+          <MetricCard label="Organizations" value={String(organizations?.length ?? 0)} hint="Accessible orgs" />
+          <MetricCard label="Members" value={String(organizationMembers?.length ?? 0)} hint="Accessible members" />
+        </div>
       </ConfigurationCard>
       <ConfigurationCard title="Configuration Snapshot" description="Full safe configuration snapshot.">
         <JsonViewer data={config} title="Config JSON" />

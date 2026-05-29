@@ -89,7 +89,7 @@ export function BrandSelector({ client, value, onChange, onBrandsLoaded, brandPr
         ) : null}
         <span className="muted">{String(activeBrand?.display_name ?? activeBrand?.brand_id ?? value)}</span>
       </div>
-      {brandValidation?.warnings ? <p className="muted">{Array.isArray(brandValidation.warnings) ? (brandValidation.warnings as string[]).slice(0, 2).join(" • ") : ""}</p> : null}
+      {brandValidation?.warnings ? <p className="muted">{Array.isArray(brandValidation.warnings) ? (brandValidation.warnings as string[]).slice(0, 2).join(" | ") : ""}</p> : null}
       {brandDefaults ? (
         <p className="muted">
           {`Defaults: ${String(brandDefaults.default_platform ?? "instagram")} / ${String(brandDefaults.default_content_type ?? "instagram_post")} / ${String(brandDefaults.default_campaign_type ?? "property_launch")}`}

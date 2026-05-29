@@ -26,6 +26,8 @@ class GenerateRequest(BaseApiModel):
     brand: str = Field(default="wenzel_partner", examples=["wenzel_partner"])
     platform: str = Field(default="instagram", examples=["instagram"])
     content_type: str = Field(default="instagram_post", examples=["instagram_post"])
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     campaign_type: str | None = None
     objective: str = Field(default="generate_leads", examples=["generate_leads"])
     audience: str = Field(default="general")
@@ -57,6 +59,8 @@ class WorkflowRequest(BaseApiModel):
     workflow_type: str = Field(default="full_campaign_package")
     brand: str = Field(default="wenzel_partner")
     platform: str = Field(default="instagram")
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     platforms: list[str] = Field(default_factory=list)
     content_type: str = Field(default="instagram_post")
     campaign_type: str = Field(default="property_launch")
@@ -81,6 +85,8 @@ class WorkflowRequest(BaseApiModel):
 
 class CampaignRequest(BaseApiModel):
     brand: str = Field(default="wenzel_partner")
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     campaign_type: str = Field(default="property_launch")
     objective: str = Field(default="generate_leads")
     audience: str = Field(default="general")
@@ -102,6 +108,8 @@ class CampaignRequest(BaseApiModel):
 
 class AssetRequest(BaseApiModel):
     brand: str = Field(default="wenzel_partner")
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     campaign_type: str = Field(default="property_launch")
     objective: str = Field(default="generate_leads")
     audience: str = Field(default="general")
@@ -127,6 +135,8 @@ class MarkdownReportRequest(BaseApiModel):
     report_type: str = Field(default="execution_report")
     title: str = Field(default="Report")
     brand: str = Field(default="wenzel_partner")
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     platform: str = Field(default="instagram")
     campaign_type: str = Field(default="")
     content_type: str = Field(default="")
@@ -148,6 +158,8 @@ class AnalyticsRequest(BaseApiModel):
     analytics_type: str = Field(default="executive_dashboard")
     brand: str = Field(default="")
     platform: str = Field(default="")
+    organization_id: str = Field(default="")
+    team_id: str = Field(default="")
     date_range: dict[str, str] = Field(default_factory=lambda: {"start": "", "end": ""})
     filters: dict[str, Any] = Field(default_factory=dict)
     include_storage: bool = True
@@ -161,6 +173,8 @@ class AnalyticsRequest(BaseApiModel):
 class StorageRecordQuery(BaseApiModel):
     record_type: str | None = None
     record_id: str | None = None
+    organization_id: str | None = None
+    team_id: str | None = None
     limit: int = Field(default=20, ge=1, le=100)
 
 
@@ -207,6 +221,9 @@ class UserProfileResponse(BaseApiModel):
     status: str = "active"
     role: str = "viewer"
     permissions: list[str] = Field(default_factory=list)
+    organizations: list[str] = Field(default_factory=list)
+    active_organization_id: str = ""
+    active_team_id: str = ""
     created_at: str = ""
     updated_at: str = ""
     settings: dict[str, Any] = Field(default_factory=dict)
@@ -217,3 +234,61 @@ class AuthResponse(BaseApiModel):
     access_token: str = ""
     token_type: str = "bearer"
     user: UserProfileResponse = Field(default_factory=UserProfileResponse)
+
+
+class OrganizationSettingsRequest(BaseApiModel):
+    default_brand: str = "wenzel_partner"
+    default_platform: str = "instagram"
+    default_language: str = "en"
+    timezone: str = "Europe/Madrid"
+    features: dict[str, Any] = Field(default_factory=dict)
+    limits: dict[str, Any] = Field(default_factory=dict)
+
+
+class OrganizationRequest(BaseApiModel):
+    name: str = Field(default="")
+    slug: str | None = None
+    status: str = "active"
+    owner_user_id: str | None = None
+    settings: OrganizationSettingsRequest = Field(default_factory=OrganizationSettingsRequest)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OrganizationUpdateRequest(BaseApiModel):
+    name: str | None = None
+    slug: str | None = None
+    status: str | None = None
+    settings: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TeamRequest(BaseApiModel):
+    name: str = Field(default="")
+    slug: str | None = None
+    status: str = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TeamUpdateRequest(BaseApiModel):
+    name: str | None = None
+    slug: str | None = None
+    status: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MembershipRequest(BaseApiModel):
+    user_id: str = Field(default="")
+    role: str = Field(default="member")
+    team_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MembershipUpdateRequest(BaseApiModel):
+    role: str = Field(default="member")
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class BrandAccessRequest(BaseApiModel):
+    brand_id: str = Field(default="")
+    access_level: str = Field(default="use")
+    metadata: dict[str, Any] = Field(default_factory=dict)

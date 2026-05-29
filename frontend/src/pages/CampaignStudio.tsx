@@ -19,7 +19,7 @@ interface CampaignStudioProps extends WorkspaceProps {
 
 const DEFAULT_FORM: CampaignRequest = { ...CAMPAIGN_DEFAULTS };
 
-export function CampaignStudio({ client, onSnapshot, activeBrand }: CampaignStudioProps) {
+export function CampaignStudio({ client, onSnapshot, activeBrand, activeOrganizationId, activeTeamId }: CampaignStudioProps) {
   const [form, setForm] = useLocalState<CampaignRequest>("amcs:campaign-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,14 @@ export function CampaignStudio({ client, onSnapshot, activeBrand }: CampaignStud
       setForm((current) => ({ ...current, brand: activeBrand } as CampaignRequest));
     }
   }, [activeBrand, form.brand, setForm]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      organization_id: activeOrganizationId ?? "",
+      team_id: activeTeamId ?? "",
+    } as CampaignRequest));
+  }, [activeOrganizationId, activeTeamId, setForm]);
 
   const update = (key: keyof CampaignRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as CampaignRequest));

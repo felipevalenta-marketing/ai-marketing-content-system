@@ -4,6 +4,7 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { SectionHeader } from "../components/SectionHeader";
+import { Badge } from "../components/Badge";
 import { useAuth } from "../hooks/useAuth";
 import type { UserProfile } from "../types/api";
 
@@ -19,6 +20,7 @@ export function Profile({ auth, onNavigate }: ProfileProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [usersError, setUsersError] = useState("");
   const user = auth.currentUser;
+  const organizationIds = Array.isArray(user?.organizations) ? user?.organizations : [];
 
   useEffect(() => {
     setDisplayName(String(user?.display_name ?? ""));
@@ -81,6 +83,10 @@ export function Profile({ auth, onNavigate }: ProfileProps) {
           <p><strong>Status:</strong> {user.status ?? "active"}</p>
           <p><strong>Created:</strong> {user.created_at ?? "-"}</p>
           <p><strong>Updated:</strong> {user.updated_at ?? "-"}</p>
+          <div className="row wrap">
+            <Badge tone="neutral">Org: {String(user.active_organization_id ?? "none")}</Badge>
+            <Badge tone="neutral">Team: {String(user.active_team_id ?? "none")}</Badge>
+          </div>
         </div>
         <form className="stack" onSubmit={handleSubmit}>
           <label className="field">
@@ -102,6 +108,16 @@ export function Profile({ auth, onNavigate }: ProfileProps) {
           </div>
         </form>
       </div>
+      {organizationIds.length ? (
+        <Card>
+          <SectionHeader title="Organizations" description="Organizations attached to this user account." />
+          <div className="row wrap">
+            {organizationIds.map((organizationId) => (
+              <Badge key={organizationId} tone="neutral">{organizationId}</Badge>
+            ))}
+          </div>
+        </Card>
+      ) : null}
       {auth.hasAnyPermission(["user:manage", "admin:all"]) ? (
         <Card>
           <SectionHeader title="User Management" description="Manage user roles with RBAC permissions." />

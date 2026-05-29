@@ -27,7 +27,7 @@ const DEFAULT_FORM: MarkdownReportRequest = {
   title: "Campaign Workflow Report",
 };
 
-export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary, activeBrand }: ReportsCenterProps) {
+export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary, activeBrand, activeOrganizationId, activeTeamId }: ReportsCenterProps) {
   const [form, setForm] = useLocalState<MarkdownReportRequest>("amcs:report-form", DEFAULT_FORM);
   const [reportSource, setReportSource] = useState<ReportSource>("snapshot");
   const [result, setResult] = useState<any>(null);
@@ -60,6 +60,8 @@ export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary,
     return {
       ...form,
       brand: activeBrand ?? form.brand,
+      organization_id: activeOrganizationId ?? form.organization_id ?? "",
+      team_id: activeTeamId ?? form.team_id ?? "",
       workflow_result: workflowSummary ?? undefined,
       pipeline_result: getSnapshotChain<any>(snapshots, ["generate", "workflow"]) ?? undefined,
       campaign_result: getSnapshotChain<any>(snapshots, ["campaign"]) ?? undefined,
@@ -94,6 +96,10 @@ export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary,
     <div className="content-grid">
       <Card>
         <SectionHeader title="Reports Center" description="Generate and preview markdown reports from structured payloads." />
+        <div className="row wrap">
+          <span className="muted">Organization: {activeOrganizationId || "All"}</span>
+          <span className="muted">Team: {activeTeamId || "All"}</span>
+        </div>
         <div className="form-grid">
           <div className="field">
             <label htmlFor="report_type">Report Type</label>

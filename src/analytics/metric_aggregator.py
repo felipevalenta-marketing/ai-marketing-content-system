@@ -92,6 +92,12 @@ class MetricAggregator:
     def aggregate_by_brand(self, records: list[dict[str, Any]]) -> dict[str, Any]:
         return self._aggregate_group(records, "brand")
 
+    def aggregate_by_organization(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._aggregate_group(records, "organization_id")
+
+    def aggregate_by_team(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._aggregate_group(records, "team_id")
+
     def aggregate_by_platform(self, records: list[dict[str, Any]]) -> dict[str, Any]:
         return self._aggregate_group(records, "platform")
 

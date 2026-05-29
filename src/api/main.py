@@ -21,6 +21,10 @@ from src.campaigns.campaign_composer import CampaignComposer
 from src.cli.cli_config import build_safe_config_summary
 from src.auth.auth_manager import AuthManager, AuthService
 from src.configuration.config_manager import ConfigManager
+from src.organizations.brand_access_manager import BrandAccessManager
+from src.organizations.membership_manager import MembershipManager
+from src.organizations.organization_manager import OrganizationManager
+from src.organizations.team_manager import TeamManager
 from src.rbac.rbac_manager import RBACManager
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
@@ -62,6 +66,16 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     )
     reporting_engine = ReportingEngine(output_root=pipeline_config.report_output_root, markdown_output_root=pipeline_config.markdown_report_output_root, logger=logger)
     configuration_manager = ConfigManager(config_root="data/config", brand_manager=brand_manager)
+    organization_manager = OrganizationManager(storage_root="data/organizations", users=user_manager, settings=configuration_manager, logger=logger)
+    brand_access_manager = organization_manager.brand_access_manager or BrandAccessManager(storage_root="data/organizations", brand_manager=brand_manager, logger=logger)
+    team_manager = organization_manager.membership_manager.team_manager if organization_manager.membership_manager else TeamManager(storage_root="data/organizations", organization_manager=organization_manager, logger=logger)
+    membership_manager = organization_manager.membership_manager or MembershipManager(storage_root="data/organizations", users=user_manager, organization_manager=organization_manager, team_manager=team_manager, logger=logger)
+    organization_manager.membership_manager = membership_manager
+    organization_manager.brand_access_manager = brand_access_manager
+    organization_manager.team_manager = team_manager
+    membership_manager.organization_manager = organization_manager
+    membership_manager.team_manager = team_manager
+    team_manager.organization_manager = organization_manager
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     workflow = WorkflowEngine(config=replace(pipeline_config, enable_persistence=False), pipeline=pipeline, storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
     analytics = AnalyticsEngine(storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
@@ -79,6 +93,10 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "rbac": rbac_manager,
         "reporting": reporting_engine,
         "brands": brand_manager,
+        "organizations": organization_manager,
+        "teams": team_manager,
+        "memberships": membership_manager,
+        "brand_access": brand_access_manager,
         "configuration": configuration_manager,
         "logger": logger,
         "pipeline_config": pipeline_config,

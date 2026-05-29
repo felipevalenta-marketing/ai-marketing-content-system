@@ -26,7 +26,7 @@ const DEFAULT_FORM: GenerateRequest = {
   extra_notes: "",
 };
 
-export function ContentStudio({ client, onSnapshot, activeBrand }: ContentStudioProps) {
+export function ContentStudio({ client, onSnapshot, activeBrand, activeOrganizationId, activeTeamId }: ContentStudioProps) {
   const [form, setForm] = useLocalState<GenerateRequest>("amcs:content-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,14 @@ export function ContentStudio({ client, onSnapshot, activeBrand }: ContentStudio
       setForm((current) => ({ ...current, brand: activeBrand } as GenerateRequest));
     }
   }, [activeBrand, form.brand, setForm]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      organization_id: activeOrganizationId ?? "",
+      team_id: activeTeamId ?? "",
+    } as GenerateRequest));
+  }, [activeOrganizationId, activeTeamId, setForm]);
 
   const update = (key: keyof GenerateRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as GenerateRequest));

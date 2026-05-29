@@ -13,4 +13,7 @@ def build_safe_user_profile(user: dict[str, Any]) -> dict[str, Any]:
     safe["role"] = role or "viewer"
     permissions = safe.get("permissions", [])
     safe["permissions"] = list(permissions) if isinstance(permissions, list) else []
+    safe["organizations"] = list(safe.get("organizations", [])) if isinstance(safe.get("organizations", []), list) else []
+    safe["active_organization_id"] = str(safe.get("active_organization_id", "") or "")
+    safe["active_team_id"] = str(safe.get("active_team_id", "") or "")
     return safe

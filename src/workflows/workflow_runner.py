@@ -16,8 +16,9 @@ class WorkflowRunner:
         self.engine = engine
 
     def run(self, plan: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
-        state = create_initial_state(request, plan)
-        if bool(request.get("dry_run")):
+        request_payload = dict(request or {})
+        state = create_initial_state(request_payload, plan)
+        if bool(request_payload.get("dry_run")):
             return self.engine.build_result(
                 workflow_id=plan.get("workflow_id", ""),
                 workflow_type=plan.get("workflow_type", ""),
@@ -28,6 +29,10 @@ class WorkflowRunner:
                 warnings=state.get("warnings", []),
                 errors=state.get("errors", []),
                 metadata={"dry_run": True, "plan": plan},
+                brand_id=request_payload.get("brand_id", request_payload.get("brand", "")),
+                brand_profile=request_payload.get("brand_profile", {}),
+                brand_validation=request_payload.get("brand_validation", {}),
+                brand_defaults=request_payload.get("brand_defaults", {}),
             )
 
         step_results: list[dict[str, Any]] = []
@@ -67,6 +72,10 @@ class WorkflowRunner:
             warnings=list(dict.fromkeys(state.get("warnings", []) + aggregated.get("warnings", []))),
             errors=list(dict.fromkeys(state.get("errors", []) + aggregated.get("errors", []))),
             metadata={"state": state, "plan": plan},
+            brand_id=request_payload.get("brand_id", request_payload.get("brand", "")),
+            brand_profile=request_payload.get("brand_profile", {}),
+            brand_validation=request_payload.get("brand_validation", {}),
+            brand_defaults=request_payload.get("brand_defaults", {}),
         )
 
     def execute_step(self, step: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:

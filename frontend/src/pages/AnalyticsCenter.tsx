@@ -46,7 +46,7 @@ function toBreakdownRows(breakdown: Record<string, unknown> | undefined, valueKe
     }));
 }
 
-export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand }: AnalyticsCenterProps) {
+export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, activeOrganizationId, activeTeamId }: AnalyticsCenterProps) {
   const [form, setForm] = useLocalState<AnalyticsRequest>("amcs:analytics-form", DEFAULT_FORM);
   const [result, setResult] = useState<AnalyticsResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,6 +67,14 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
       setForm((current) => ({ ...current, brand: activeBrand } as AnalyticsRequest));
     }
   }, [activeBrand, form.brand, setForm]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      organization_id: activeOrganizationId ?? "",
+      team_id: activeTeamId ?? "",
+    } as AnalyticsRequest));
+  }, [activeOrganizationId, activeTeamId, setForm]);
 
   const flatExecutiveKpis = useMemo(() => Object.values(kpis.executive ?? {}), [kpis]);
   const flatOperationalKpis = useMemo(() => Object.values(kpis.operational ?? {}), [kpis]);
@@ -141,6 +149,14 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
           <div className="field">
             <label htmlFor="platform">Platform</label>
             <input id="platform" className="input" value={form.platform ?? ""} onChange={(event) => updateFilter("platform", event.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="organization_id">Organization</label>
+            <input id="organization_id" className="input" value={form.organization_id ?? ""} onChange={(event) => updateFilter("organization_id", event.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="team_id">Team</label>
+            <input id="team_id" className="input" value={form.team_id ?? ""} onChange={(event) => updateFilter("team_id", event.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="start">Start Date</label>

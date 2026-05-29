@@ -184,6 +184,11 @@ class ConfigManager:
             "configuration_health": health,
             "enabled_modules": [module for module in modules if module.get("enabled")],
             "enabled_flags": [flag for flag, enabled in features.items() if enabled],
+            "organizations_enabled": _env_bool("ENABLE_ORGANIZATIONS") if _env_bool("ENABLE_ORGANIZATIONS") is not None else True,
+            "teams_enabled": _env_bool("ENABLE_TEAMS") if _env_bool("ENABLE_TEAMS") is not None else True,
+            "max_organizations": int(os.getenv("MAX_ORGANIZATIONS", "100") or 100),
+            "max_teams": int(os.getenv("MAX_TEAMS", "500") or 500),
+            "max_members_per_organization": int(os.getenv("MAX_MEMBERS_PER_ORGANIZATION", "1000") or 1000),
             "brand_overrides": self.get_brand_overrides(self._platform_config.get("default_brand")),
             "api_key_present": bool(os.getenv("OPENAI_API_KEY", "").strip()),
             "metadata": {

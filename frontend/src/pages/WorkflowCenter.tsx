@@ -26,7 +26,7 @@ const DEFAULT_FORM: WorkflowRequest = {
   dry_run: true,
 };
 
-export function WorkflowCenter({ client, onSnapshot, analyticsSummary, activeBrand }: WorkflowCenterProps) {
+export function WorkflowCenter({ client, onSnapshot, analyticsSummary, activeBrand, activeOrganizationId, activeTeamId }: WorkflowCenterProps) {
   const [form, setForm] = useLocalState<WorkflowRequest>("amcs:workflow-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,14 @@ export function WorkflowCenter({ client, onSnapshot, analyticsSummary, activeBra
       setForm((current) => ({ ...current, brand: activeBrand } as WorkflowRequest));
     }
   }, [activeBrand, form.brand, setForm]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      organization_id: activeOrganizationId ?? "",
+      team_id: activeTeamId ?? "",
+    } as WorkflowRequest));
+  }, [activeOrganizationId, activeTeamId, setForm]);
 
   const update = (key: keyof WorkflowRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as WorkflowRequest));
