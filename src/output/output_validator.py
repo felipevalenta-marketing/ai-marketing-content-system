@@ -98,6 +98,13 @@ class OutputValidator:
                 if self._is_empty(output.get(field_name)):
                     warnings.append(f"Video prompt is missing '{field_name}'.")
 
+        if content_type == "video_script":
+            for field_name in ("hook", "script", "voiceover", "cta", "music_mood", "scene_sequence", "storyboard", "camera_direction"):
+                if self._is_empty(output.get(field_name)):
+                    warnings.append(f"Video script is missing '{field_name}'.")
+            if self._is_empty(output.get("cta")):
+                warnings.append("Video script is missing a CTA.")
+
         if content_type == "campaign_asset" and self._is_empty(output.get("cta")):
             warnings.append("Campaign asset is missing a CTA.")
         return warnings

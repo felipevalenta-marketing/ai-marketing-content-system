@@ -8,17 +8,19 @@ from src.reporting.report_builder import ReportBuilder
 from src.reporting.report_exporter import ReportExporter
 from src.reporting.report_renderer import ReportRenderer
 from src.reporting.report_metrics import safe_dict, safe_float, safe_list, safe_text
+from src.reports.markdown_report_generator import MarkdownReportGenerator
 from src.utils.logger import get_logger, log_context, log_warning
 
 
 class ReportingEngine:
     """High-level analytics orchestration for execution results."""
 
-    def __init__(self, output_root: str = "outputs/reports", logger: Any | None = None) -> None:
+    def __init__(self, output_root: str = "outputs/reports", markdown_output_root: str = "outputs/reports/markdown", logger: Any | None = None) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.builder = ReportBuilder()
         self.renderer = ReportRenderer()
         self.exporter = ReportExporter(output_root=output_root, logger=self.logger)
+        self.markdown_generator = MarkdownReportGenerator(output_root=markdown_output_root, logger=self.logger)
 
     def generate(
         self,
@@ -27,6 +29,9 @@ class ReportingEngine:
         formats: list[str] | None = None,
         render_format: str = "terminal",
         report_name: str | None = None,
+        markdown: bool = False,
+        export_markdown: bool = False,
+        markdown_report_type: str | None = None,
     ) -> dict[str, Any]:
         """Build, render, and optionally export a report bundle."""
 
@@ -38,6 +43,17 @@ class ReportingEngine:
         rendered = self.renderer.render(consolidated, output_format=render_format)
         rendered_markdown = self.renderer.render_markdown(consolidated)
         rendered_text = self.renderer.render_terminal(consolidated)
+        markdown_requested = bool(markdown or export_markdown or payload.get("markdown") or payload.get("report_markdown") or payload.get("export_markdown_report"))
+        markdown_report: dict[str, Any] = {}
+        if markdown_requested:
+            markdown_report = self.markdown_generator.generate_report(
+                {
+                    **payload,
+                    "report_type": markdown_report_type or payload.get("report_type") or "executive_summary",
+                    "title": safe_text(payload.get("title") or consolidated.get("title") or "Report", limit=160),
+                    "export_markdown_report": export_markdown,
+                }
+            )
 
         exported_files: dict[str, str] = {}
         if export:
@@ -47,6 +63,8 @@ class ReportingEngine:
             except Exception as exc:  # pragma: no cover - defensive fallback
                 log_warning(self.logger, f"Report export failed: {exc}")
                 exported_files = {}
+        if markdown_report.get("export_path"):
+            exported_files = {**exported_files, "markdown_report": markdown_report.get("export_path", "")}
 
         bundle = {
             "success": True,
@@ -56,6 +74,10 @@ class ReportingEngine:
             "asset_report": reports["asset_report"],
             "export_report": reports["export_report"],
             "consolidated_report": consolidated,
+            "markdown_report": markdown_report,
+            "markdown_report_path": markdown_report.get("export_path", ""),
+            "markdown_sections": markdown_report.get("sections", []),
+            "markdown_validation": markdown_report.get("validation", {}),
             "image_prompt_report": self._build_image_prompt_report(payload, reports["asset_report"]),
             "video_script_report": video_script_report,
             "creative_direction_report": creative_direction_report,
@@ -63,21 +85,24 @@ class ReportingEngine:
             "rendered_markdown": rendered_markdown,
             "rendered_text": rendered_text,
             "exported_files": exported_files,
-            "warnings": self._collect_warnings({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report}),
-            "errors": self._collect_errors({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report}),
+            "warnings": self._collect_warnings({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report, "markdown_report": markdown_report}),
+            "errors": self._collect_errors({**reports, "video_script_report": video_script_report, "creative_direction_report": creative_direction_report, "markdown_report": markdown_report}),
             "metadata": {
                 "brand": self._extract_brand(payload),
                 "report_name": report_name or safe_text(consolidated.get("title", "report"), limit=80),
                 "export_enabled": export,
                 "formats": list(formats or ["markdown", "json"]),
-            "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report", "creative_direction_report"],
-            "image_prompt_metrics_present": self._has_image_prompt_data(payload),
-            "video_script_metrics_present": self._has_video_script_data(payload),
-            "creative_direction_metrics_present": self._has_creative_direction_data(payload),
-            "token_metrics_present": self._has_token_data(payload),
-            "cost_metrics_present": self._has_cost_data(payload),
-            "persistence_metrics_present": self._has_persistence_data(payload),
-        },
+                "report_types": list(reports.keys()) + ["image_prompt_report", "video_script_report", "creative_direction_report", "markdown_report"],
+                "image_prompt_metrics_present": self._has_image_prompt_data(payload),
+                "video_script_metrics_present": self._has_video_script_data(payload),
+                "creative_direction_metrics_present": self._has_creative_direction_data(payload),
+                "workflow_metrics_present": self._has_workflow_data(payload),
+                "token_metrics_present": self._has_token_data(payload),
+                "cost_metrics_present": self._has_cost_data(payload),
+                "persistence_metrics_present": self._has_persistence_data(payload),
+                "markdown_report_present": bool(markdown_report),
+                "markdown_report_type": markdown_report.get("report_type", ""),
+            },
         }
         return bundle
 
@@ -235,3 +260,13 @@ class ReportingEngine:
         """Return whether the payload includes persistence analytics data."""
 
         return bool(safe_dict(payload.get("persistence_result")))
+
+    def _has_workflow_data(self, payload: dict[str, Any]) -> bool:
+        """Return whether the payload includes workflow analytics data."""
+
+        return bool(
+            safe_text(payload.get("workflow_id") or "", limit=120)
+            or safe_text(payload.get("workflow_type") or "", limit=120)
+            or safe_text(payload.get("workflow_status") or "", limit=80)
+            or safe_dict(payload.get("workflow_result"))
+        )

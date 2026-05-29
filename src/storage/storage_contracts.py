@@ -5,11 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.reporting.report_metrics import utc_now_iso
+from src.reports.markdown_utils import utc_now_iso
 
 
 SUPPORTED_STORAGE_RECORD_TYPES = (
     "execution",
+    "workflow",
+    "workflow_state",
     "generation",
     "campaign",
     "asset",

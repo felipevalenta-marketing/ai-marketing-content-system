@@ -71,6 +71,8 @@ class OutputRenderer:
             return self._render_image_prompt(output)
         if content_type == "video_prompt":
             return self._render_video_prompt(output)
+        if content_type == "video_script":
+            return self._render_video_script(output)
         return self._render_campaign_asset(output)
 
     def _render_instagram_post(self, output: dict[str, Any]) -> list[str]:
@@ -182,6 +184,42 @@ class OutputRenderer:
         voiceover = output.get("voiceover_direction")
         if voiceover:
             lines.extend(["", "## Voiceover Direction", self._stringify(voiceover)])
+        notes = output.get("notes")
+        if notes:
+            lines.extend(["", "## Notes", self._stringify(notes)])
+        return lines
+
+    def _render_video_script(self, output: dict[str, Any]) -> list[str]:
+        lines = [
+            "",
+            "## Hook",
+            self._stringify(output.get("hook", "")),
+            "",
+            "## Script",
+            self._stringify(output.get("script", "")),
+            "",
+            "## Voiceover",
+            self._stringify(output.get("voiceover", "")),
+            "",
+            "## Music Mood",
+            self._stringify(output.get("music_mood", "")),
+        ]
+        scene_sequence = output.get("scene_sequence") or []
+        if scene_sequence:
+            lines.extend(["", "## Scene Sequence"])
+            for item in scene_sequence:
+                lines.append(f"- {self._stringify(item)}")
+        storyboard = output.get("storyboard") or []
+        if storyboard:
+            lines.extend(["", "## Storyboard"])
+            for item in storyboard:
+                lines.append(f"- {self._stringify(item)}")
+        camera_direction = output.get("camera_direction")
+        if camera_direction:
+            lines.extend(["", "## Camera Direction", self._stringify(camera_direction)])
+        cta = output.get("cta")
+        if cta:
+            lines.extend(["", "## CTA", self._stringify(cta)])
         notes = output.get("notes")
         if notes:
             lines.extend(["", "## Notes", self._stringify(notes)])

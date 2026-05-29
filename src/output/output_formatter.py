@@ -31,6 +31,8 @@ class OutputFormatter:
             return self.format_image_prompt(parsed_output)
         if canonical_type == "video_prompt":
             return self.format_video_prompt(parsed_output)
+        if canonical_type == "video_script":
+            return self.format_video_script(parsed_output)
         return self.format_campaign_asset(parsed_output)
 
     def format_instagram_post(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
@@ -63,6 +65,12 @@ class OutputFormatter:
         contract = get_output_contract("video_prompt")
         return self._format_with_contract(parsed_output, contract)
 
+    def format_video_script(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
+        """Format a video script output."""
+
+        contract = get_output_contract("video_script")
+        return self._format_with_contract(parsed_output, contract)
+
     def format_campaign_asset(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
         """Format a campaign asset output."""
 
@@ -92,6 +100,9 @@ class OutputFormatter:
             if field_name in output and output.get(field_name) in ("", [], None):
                 output[field_name] = value
 
+        if contract.content_type == "instagram_post":
+            output = self._normalize_instagram_post_output(output, raw_content)
+
         missing_required = [field for field in contract.required_fields if self._is_empty(output.get(field))]
         if missing_required:
             warnings.append(f"Missing required formatted fields: {', '.join(missing_required)}")
@@ -100,6 +111,27 @@ class OutputFormatter:
         output["missing_required_fields"] = missing_required
         output["formatting_warnings"] = warnings
         output["content_type"] = contract.content_type
+        return output
+
+    def _normalize_instagram_post_output(self, output: dict[str, Any], raw_content: str) -> dict[str, Any]:
+        """Ensure Instagram posts always carry hook, caption, CTA, and hashtags."""
+
+        caption_source = normalize_markdown_content(raw_content or str(output.get("caption", "")))
+        hook = output.get("hook")
+        if self._is_empty(hook):
+            output["hook"] = self._extract_first_sentence(caption_source) or caption_source
+
+        if self._is_empty(output.get("caption")):
+            output["caption"] = caption_source
+
+        if self._is_empty(output.get("cta")):
+            detected_cta = self._detect_cta(caption_source)
+            output["cta"] = detected_cta or "Contact our team to learn more."
+
+        hashtags = output.get("hashtags")
+        if self._is_empty(hashtags):
+            output["hashtags"] = self._extract_hashtags(caption_source)
+
         return output
 
     def _extract_source_payload(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
@@ -182,6 +214,18 @@ class OutputFormatter:
                 "voiceover_direction": sections.get("voiceover_direction", sections.get("voiceover", "")),
                 "notes": sections.get("notes", ""),
             }
+        if content_type == "video_script":
+            return {
+                "hook": sections.get("hook", self._extract_first_sentence(normalized_text)),
+                "script": sections.get("script", normalized_text),
+                "voiceover": sections.get("voiceover", sections.get("voiceover_direction", "")),
+                "cta": sections.get("cta", self._detect_cta(normalized_text)),
+                "music_mood": sections.get("music_mood", sections.get("mood", "")),
+                "scene_sequence": self._extract_list_like(sections.get("scene_sequence", sections.get("scenes", ""))),
+                "storyboard": self._extract_list_like(sections.get("storyboard", "")),
+                "camera_direction": sections.get("camera_direction", sections.get("camera", "")),
+                "notes": sections.get("notes", ""),
+            }
         return {
             "campaign_name": sections.get("campaign_name", sections.get("name", "")),
             "objective": sections.get("objective", ""),
@@ -209,7 +253,7 @@ class OutputFormatter:
             buffer = []
 
         for line in lines:
-            match = re.match(r"^\s*(hook|caption|cta|notes|script|title|summary|description|short_description|long_description|highlights|visual_direction|visual|subject|composition|lighting|style|negative_prompt|scene_description|scene|camera_motion|motion|mood|sequence|voiceover_direction|voiceover|campaign_name|name|objective|main_message|message|assets|resources)\s*[:\-]\s*(.*)$", line, flags=re.IGNORECASE)
+            match = re.match(r"^\s*(hook|caption|cta|notes|script|title|summary|description|short_description|long_description|highlights|visual_direction|visual|subject|composition|lighting|style|negative_prompt|scene_description|scene|camera_motion|motion|mood|music_mood|sequence|voiceover_direction|voiceover|scene_sequence|storyboard|camera_direction|campaign_name|name|objective|main_message|message|assets|resources)\s*[:\-]\s*(.*)$", line, flags=re.IGNORECASE)
             if match:
                 flush()
                 current_label = match.group(1).lower()
@@ -225,6 +269,35 @@ class OutputFormatter:
 
         tags = {tag.lower() for tag in re.findall(r"#\w+", text or "")}
         return sorted(tags)
+
+    def _extract_first_sentence(self, text: str) -> str:
+        """Return the first meaningful sentence from a text block."""
+
+        if not text:
+            return ""
+        sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", text) if sentence.strip()]
+        if not sentences:
+            return ""
+        return sentences[0]
+
+    def _detect_cta(self, text: str) -> str:
+        """Detect a CTA from plain text when one is not explicitly labeled."""
+
+        if not text:
+            return ""
+        labelled = self._split_labelled_sections(text).get("cta", "")
+        if labelled:
+            return labelled.strip()
+
+        cta_patterns = (
+            r"([^.!?]*(?:contact|message|dm|learn more|book|request|speak with|get in touch|inquire|enquire)[^.!?]*[.!?])",
+            r"([^.!?]*(?:contact|message|dm|learn more|book|request|speak with|get in touch|inquire|enquire)[^.!?]*)$",
+        )
+        for pattern in cta_patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
+            if match:
+                return match.group(1).strip()
+        return ""
 
     def _extract_list_like(self, value: str) -> list[str]:
         """Convert common list-like text into a list of strings."""
@@ -251,6 +324,18 @@ class OutputFormatter:
     def _coerce_field_value(self, field_name: str, value: Any) -> Any:
         """Normalize a field value based on its target type."""
 
+        if field_name in {"scene_sequence", "storyboard"}:
+            if isinstance(value, list):
+                return [item if isinstance(item, dict) else str(item).strip() for item in value if str(item).strip() or isinstance(item, dict)]
+            if isinstance(value, str):
+                return self._extract_list_like(value)
+            if isinstance(value, dict):
+                return [dict(value)]
+            return [str(value).strip()] if str(value).strip() else []
+        if field_name == "camera_direction":
+            if isinstance(value, dict):
+                return dict(value)
+            return str(value).strip()
         if field_name in {"hashtags", "highlights", "sequence", "assets"}:
             if isinstance(value, list):
                 return [str(item).strip() for item in value if str(item).strip()]

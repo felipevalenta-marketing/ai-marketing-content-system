@@ -46,7 +46,10 @@ OUTPUT_CONTRACTS: dict[str, OutputContract] = {
         name="instagram_post_contract",
         fields=["hook", "caption", "hashtags", "cta"],
         description="Standard social output for Instagram posts.",
-        notes=["Keep the hook concise and the CTA soft."],
+        notes=[
+            "Return structured output with hook, caption, hashtags, and cta.",
+            "Keep the hook concise and the CTA soft.",
+        ],
     ),
     "instagram_reel": OutputContract(
         content_type="instagram_reel",
@@ -108,6 +111,16 @@ OUTPUT_CONTRACTS: dict[str, OutputContract] = {
         name="video_prompt_contract",
         fields=["scene_description", "camera_motion", "mood", "voiceover_direction"],
         description="Video generation prompt output.",
+    ),
+    "video_script": OutputContract(
+        content_type="video_script",
+        name="video_script_contract",
+        fields=["hook", "script", "voiceover", "cta", "music_mood", "scene_sequence", "storyboard", "camera_direction"],
+        description="Structured short-form video script and storyboard output.",
+        notes=[
+            "Return a hook, a concise script, a voiceover structure, CTA, music mood, scene sequence, storyboard, and camera direction.",
+            "Keep scenes platform-ready and production-friendly.",
+        ],
     ),
     "ad_copy": OutputContract(
         content_type="ad_copy",

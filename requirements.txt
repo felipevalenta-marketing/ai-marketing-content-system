@@ -4,3 +4,5 @@ pytest
 markdown
 tiktoken
 rich
+fastapi
+uvicorn

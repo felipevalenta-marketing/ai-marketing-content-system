@@ -259,6 +259,22 @@ class CampaignComposer:
         objective = request.get("objective", "")
         return f"{step} for {objective}" if objective else step
 
+    def build_analytics_snapshot(self, campaign_result: dict[str, Any]) -> dict[str, Any]:
+        """Build a safe campaign analytics snapshot."""
+
+        platform_plan = campaign_result.get("platform_plan", {})
+        content_sequence = campaign_result.get("content_sequence", [])
+        assets = campaign_result.get("assets", {})
+        return {
+            "campaign_name": campaign_result.get("campaign_name", ""),
+            "campaign_type": campaign_result.get("campaign_type", ""),
+            "asset_count": len(assets) if isinstance(assets, dict) else 0,
+            "platform_count": len(platform_plan) if isinstance(platform_plan, dict) else 0,
+            "sequence_count": len(content_sequence) if isinstance(content_sequence, list) else 0,
+            "warning_count": len(campaign_result.get("warnings", []) or []),
+            "error_count": len(campaign_result.get("errors", []) or []),
+        }
+
     def _asset_status(self, asset: dict[str, Any]) -> str:
         status = str(asset.get("status", "missing")).lower()
         if status in {"approved", "warning", "rejected", "missing"}:

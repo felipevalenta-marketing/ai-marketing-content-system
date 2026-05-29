@@ -1,7 +1,6 @@
 """Local storage and persistence utilities."""
 
 from .json_store import json_exists, read_json, write_json
-from .markdown_store import render_record_markdown, write_markdown
 from .storage_index import StorageIndex
 from .storage_manager import StorageManager
 from .storage_paths import (
@@ -39,8 +38,6 @@ __all__ = [
     "get_record_folder",
     "json_exists",
     "read_json",
-    "render_record_markdown",
     "sanitize_filename",
     "write_json",
-    "write_markdown",
 ]

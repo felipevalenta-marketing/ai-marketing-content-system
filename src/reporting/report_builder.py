@@ -174,6 +174,9 @@ class ReportBuilder:
             "duration": payload.get("duration") or metadata.get("duration", ""),
             "provider": metadata.get("provider") or safe_dict(payload.get("ai_response")).get("provider", ""),
             "model": metadata.get("model") or safe_dict(payload.get("ai_response")).get("model", ""),
+            "workflow_id": payload.get("workflow_id") or metadata.get("workflow_id", ""),
+            "workflow_type": payload.get("workflow_type") or metadata.get("workflow_type", ""),
+            "workflow_status": payload.get("workflow_status") or metadata.get("workflow_status", ""),
             "report_source": safe_text(payload.get("command") or "pipeline", limit=80),
         }
 
@@ -205,6 +208,15 @@ class ReportBuilder:
             "persistence_markdown_saved": metrics.get("persistence_markdown_saved", False),
             "storage_root": metrics.get("storage_root", ""),
             "stored_record_ids": metrics.get("stored_record_ids", []),
+            "workflow_id": metrics.get("workflow_id", ""),
+            "workflow_type": metrics.get("workflow_type", ""),
+            "workflow_status": metrics.get("workflow_status", ""),
+            "workflow_step_count": metrics.get("workflow_step_count", 0),
+            "workflow_completed_steps": metrics.get("workflow_completed_steps", 0),
+            "workflow_failed_steps": metrics.get("workflow_failed_steps", 0),
+            "workflow_skipped_steps": metrics.get("workflow_skipped_steps", 0),
+            "workflow_duration_seconds": metrics.get("workflow_duration_seconds", 0.0),
+            "workflow_storage_root": metrics.get("workflow_storage_root", ""),
         }
 
     def _build_governance_summary(self, metrics: dict[str, Any]) -> dict[str, Any]:
@@ -280,6 +292,10 @@ class ReportBuilder:
             "persistence_status": metrics.get("persistence_status", ""),
             "persistence_enabled": metrics.get("persistence_enabled", False),
             "persistence_records_saved": metrics.get("persistence_records_saved", 0),
+            "workflow_id": metrics.get("workflow_id", ""),
+            "workflow_type": metrics.get("workflow_type", ""),
+            "workflow_status": metrics.get("workflow_status", ""),
+            "workflow_step_count": metrics.get("workflow_step_count", 0),
         }
 
     def _build_export_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -341,6 +357,11 @@ class ReportBuilder:
             "campaign_complexity": safe_text(campaign_metrics.get("complexity", ""), limit=80),
             "asset_count": safe_int(asset_metrics.get("asset_count"), 0),
             "export_count": safe_int(export_metrics.get("export_count"), 0),
+            "workflow_id": safe_text(execution_metrics.get("workflow_id", ""), limit=120),
+            "workflow_type": safe_text(execution_metrics.get("workflow_type", ""), limit=120),
+            "workflow_status": safe_text(execution_metrics.get("workflow_status", ""), limit=80),
+            "workflow_step_count": safe_int(execution_metrics.get("workflow_step_count"), 0),
+            "workflow_duration_seconds": safe_float(execution_metrics.get("workflow_duration_seconds"), 0.0),
         }
 
     def _extract_pipeline_metrics(self, payload: dict[str, Any]) -> dict[str, Any]:

@@ -43,6 +43,12 @@ class ExecutionAnalytics:
         module_cost_summary = safe_dict(payload.get("module_cost_summary"))
         provider_cost_summary = safe_dict(payload.get("provider_cost_summary"))
         model_cost_summary = safe_dict(payload.get("model_cost_summary"))
+        workflow_result = safe_dict(payload.get("workflow_result"))
+        workflow_id = safe_text(payload.get("workflow_id") or workflow_result.get("workflow_id") or metadata.get("workflow_id") or "", limit=120)
+        workflow_type = safe_text(payload.get("workflow_type") or workflow_result.get("workflow_type") or metadata.get("workflow_type") or "", limit=120)
+        workflow_status = safe_text(payload.get("workflow_status") or workflow_result.get("status") or metadata.get("workflow_status") or "", limit=80)
+        workflow_step_summary = safe_dict(payload.get("workflow_step_summary"))
+        workflow_storage_summary = safe_dict(payload.get("workflow_storage_summary"))
         persistence_result = safe_dict(payload.get("persistence_result"))
         storage_paths = safe_dict(payload.get("storage_paths"))
         stored_record_ids = safe_list(payload.get("stored_record_ids"))
@@ -128,4 +134,13 @@ class ExecutionAnalytics:
             "stored_record_ids": stored_record_ids,
             "storage_warning_count": len(storage_warnings),
             "storage_error_count": len(storage_errors),
+            "workflow_id": workflow_id,
+            "workflow_type": workflow_type,
+            "workflow_status": workflow_status,
+            "workflow_step_count": safe_int(workflow_step_summary.get("step_count"), len(safe_list(workflow_result.get("steps")))),
+            "workflow_completed_steps": safe_int(workflow_step_summary.get("completed_steps"), 0),
+            "workflow_failed_steps": safe_int(workflow_step_summary.get("failed_steps"), 0),
+            "workflow_skipped_steps": safe_int(workflow_step_summary.get("skipped_steps"), 0),
+            "workflow_duration_seconds": safe_float(workflow_result.get("duration_seconds"), safe_float(workflow_step_summary.get("duration_seconds"), 0.0)),
+            "workflow_storage_root": safe_text(workflow_storage_summary.get("storage_root") or workflow_result.get("storage_summary", {}).get("storage_root", ""), limit=120),
         }

@@ -17,6 +17,7 @@ from src.reporting.report_contracts import (
 )
 from src.reporting.report_exporter import ReportExporter
 from src.reporting.report_renderer import ReportRenderer
+from src.reports.markdown_report_generator import MarkdownReportGenerator
 
 __all__ = [
     "AssetAnalytics",
@@ -27,6 +28,7 @@ __all__ = [
     "ReportContract",
     "ReportExporter",
     "ReportRenderer",
+    "MarkdownReportGenerator",
     "ReportingEngine",
     "build_asset_report",
     "build_campaign_report",

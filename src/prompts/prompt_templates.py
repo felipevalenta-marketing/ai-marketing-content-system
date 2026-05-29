@@ -114,6 +114,7 @@ CONTENT_TYPE_TEMPLATE_MAP: dict[str, str] = {
     "seo_page": "seo",
     "image_prompt": "media",
     "video_prompt": "media",
+    "video_script": "media",
     "ad_copy": "social",
     "campaign_pack": "campaign",
 }

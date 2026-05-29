@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import json
 
-from src.reporting.report_metrics import safe_text, utc_now_iso
+from src.reports.markdown_utils import safe_text
 from src.storage.storage_paths import STORAGE_ROOT, ensure_storage_dirs, sanitize_filename
+
+
+def utc_now_iso() -> str:
+    """Return the current UTC timestamp in ISO format."""
+
+    return datetime.now(timezone.utc).isoformat()
 
 
 class StorageIndex:

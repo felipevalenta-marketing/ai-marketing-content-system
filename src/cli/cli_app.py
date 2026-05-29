@@ -10,8 +10,10 @@ from src.cli.cli_renderer import render_cli_result
 from src.cli.commands import (
     handle_assets,
     handle_campaign,
+    handle_api,
     handle_config,
     handle_generate,
+    handle_workflow,
     handle_smoke,
     handle_validate,
 )
@@ -37,6 +39,8 @@ def build_parser() -> ArgumentParser:
     _add_campaign_parser(subparsers)
     _add_assets_parser(subparsers)
     _add_validate_parser(subparsers)
+    _add_workflow_parser(subparsers)
+    _add_api_parser(subparsers)
     _add_smoke_parser(subparsers)
     _add_config_parser(subparsers)
     return parser
@@ -113,9 +117,12 @@ def _add_common_flags(parser: ArgumentParser) -> None:
     report_group.add_argument("--report", action="store_true", help="Generate an analytics report.")
     report_group.add_argument("--report-json", action="store_true", help="Generate and prefer JSON report output.")
     report_group.add_argument("--report-markdown", action="store_true", help="Generate and prefer markdown report output.")
+    parser.add_argument("--report-type", help="Select the markdown report template type.")
+    parser.add_argument("--export-markdown-report", action="store_true", help="Export a dedicated markdown report file.")
     parser.add_argument("--persist", action="store_true", help="Persist safe local records to data/.")
     parser.add_argument("--persist-markdown", action="store_true", help="Persist markdown alongside JSON records.")
     parser.add_argument("--storage-root", help="Set the local storage root directory.")
+    parser.add_argument("--workflow", action="store_true", help="Route the command through the workflow engine.")
     parser.add_argument("--verbose", action="store_true", help="Show full traceback on unexpected errors.")
 
 
@@ -199,3 +206,35 @@ def _add_config_parser(subparsers: Any) -> None:
     parser = subparsers.add_parser("config", help="Show a safe configuration summary.")
     _add_common_flags(parser)
     parser.set_defaults(_handler=handle_config)
+
+
+def _add_api_parser(subparsers: Any) -> None:
+    parser = subparsers.add_parser("api", help="Show API and frontend run instructions.")
+    _add_common_flags(parser)
+    parser.set_defaults(_handler=handle_api)
+
+
+def _add_workflow_parser(subparsers: Any) -> None:
+    parser = subparsers.add_parser("workflow", help="Run an orchestrated workflow.")
+    parser.add_argument("--workflow-type")
+    parser.add_argument("--brand")
+    parser.add_argument("--platform")
+    parser.add_argument("--platforms")
+    parser.add_argument("--content-type")
+    parser.add_argument("--campaign-type")
+    parser.add_argument("--audience")
+    parser.add_argument("--location")
+    parser.add_argument("--property-type")
+    parser.add_argument("--objective")
+    parser.add_argument("--assets")
+    parser.add_argument("--visual-style")
+    parser.add_argument("--creative-direction")
+    parser.add_argument("--tone")
+    parser.add_argument("--extra-notes")
+    parser.add_argument("--image-type")
+    parser.add_argument("--aspect-ratio")
+    parser.add_argument("--video-type")
+    parser.add_argument("--duration")
+    parser.add_argument("--dry-run", action="store_true")
+    _add_common_flags(parser)
+    parser.set_defaults(_handler=handle_workflow)

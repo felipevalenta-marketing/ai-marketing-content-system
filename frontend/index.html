@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Marketing Content System</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Local Demo</div>
+        <h1>AI Marketing Content System</h1>
+        <p>REST API, workflows, reports, and storage in one place.</p>
+      </div>
+      <div class="topbar-actions">
+        <span id="apiStatus" class="badge badge-warning">API: checking</span>
+        <span id="envBadge" class="badge">development</span>
+        <button id="configBtn" class="button button-secondary" type="button">Refresh Config</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <aside class="sidebar">
+        <nav class="tabs" aria-label="Demo sections">
+          <button class="tab active" data-panel="generatePanel">Generate</button>
+          <button class="tab" data-panel="workflowPanel">Workflow</button>
+          <button class="tab" data-panel="campaignPanel">Campaign</button>
+          <button class="tab" data-panel="assetsPanel">Assets</button>
+          <button class="tab" data-panel="reportsPanel">Reports</button>
+          <button class="tab" data-panel="storagePanel">Storage</button>
+          <button class="tab" data-panel="healthPanel">Health</button>
+        </nav>
+
+        <section id="generatePanel" class="panel active">
+          <h2>Generate Content</h2>
+          <form id="generateForm" class="stack">
+            <div class="grid-2">
+              <label><span>Brand</span><input class="input" name="brand" value="wenzel_partner" /></label>
+              <label><span>Platform</span><input class="input" name="platform" value="instagram" /></label>
+            </div>
+            <div class="grid-2">
+              <label><span>Content Type</span><input class="input" name="content_type" value="instagram_post" /></label>
+              <label><span>Objective</span><input class="input" name="objective" value="generate_leads" /></label>
+            </div>
+            <div class="grid-2">
+              <label><span>Audience</span><input class="input" name="audience" value="relocation_clients" /></label>
+              <label><span>Location</span><input class="input" name="location" value="sant_llorenc_des_cardassar" /></label>
+            </div>
+            <label><span>Property Type</span><input class="input" name="property_type" value="rustic_home" /></label>
+            <label><span>Creative Direction</span><textarea class="textarea" name="creative_direction" rows="3">Rustic exterior with modern comfort inside, close to Manacor and beaches.</textarea></label>
+            <label><span>Extra Notes</span><textarea class="textarea" name="extra_notes" rows="2"></textarea></label>
+            <div class="grid-3">
+              <label><span>Report</span><input type="checkbox" name="report" checked /></label>
+              <label><span>Markdown</span><input type="checkbox" name="markdown" checked /></label>
+              <label><span>Dry Run</span><input type="checkbox" name="dry_run" /></label>
+            </div>
+            <button class="button button-primary" type="submit">Run Generate</button>
+          </form>
+        </section>
+
+        <section id="workflowPanel" class="panel">
+          <h2>Workflow Runner</h2>
+          <form id="workflowForm" class="stack">
+            <div class="grid-2">
+              <label><span>Workflow Type</span><input class="input" name="workflow_type" value="full_campaign_package" /></label>
+              <label><span>Brand</span><input class="input" name="brand" value="wenzel_partner" /></label>
+            </div>
+            <div class="grid-2">
+              <label><span>Platform</span><input class="input" name="platform" value="instagram" /></label>
+              <label><span>Content Type</span><input class="input" name="content_type" value="instagram_post" /></label>
+            </div>
+            <label><span>Platforms</span><input class="input" name="platforms" value="instagram,facebook,linkedin" /></label>
+            <label><span>Assets</span><input class="input" name="assets" value="image_prompt,video_prompt,social_post" /></label>
+            <label><span>Campaign Type</span><input class="input" name="campaign_type" value="property_launch" /></label>
+            <div class="grid-3">
+              <label><span>Report</span><input type="checkbox" name="report" checked /></label>
+              <label><span>Markdown</span><input type="checkbox" name="markdown" checked /></label>
+              <label><span>Dry Run</span><input type="checkbox" name="dry_run" checked /></label>
+            </div>
+            <button class="button button-primary" type="submit">Run Workflow</button>
+          </form>
+        </section>
+
+        <section id="campaignPanel" class="panel">
+          <h2>Campaign Builder</h2>
+          <form id="campaignForm" class="stack">
+            <div class="grid-2">
+              <label><span>Brand</span><input class="input" name="brand" value="wenzel_partner" /></label>
+              <label><span>Campaign Type</span><input class="input" name="campaign_type" value="property_launch" /></label>
+            </div>
+            <label><span>Platforms</span><input class="input" name="platforms" value="instagram,facebook,linkedin,email" /></label>
+            <label><span>Assets</span><input class="input" name="assets" value="instagram_post,instagram_reel,image_prompt" /></label>
+            <div class="grid-3">
+              <label><span>Report</span><input type="checkbox" name="report" checked /></label>
+              <label><span>Markdown</span><input type="checkbox" name="markdown" checked /></label>
+              <label><span>Dry Run</span><input type="checkbox" name="dry_run" checked /></label>
+            </div>
+            <button class="button button-primary" type="submit">Run Campaign</button>
+          </form>
+        </section>
+
+        <section id="assetsPanel" class="panel">
+          <h2>Asset Planner</h2>
+          <form id="assetsForm" class="stack">
+            <div class="grid-2">
+              <label><span>Brand</span><input class="input" name="brand" value="wenzel_partner" /></label>
+              <label><span>Campaign Type</span><input class="input" name="campaign_type" value="property_launch" /></label>
+            </div>
+            <label><span>Platforms</span><input class="input" name="platforms" value="instagram,facebook" /></label>
+            <label><span>Assets</span><input class="input" name="assets" value="image_prompt,video_prompt" /></label>
+            <label><span>Visual Style</span><input class="input" name="visual_style" value="mediterranean_lifestyle" /></label>
+            <div class="grid-3">
+              <label><span>Report</span><input type="checkbox" name="report" checked /></label>
+              <label><span>Markdown</span><input type="checkbox" name="markdown" checked /></label>
+              <label><span>Dry Run</span><input type="checkbox" name="dry_run" checked /></label>
+            </div>
+            <button class="button button-primary" type="submit">Plan Assets</button>
+          </form>
+        </section>
+
+        <section id="reportsPanel" class="panel">
+          <h2>Reports</h2>
+          <div class="stack">
+            <button class="button button-secondary" id="latestReportBtn" type="button">Load Latest Report</button>
+            <label><span>Report Type</span><input class="input" id="markdownReportType" value="workflow_report" /></label>
+            <button class="button button-secondary" id="reportDemoBtn" type="button">Render Markdown Report</button>
+          </div>
+        </section>
+
+        <section id="storagePanel" class="panel">
+          <h2>Storage Records</h2>
+          <div class="stack">
+            <label><span>Record Type</span><input class="input" id="recordType" placeholder="report" /></label>
+            <button class="button button-secondary" id="listRecordsBtn" type="button">List Records</button>
+          </div>
+        </section>
+
+        <section id="healthPanel" class="panel">
+          <h2>System Health</h2>
+          <div class="stack">
+            <button class="button button-secondary" id="healthBtn" type="button">Refresh Health</button>
+            <button class="button button-secondary" id="configBtnInline" type="button">Refresh Config</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="result-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="eyebrow">Response</div>
+              <h2 id="resultTitle">Ready</h2>
+            </div>
+            <span id="resultBadge" class="badge">idle</span>
+          </div>
+          <div id="metrics" class="metric-grid"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Markdown Preview</h3>
+          </div>
+          <pre id="markdownPreview" class="code-block">Run a request to see structured output here.</pre>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Structured Output</h3>
+          </div>
+          <pre id="jsonPreview" class="code-block">{}</pre>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Warnings and Errors</h3>
+          </div>
+          <div id="messages" class="stack"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

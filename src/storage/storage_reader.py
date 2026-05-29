@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 import json
 
-from src.reporting.report_metrics import safe_dict, safe_text
+from src.reports.markdown_utils import safe_dict, safe_text
 from src.storage.storage_contracts import SUPPORTED_STORAGE_RECORD_TYPES
 from src.storage.storage_index import StorageIndex
 from src.storage.storage_paths import STORAGE_ROOT, build_record_path, ensure_storage_dirs, get_record_folder

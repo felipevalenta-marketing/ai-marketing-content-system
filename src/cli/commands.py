@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 from importlib.util import find_spec
+from pathlib import Path
 from typing import Any
 from time import perf_counter
 
@@ -20,9 +21,11 @@ from src.output.output_formatter import OutputFormatter
 from src.output.output_validator import OutputValidator
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
+from src.api.api_config import build_api_config_summary
 from src.storage.storage_manager import StorageManager
 from src.utils.file_utils import normalize_key
 from src.utils.logger import get_logger
+from src.workflows.workflow_engine import WorkflowEngine
 
 
 SAMPLE_VALIDATE_TEXT = {
@@ -40,6 +43,8 @@ def handle_generate(args: Any) -> dict[str, Any]:
 
     logger = get_logger("cli.generate")
     command_started = perf_counter()
+    if bool(getattr(args, "workflow", False)):
+        return handle_workflow(args, base_command="generate")
     pipeline_config = _build_pipeline_config(args, enable_live_generation=not bool(getattr(args, "dry_run", False)))
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     request = _build_generation_request(args)
@@ -77,6 +82,8 @@ def handle_campaign(args: Any) -> dict[str, Any]:
 
     logger = get_logger("cli.campaign")
     command_started = perf_counter()
+    if bool(getattr(args, "workflow", False)):
+        return handle_workflow(args, base_command="campaign")
     composer = CampaignComposer(output_root=PipelineConfig().campaign_output_root, logger=logger)
     request = _build_campaign_request(args)
     dry_run = bool(getattr(args, "dry_run", False))
@@ -112,6 +119,8 @@ def handle_assets(args: Any) -> dict[str, Any]:
 
     logger = get_logger("cli.assets")
     command_started = perf_counter()
+    if bool(getattr(args, "workflow", False)):
+        return handle_workflow(args, base_command="assets")
     coordinator = AssetCoordinator(output_root=PipelineConfig().asset_output_root, logger=logger)
     request = _build_asset_request(args)
     dry_run = bool(getattr(args, "dry_run", False))
@@ -268,6 +277,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "src.tracking": find_spec("src.tracking") is not None,
         "src.reporting": find_spec("src.reporting") is not None,
         "src.storage": find_spec("src.storage") is not None,
+        "src.workflows": find_spec("src.workflows") is not None,
     }
     pipeline = ContentGenerationPipeline(logger=logger)
     openai_client = OpenAIClient(logger=logger)
@@ -311,6 +321,7 @@ def handle_smoke(args: Any) -> dict[str, Any]:
     composer = CampaignComposer(logger=logger)
     coordinator = AssetCoordinator(logger=logger)
     reporting_engine = ReportingEngine(logger=logger)
+    workflow_engine = WorkflowEngine(logger=logger)
 
     sample_formatted = formatter.format(
         {
@@ -394,6 +405,15 @@ def handle_smoke(args: Any) -> dict[str, Any]:
         "warnings": [],
         "errors": [],
     }))
+    checks["workflow_ready"] = bool(workflow_engine.validate_workflow(workflow_engine.plan_workflow({
+        "workflow_type": "single_content_generation",
+        "brand": sample_brand or "sample_brand",
+        "platform": "instagram",
+        "content_type": "instagram_post",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "dry_run": True,
+    })).get("valid"))
 
     success = all(
         checks[key]
@@ -418,7 +438,9 @@ def handle_smoke(args: Any) -> dict[str, Any]:
             "campaign_ready",
             "asset_ready",
             "reporting_ready",
+            "workflow_ready",
             "src.storage",
+            "src.workflows",
         )
     )
 
@@ -448,6 +470,95 @@ def handle_config(args: Any) -> dict[str, Any]:
     )
 
 
+def handle_api(args: Any) -> dict[str, Any]:
+    """Handle the API helper command."""
+
+    summary = build_api_config_summary()
+    frontend_path = Path(summary["paths"]["root"]) / "frontend" / "index.html"
+    return _wrap_command_result(
+        command="api",
+        success=True,
+        mode="inspection",
+        summary={
+            "run_command": "uvicorn src.api.main:app --reload",
+            "module_command": "python -m src.api.main",
+            "frontend_path": str(frontend_path),
+            "docs_path": "/docs",
+            "openapi_path": "/openapi.json",
+            "api_base_url": summary.get("api_base_url", "http://127.0.0.1:8000"),
+        },
+        payload={
+            "api_config": {
+                "api_layer_enabled": summary.get("api_layer_enabled", True),
+                "frontend_demo_enabled": summary.get("frontend_demo_enabled", True),
+                "api_debug": summary.get("api_debug", False),
+                "service_name": summary.get("api_service_name", "ai-marketing-content-system"),
+                "version": summary.get("api_version", "0.1.0"),
+            }
+        },
+        warnings=[],
+        errors=[],
+    )
+
+
+def handle_workflow(args: Any, base_command: str = "workflow") -> dict[str, Any]:
+    """Handle the workflow orchestration command."""
+
+    logger = get_logger("cli.workflow")
+    command_started = perf_counter()
+    pipeline_config = _build_pipeline_config(args, enable_live_generation=not bool(getattr(args, "dry_run", False)))
+    workflow_engine = WorkflowEngine(config=pipeline_config, logger=logger)
+    request = _build_workflow_request(args)
+    plan = workflow_engine.plan_workflow(request)
+    validation = workflow_engine.validate_workflow(plan)
+    if bool(getattr(args, "dry_run", False)):
+        workflow_result = workflow_engine.run_workflow(plan, request)
+    elif validation.get("valid", False):
+        workflow_result = workflow_engine.run_workflow(plan, request)
+    else:
+        workflow_result = {
+            "success": False,
+            "workflow_id": plan.get("workflow_id", ""),
+            "workflow_type": plan.get("workflow_type", ""),
+            "status": "failed",
+            "started_at": "",
+            "completed_at": "",
+            "duration_seconds": 0.0,
+            "steps": [],
+            "results": {},
+            "summary": {"status": "validation_failed"},
+            "token_summary": {},
+            "cost_summary": {},
+            "report_summary": {},
+            "storage_summary": {},
+            "warnings": validation.get("warnings", []),
+            "errors": validation.get("errors", []),
+            "metadata": {"plan": plan, "validation": validation},
+        }
+
+    workflow_result = _attach_cli_execution_metadata(workflow_result, command_started, base_command)
+    summary = _build_workflow_summary(workflow_result, request)
+    payload = _build_workflow_payload(workflow_result)
+    return _wrap_command_result(
+        command=base_command,
+        success=bool(workflow_result.get("success")),
+        mode="dry_run" if bool(getattr(args, "dry_run", False)) else "live",
+        brand=str(request.get("brand", "")),
+        platform=str(request.get("platform", "")),
+        content_type=str(request.get("content_type", "")),
+        campaign_type=str(request.get("campaign_type", "")),
+        audience=str(request.get("audience", "")),
+        location=str(request.get("location", "")),
+        objective=str(request.get("objective", "")),
+        summary=summary,
+        payload=payload,
+        warnings=list(workflow_result.get("warnings", [])),
+        errors=list(workflow_result.get("errors", [])),
+        metadata={"workflow_type": workflow_result.get("workflow_type", request.get("workflow_type", "")), "workflow_id": workflow_result.get("workflow_id", ""), "dry_run": bool(getattr(args, "dry_run", False))},
+        dry_run=bool(getattr(args, "dry_run", False)),
+    )
+
+
 def _build_pipeline_config(args: Any, enable_live_generation: bool) -> PipelineConfig:
     """Build a pipeline config from CLI arguments."""
 
@@ -459,6 +570,8 @@ def _build_pipeline_config(args: Any, enable_live_generation: bool) -> PipelineC
         enable_persistence=bool(getattr(args, "persist", False)),
         persist_markdown=bool(getattr(args, "persist_markdown", False)),
         storage_root=str(getattr(args, "storage_root", "") or "data"),
+        enable_markdown_reports=bool(getattr(args, "markdown", False) or getattr(args, "report_markdown", False) or PipelineConfig().enable_markdown_reports),
+        enable_markdown_report_export=bool(getattr(args, "export_markdown_report", False) or PipelineConfig().enable_markdown_report_export),
     )
 
 
@@ -491,6 +604,9 @@ def _build_generation_request(args: Any) -> dict[str, Any]:
         "report": bool(getattr(args, "report", False)),
         "report_json": bool(getattr(args, "report_json", False)),
         "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_type": str(getattr(args, "report_type", "") or "").strip(),
+        "markdown": bool(getattr(args, "markdown", False)),
+        "export_markdown_report": bool(getattr(args, "export_markdown_report", False)),
         "report_export": bool(getattr(args, "report_export", False)),
     }
 
@@ -514,6 +630,9 @@ def _build_campaign_request(args: Any) -> dict[str, Any]:
         "report": bool(getattr(args, "report", False)),
         "report_json": bool(getattr(args, "report_json", False)),
         "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_type": str(getattr(args, "report_type", "") or "").strip(),
+        "markdown": bool(getattr(args, "markdown", False)),
+        "export_markdown_report": bool(getattr(args, "export_markdown_report", False)),
         "report_export": bool(getattr(args, "report_export", False)),
     }
 
@@ -539,7 +658,60 @@ def _build_asset_request(args: Any) -> dict[str, Any]:
         "report": bool(getattr(args, "report", False)),
         "report_json": bool(getattr(args, "report_json", False)),
         "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_type": str(getattr(args, "report_type", "") or "").strip(),
+        "markdown": bool(getattr(args, "markdown", False)),
+        "export_markdown_report": bool(getattr(args, "export_markdown_report", False)),
         "report_export": bool(getattr(args, "report_export", False)),
+    }
+
+
+def _build_workflow_request(args: Any) -> dict[str, Any]:
+    """Build a structured workflow orchestration request from CLI arguments."""
+
+    platforms = parse_csv_list(getattr(args, "platforms", None), default=["instagram", "facebook", "linkedin", "email"])
+    assets = parse_csv_list(getattr(args, "assets", None))
+    workflow_type = normalize_key(str(getattr(args, "workflow_type", "") or "").strip())
+    if not workflow_type:
+        content_type = normalize_key(str(getattr(args, "content_type", "") or "").strip())
+        if content_type == "creative_direction":
+            workflow_type = "creative_direction_workflow"
+        elif content_type == "image_prompt":
+            workflow_type = "image_prompt_workflow"
+        elif content_type in {"video_script", "video_prompt"}:
+            workflow_type = "video_script_workflow"
+        elif assets:
+            workflow_type = "full_campaign_package"
+        else:
+            workflow_type = PipelineConfig().default_workflow_type
+    return {
+        "workflow_type": workflow_type,
+        "brand": str(getattr(args, "brand", "") or "").strip(),
+        "platform": normalize_key(str(getattr(args, "platform", "") or "").strip()),
+        "platforms": platforms,
+        "content_type": normalize_key(str(getattr(args, "content_type", "") or "").strip()),
+        "campaign_type": normalize_key(str(getattr(args, "campaign_type", "") or PipelineConfig().default_campaign_type).strip()),
+        "objective": str(getattr(args, "objective", "") or "generate_leads").strip(),
+        "audience": str(getattr(args, "audience", "") or "general").strip(),
+        "location": normalize_key(str(getattr(args, "location", "") or "").strip()),
+        "property_type": normalize_key(str(getattr(args, "property_type", "") or "").strip()),
+        "visual_style": str(getattr(args, "visual_style", "") or "").strip(),
+        "creative_direction": str(getattr(args, "creative_direction", "") or "").strip(),
+        "assets": assets,
+        "enable_governance": True,
+        "enable_reporting": True,
+        "enable_tracking": True,
+        "enable_persistence": bool(getattr(args, "persist", False)) or PipelineConfig().workflow_persistence_enabled,
+        "dry_run": bool(getattr(args, "dry_run", False)),
+        "extra_notes": str(getattr(args, "extra_notes", "") or "").strip(),
+        "report": bool(getattr(args, "report", False)),
+        "report_json": bool(getattr(args, "report_json", False)),
+        "report_markdown": bool(getattr(args, "report_markdown", False)),
+        "report_type": str(getattr(args, "report_type", "") or "").strip(),
+        "markdown": bool(getattr(args, "markdown", False)),
+        "export_markdown_report": bool(getattr(args, "export_markdown_report", False)),
+        "report_export": bool(getattr(args, "report_export", False)),
+        "persist_markdown": bool(getattr(args, "persist_markdown", False)),
+        "storage_root": str(getattr(args, "storage_root", "") or PipelineConfig().storage_root),
     }
 
 
@@ -707,6 +879,7 @@ def _build_generate_summary(result: dict[str, Any], request: dict[str, Any], dry
         "route": routing.get("route_reason") or routing.get("model_name") or routing.get("model") or "",
         "exported": bool(result.get("exported_files")),
         "export_paths": result.get("exported_files", {}),
+        "markdown_report_path": result.get("markdown_report_path", ""),
     }
     token_usage = result.get("token_usage") if isinstance(result.get("token_usage"), dict) else {}
     if token_usage:
@@ -812,20 +985,108 @@ def _build_asset_summary(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_workflow_summary(result: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+    """Build a workflow command summary."""
+
+    summary = {
+        "workflow_id": result.get("workflow_id", ""),
+        "workflow_type": result.get("workflow_type", request.get("workflow_type", "")),
+        "status": result.get("status", ""),
+        "step_count": len(result.get("steps", []) or []),
+        "completed_steps": (result.get("summary") or {}).get("completed_steps", 0),
+        "failed_steps": (result.get("summary") or {}).get("failed_steps", 0),
+        "skipped_steps": (result.get("summary") or {}).get("skipped_steps", 0),
+        "duration_seconds": result.get("duration_seconds", 0.0),
+        "token_summary": result.get("token_summary", {}),
+        "cost_summary": result.get("cost_summary", {}),
+        "report_summary": result.get("report_summary", {}),
+        "markdown_report_path": result.get("markdown_report_path", ""),
+        "storage_summary": result.get("storage_summary", {}),
+    }
+    token_summary = result.get("token_summary") if isinstance(result.get("token_summary"), dict) else {}
+    if token_summary:
+        summary.update(
+            {
+                "provider": token_summary.get("provider", ""),
+                "model": token_summary.get("model", ""),
+                "input_tokens": token_summary.get("input_tokens", 0),
+                "output_tokens": token_summary.get("output_tokens", 0),
+                "total_tokens": token_summary.get("total_tokens", 0),
+                "estimated_usage": token_summary.get("estimated", False),
+            }
+        )
+    cost_summary = result.get("cost_summary") if isinstance(result.get("cost_summary"), dict) else {}
+    if cost_summary:
+        summary.update(
+            {
+                "currency": cost_summary.get("currency", ""),
+                "input_cost": round(float(cost_summary.get("input_cost", 0.0) or 0.0), 6),
+                "output_cost": round(float(cost_summary.get("output_cost", 0.0) or 0.0), 6),
+                "cached_input_cost": round(float(cost_summary.get("cached_input_cost", 0.0) or 0.0), 6),
+                "total_cost": round(float(cost_summary.get("total_cost", 0.0) or 0.0), 6),
+                "estimated_cost": cost_summary.get("estimated_cost", False),
+                "pricing_found": cost_summary.get("pricing_found", False),
+            }
+        )
+    return summary
+
+
+def _build_workflow_payload(result: dict[str, Any]) -> dict[str, Any]:
+    """Build a safe workflow payload for CLI display."""
+
+    steps: list[dict[str, Any]] = []
+    for step in result.get("steps", []) or []:
+        if not isinstance(step, dict):
+            continue
+        steps.append(
+            {
+                "step_id": step.get("step_id", ""),
+                "step_type": step.get("step_type", ""),
+                "name": step.get("name", ""),
+                "status": step.get("status", ""),
+                "warnings": list(step.get("warnings", [])),
+                "errors": list(step.get("errors", [])),
+            }
+        )
+    return {
+        "workflow_id": result.get("workflow_id", ""),
+        "workflow_type": result.get("workflow_type", ""),
+        "status": result.get("status", ""),
+        "steps": steps,
+        "summary": result.get("summary", {}),
+        "workflow_step_summary": result.get("workflow_step_summary", result.get("summary", {})),
+        "token_summary": result.get("token_summary", {}),
+        "cost_summary": result.get("cost_summary", {}),
+        "report_summary": result.get("report_summary", {}),
+        "markdown_report": result.get("markdown_report", {}),
+        "markdown_report_path": result.get("markdown_report_path", ""),
+        "markdown_sections": result.get("markdown_sections", []),
+        "markdown_validation": result.get("markdown_validation", {}),
+        "storage_summary": result.get("storage_summary", {}),
+        "workflow_storage_summary": result.get("workflow_storage_summary", result.get("storage_summary", {})),
+        "warnings": list(result.get("warnings", [])),
+        "errors": list(result.get("errors", [])),
+        "metadata": result.get("metadata", {}),
+    }
+
+
 def _maybe_build_report_bundle(result: dict[str, Any], args: Any, *, command: str, logger: Any) -> dict[str, Any] | None:
     """Build an analytics report bundle when the user requested one."""
 
-    if not any(bool(getattr(args, flag, False)) for flag in ("report", "report_json", "report_markdown")):
+    if not any(bool(getattr(args, flag, False)) for flag in ("report", "report_json", "report_markdown", "markdown", "export_markdown_report")):
         return None
 
-    report_engine = ReportingEngine(logger=logger)
-    report_format = "json" if bool(getattr(args, "report_json", False)) else "markdown" if bool(getattr(args, "report_markdown", False)) else "terminal"
+    report_engine = ReportingEngine(markdown_output_root=PipelineConfig().markdown_report_output_root, logger=logger)
+    report_format = "json" if bool(getattr(args, "report_json", False)) else "markdown" if bool(getattr(args, "report_markdown", False) or getattr(args, "markdown", False)) else "terminal"
     report_bundle = report_engine.generate(
         result,
         export=False,
         formats=["markdown", "json"],
         render_format=report_format,
         report_name=command,
+        markdown=bool(getattr(args, "markdown", False) or getattr(args, "report_markdown", False)),
+        export_markdown=bool(getattr(args, "export_markdown_report", False)),
+        markdown_report_type=str(getattr(args, "report_type", "") or PipelineConfig().default_markdown_report_type),
     )
     return report_bundle
 
@@ -842,6 +1103,10 @@ def _inject_report_bundle(result: dict[str, Any], report_bundle: dict[str, Any])
             "asset_report": report_bundle.get("asset_report"),
             "export_report": report_bundle.get("export_report"),
             "consolidated_report": report_bundle.get("consolidated_report"),
+            "markdown_report": report_bundle.get("markdown_report"),
+            "markdown_report_path": report_bundle.get("markdown_report_path"),
+            "markdown_sections": report_bundle.get("markdown_sections"),
+            "markdown_validation": report_bundle.get("markdown_validation"),
             "report_export_paths": report_bundle.get("exported_files", {}),
             "reporting": report_bundle,
         }
@@ -932,6 +1197,27 @@ def _maybe_attach_cli_persistence(result: dict[str, Any], args: Any, *, command:
                 "storage_errors": persistence_result["errors"],
             }
         )
+        markdown_report = result.get("markdown_report") if isinstance(result.get("markdown_report"), dict) else {}
+        if markdown_report:
+            metadata = dict(markdown_report.get("metadata", {})) if isinstance(markdown_report.get("metadata"), dict) else {}
+            metadata["persistence"] = {
+                "records_saved": persistence_result.get("records_saved", 0),
+                "storage_root": persistence_result.get("storage_root", storage_root),
+                "stored_record_ids": list(persistence_result.get("stored_record_ids", [])),
+                "storage_paths": dict(persistence_result.get("storage_paths", {})),
+                "markdown_saved": persistence_result.get("markdown_saved", False),
+                "persistence_status": persistence_result.get("persistence_status", ""),
+            }
+            markdown_report["metadata"] = metadata
+            markdown_text = str(markdown_report.get("markdown", "") or "")
+            if "## Storage" not in markdown_text:
+                from src.reports.markdown_sections import build_storage_section
+
+                storage_section = build_storage_section({"storage_summary": metadata["persistence"]})
+                if storage_section:
+                    markdown_text = f"{markdown_text}\n\n{storage_section}".strip()
+            markdown_report["markdown"] = markdown_text
+            markdown_report["word_count"] = len(markdown_text.split())
         return result
     except Exception as exc:  # pragma: no cover - defensive fallback
         warning = f"Persistence failed: {exc}"

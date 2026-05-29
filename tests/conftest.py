@@ -230,6 +230,33 @@ def sample_video_script_request(sample_brand_name: str) -> dict[str, object]:
 
 
 @pytest.fixture
+def sample_workflow_request(sample_brand_name: str) -> dict[str, object]:
+    """Return a representative workflow orchestration request."""
+
+    return {
+        "workflow_type": "full_campaign_package",
+        "brand": sample_brand_name,
+        "platform": "instagram",
+        "platforms": ["instagram", "facebook", "linkedin", "email"],
+        "content_type": "instagram_post",
+        "campaign_type": "property_launch",
+        "objective": "generate_leads",
+        "audience": "relocation_clients",
+        "location": "sant_llorenc_des_cardassar",
+        "property_type": "rustic_home",
+        "visual_style": "mediterranean_lifestyle",
+        "creative_direction": "Rustic exterior with modern comfort inside, close to Manacor and beaches.",
+        "assets": ["image_prompt", "video_prompt", "social_post"],
+        "enable_governance": True,
+        "enable_reporting": True,
+        "enable_tracking": True,
+        "enable_persistence": True,
+        "dry_run": False,
+        "extra_notes": "",
+    }
+
+
+@pytest.fixture
 def sample_video_script_ai_response() -> dict[str, object]:
     """Return a representative AI response for video script generation."""
 

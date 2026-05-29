@@ -40,6 +40,7 @@ VERSION_LIBRARY: dict[str, PromptVersion] = {
     "seo_page": PromptVersion("SEO_PAGE_V1", "seo_page", "seo", "SEO page prompt."),
     "image_prompt": PromptVersion("IMAGE_PROMPT_V3", "image_prompt", "image", "Image prompt tuned for visual specificity."),
     "video_prompt": PromptVersion("VIDEO_PROMPT_V2", "video_prompt", "video", "Video prompt tuned for cinematic sequencing."),
+    "video_script": PromptVersion("VIDEO_SCRIPT_V1", "video_script", "video", "Short-form video script and storyboard prompt."),
     "ad_copy": PromptVersion("AD_COPY_V1", "ad_copy", "social", "Paid social copy prompt."),
     "campaign_pack": PromptVersion("CAMPAIGN_PACK_V1", "campaign_pack", "campaign", "Multi-asset campaign prompt."),
 }

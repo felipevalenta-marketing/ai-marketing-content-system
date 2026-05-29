@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from src.reporting.report_metrics import safe_text
+from src.reports.markdown_utils import safe_text
 
 
 def render_record_markdown(record: dict[str, Any]) -> str:

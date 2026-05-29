@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 import json
 
-from src.reporting.report_metrics import safe_text
+from src.reports.markdown_utils import safe_text
 from src.storage.json_store import write_json
 from src.storage.markdown_store import render_record_markdown, write_markdown
 from src.storage.storage_index import StorageIndex

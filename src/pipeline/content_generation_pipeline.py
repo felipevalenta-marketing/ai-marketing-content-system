@@ -88,7 +88,11 @@ class ContentGenerationPipeline:
         self.governance_engine = governance_engine or ContentGovernanceEngine(logger=self.logger)
         self.campaign_composer = campaign_composer or CampaignComposer(output_root=self.config.campaign_output_root, logger=self.logger)
         self.asset_coordinator = asset_coordinator or AssetCoordinator(output_root=self.config.asset_output_root, logger=self.logger)
-        self.reporting_engine = reporting_engine or ReportingEngine(output_root=self.config.report_output_root, logger=self.logger)
+        self.reporting_engine = reporting_engine or ReportingEngine(
+            output_root=self.config.report_output_root,
+            markdown_output_root=self.config.markdown_report_output_root,
+            logger=self.logger,
+        )
         self.token_tracker = TokenTracker(logger=self.logger)
         self.cost_tracker = CostTracker(
             logger=self.logger,
@@ -1870,6 +1874,9 @@ class ContentGenerationPipeline:
                 formats=list(self.config.report_formats),
                 render_format="json" if request.get("report_json") else "markdown" if request.get("report_markdown") else "terminal",
                 report_name=f"{request.get('brand', '')}_{request.get('content_type', '')}",
+                markdown=bool(self.config.enable_markdown_reports and (request.get("markdown") or request.get("report_markdown") or request.get("report"))),
+                export_markdown=bool(self.config.enable_markdown_report_export and request.get("export_markdown_report")),
+                markdown_report_type=str(request.get("report_type") or self.config.default_markdown_report_type),
             )
             metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
             report_metadata = report_bundle.get("metadata", {})
@@ -1881,6 +1888,10 @@ class ContentGenerationPipeline:
                     "asset_report": report_bundle.get("asset_report"),
                     "export_report": report_bundle.get("export_report"),
                     "consolidated_report": report_bundle.get("consolidated_report"),
+                    "markdown_report": report_bundle.get("markdown_report", {}),
+                    "markdown_report_path": report_bundle.get("markdown_report_path", ""),
+                    "markdown_sections": report_bundle.get("markdown_sections", []),
+                    "markdown_validation": report_bundle.get("markdown_validation", {}),
                     "report_export_paths": report_bundle.get("exported_files", {}),
                     "image_prompt_report": report_bundle.get("image_prompt_report", {}),
                     "video_script_report": report_bundle.get("video_script_report", {}),
@@ -2090,6 +2101,20 @@ class ContentGenerationPipeline:
             metadata["persistence"] = persistence_summary
             report["sections"] = sections
             report["metadata"] = metadata
+        markdown_report = result.get("markdown_report")
+        if isinstance(markdown_report, dict):
+            metadata = dict(markdown_report.get("metadata", {})) if isinstance(markdown_report.get("metadata"), dict) else {}
+            metadata["persistence"] = persistence_summary
+            markdown_report["metadata"] = metadata
+            markdown_markdown = str(markdown_report.get("markdown", "") or "")
+            if "## Storage" not in markdown_markdown:
+                from src.reports.markdown_sections import build_storage_section
+
+                storage_section = build_storage_section({"storage_summary": persistence_summary})
+                if storage_section:
+                    markdown_markdown = f"{markdown_markdown}\n\n{storage_section}".strip()
+            markdown_report["markdown"] = markdown_markdown
+            markdown_report["word_count"] = len(markdown_markdown.split())
         metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
         reporting = dict(metadata.get("reporting", {})) if isinstance(metadata.get("reporting"), dict) else {}
         if reporting:
@@ -2112,6 +2137,8 @@ class ContentGenerationPipeline:
             or request.get("report")
             or request.get("report_json")
             or request.get("report_markdown")
+            or request.get("markdown")
+            or request.get("export_markdown_report")
         )
 
 

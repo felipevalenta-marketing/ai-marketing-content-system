@@ -7,13 +7,15 @@ from pathlib import Path
 from typing import Any
 import re
 
-from src.reporting.report_metrics import safe_text
+from src.reports.markdown_utils import safe_text
 
 
 STORAGE_ROOT = Path("data")
 
 RECORD_FOLDER_MAP = {
     "execution": "executions",
+    "workflow": "executions",
+    "workflow_state": "snapshots",
     "generation": "generations",
     "campaign": "campaigns",
     "asset": "assets",

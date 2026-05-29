@@ -82,6 +82,7 @@ CONTENT_CONTEXT_MAP: dict[str, list[str]] = {
     "seo_page": ["positioning", "market", "neighborhood", "content_rules", "audience"],
     "image_prompt": ["visual", "positioning", "market", "neighborhood", "buyer_psychology"],
     "video_prompt": ["visual", "tone", "audience", "market", "neighborhood", "platform_rules"],
+    "video_script": ["visual", "tone", "audience", "market", "neighborhood", "platform_rules"],
     "ad_copy": ["tone", "audience", "buyer_psychology", "positioning", "platform_rules"],
     "campaign_pack": ["tone", "audience", "positioning", "buyer_psychology", "market", "neighborhood", "platform_rules", "content_rules", "examples"],
 }

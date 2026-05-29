@@ -12,4 +12,18 @@ python main.py generate --dry-run --brand wenzel_partner --platform instagram --
 python main.py campaign --dry-run --brand wenzel_partner --campaign-type property_launch --platforms instagram,facebook,linkedin
 python main.py assets --dry-run --brand wenzel_partner --campaign-type property_launch --platforms instagram,facebook --assets image_prompt,video_prompt
 python main.py validate --content-type instagram_post --platform instagram --text "Discover a calm Mallorca lifestyle with trusted local guidance."
+python main.py workflow --workflow-type full_campaign_package --brand wenzel_partner --platform instagram --content-type instagram_post --campaign-type property_launch --objective generate_leads --audience relocation_clients --location sant_llorenc_des_cardassar --assets image_prompt,video_prompt,social_post --dry-run --report --markdown
+python main.py api
 ```
+
+Markdown reports export to `outputs/reports/markdown/`, and the export index is stored at `outputs/reports/markdown/index.json`.
+
+## Local API and Demo UI
+
+Run the API locally with:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Open `frontend/index.html` in your browser for the demo interface. If `uvicorn` is not installed yet, run `python -m src.api.main` to print local startup instructions.

@@ -55,6 +55,34 @@ class OutputExporter:
 
         return exported_paths
 
+    def build_export_summary(
+        self,
+        brand: str,
+        content_type: str,
+        exported_paths: dict[str, str],
+        metadata: dict[str, Any],
+        validation_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build a safe export summary for reporting."""
+
+        return {
+            "brand": normalize_key(brand or "unknown_brand"),
+            "content_type": normalize_key(content_type or "unknown_content"),
+            "export_count": len(exported_paths),
+            "export_formats": list(exported_paths.keys()),
+            "exported_paths": dict(exported_paths),
+            "validation_status": str(validation_result.get("valid", False)),
+            "metadata": {
+                "brand": metadata.get("brand", ""),
+                "platform": metadata.get("platform", ""),
+                "content_type": metadata.get("content_type", ""),
+                "objective": metadata.get("objective", ""),
+                "audience": metadata.get("audience", ""),
+                "location": metadata.get("location", ""),
+                "property_type": metadata.get("property_type", ""),
+            },
+        }
+
     def _build_export_json(self, output: dict[str, Any], metadata: dict[str, Any], validation_result: dict[str, Any]) -> dict[str, Any]:
         """Build a sanitized JSON export payload."""
 

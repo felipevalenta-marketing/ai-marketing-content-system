@@ -72,6 +72,10 @@ class PipelineResult:
     asset_report: dict[str, Any] | None
     export_report: dict[str, Any] | None
     consolidated_report: dict[str, Any] | None
+    markdown_report: dict[str, Any] | None
+    markdown_report_path: str | None
+    markdown_sections: list[dict[str, Any]]
+    markdown_validation: dict[str, Any] | None
     report_export_paths: dict[str, str]
     rendered_markdown: str | None
     rendered_text: str | None
@@ -87,6 +91,12 @@ class PipelineResult:
     module_cost_summary: dict[str, Any] | None
     provider_cost_summary: dict[str, Any] | None
     model_cost_summary: dict[str, Any] | None
+    workflow_result: dict[str, Any] | None
+    workflow_id: str | None
+    workflow_type: str | None
+    workflow_status: str | None
+    workflow_step_summary: dict[str, Any] | None
+    workflow_storage_summary: dict[str, Any] | None
     metadata: dict[str, Any]
     error: str | None
     warnings: list[str] = field(default_factory=list)
@@ -157,6 +167,10 @@ class PipelineResult:
             "asset_report": self.asset_report,
             "export_report": self.export_report,
             "consolidated_report": self.consolidated_report,
+            "markdown_report": self.markdown_report,
+            "markdown_report_path": self.markdown_report_path,
+            "markdown_sections": self.markdown_sections,
+            "markdown_validation": self.markdown_validation,
             "report_export_paths": self.report_export_paths,
             "rendered_markdown": self.rendered_markdown,
             "rendered_text": self.rendered_text,
@@ -172,6 +186,12 @@ class PipelineResult:
             "module_cost_summary": self.module_cost_summary,
             "provider_cost_summary": self.provider_cost_summary,
             "model_cost_summary": self.model_cost_summary,
+            "workflow_result": self.workflow_result,
+            "workflow_id": self.workflow_id,
+            "workflow_type": self.workflow_type,
+            "workflow_status": self.workflow_status,
+            "workflow_step_summary": self.workflow_step_summary,
+            "workflow_storage_summary": self.workflow_storage_summary,
             "metadata": self.metadata,
             "error": self.error,
             "warnings": self.warnings,
@@ -240,6 +260,10 @@ def build_success_result(
     asset_report: dict[str, Any] | None = None,
     export_report: dict[str, Any] | None = None,
     consolidated_report: dict[str, Any] | None = None,
+    markdown_report: dict[str, Any] | None = None,
+    markdown_report_path: str | None = None,
+    markdown_sections: list[dict[str, Any]] | None = None,
+    markdown_validation: dict[str, Any] | None = None,
     report_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
@@ -255,6 +279,12 @@ def build_success_result(
     module_cost_summary: dict[str, Any] | None = None,
     provider_cost_summary: dict[str, Any] | None = None,
     model_cost_summary: dict[str, Any] | None = None,
+    workflow_result: dict[str, Any] | None = None,
+    workflow_id: str | None = None,
+    workflow_type: str | None = None,
+    workflow_status: str | None = None,
+    workflow_step_summary: dict[str, Any] | None = None,
+    workflow_storage_summary: dict[str, Any] | None = None,
     metadata: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -323,6 +353,10 @@ def build_success_result(
         asset_report=asset_report,
         export_report=export_report,
         consolidated_report=consolidated_report,
+        markdown_report=markdown_report,
+        markdown_report_path=markdown_report_path,
+        markdown_sections=markdown_sections or [],
+        markdown_validation=markdown_validation,
         report_export_paths=report_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
@@ -338,6 +372,12 @@ def build_success_result(
         module_cost_summary=module_cost_summary,
         provider_cost_summary=provider_cost_summary,
         model_cost_summary=model_cost_summary,
+        workflow_result=workflow_result,
+        workflow_id=workflow_id,
+        workflow_type=workflow_type,
+        workflow_status=workflow_status,
+        workflow_step_summary=workflow_step_summary,
+        workflow_storage_summary=workflow_storage_summary,
         metadata=metadata or {},
         error=None,
         warnings=warnings or [],
@@ -408,6 +448,10 @@ def build_failure_result(
     asset_report: dict[str, Any] | None = None,
     export_report: dict[str, Any] | None = None,
     consolidated_report: dict[str, Any] | None = None,
+    markdown_report: dict[str, Any] | None = None,
+    markdown_report_path: str | None = None,
+    markdown_sections: list[dict[str, Any]] | None = None,
+    markdown_validation: dict[str, Any] | None = None,
     report_export_paths: dict[str, str] | None = None,
     rendered_markdown: str | None = None,
     rendered_text: str | None = None,
@@ -423,6 +467,12 @@ def build_failure_result(
     module_cost_summary: dict[str, Any] | None = None,
     provider_cost_summary: dict[str, Any] | None = None,
     model_cost_summary: dict[str, Any] | None = None,
+    workflow_result: dict[str, Any] | None = None,
+    workflow_id: str | None = None,
+    workflow_type: str | None = None,
+    workflow_status: str | None = None,
+    workflow_step_summary: dict[str, Any] | None = None,
+    workflow_storage_summary: dict[str, Any] | None = None,
     warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a failure pipeline response."""
@@ -490,6 +540,10 @@ def build_failure_result(
         asset_report=asset_report,
         export_report=export_report,
         consolidated_report=consolidated_report,
+        markdown_report=markdown_report,
+        markdown_report_path=markdown_report_path,
+        markdown_sections=markdown_sections or [],
+        markdown_validation=markdown_validation,
         report_export_paths=report_export_paths or {},
         rendered_markdown=rendered_markdown,
         rendered_text=rendered_text,
@@ -505,6 +559,12 @@ def build_failure_result(
         module_cost_summary=module_cost_summary,
         provider_cost_summary=provider_cost_summary,
         model_cost_summary=model_cost_summary,
+        workflow_result=workflow_result,
+        workflow_id=workflow_id,
+        workflow_type=workflow_type,
+        workflow_status=workflow_status,
+        workflow_step_summary=workflow_step_summary,
+        workflow_storage_summary=workflow_storage_summary,
         metadata=metadata,
         error=error,
         warnings=warnings or [],

@@ -187,6 +187,16 @@ def _render_payload_lines(payload: Any, terminal: bool) -> list[str]:
         "export_report",
         "consolidated_report",
         "reporting",
+        "workflow_result",
+        "workflow_id",
+        "workflow_type",
+        "workflow_status",
+        "workflow_step_summary",
+        "workflow_storage_summary",
+        "markdown_report_path",
+        "markdown_report",
+        "markdown_sections",
+        "markdown_validation",
         "campaign_name",
         "campaign_type",
         "status",
@@ -216,10 +226,15 @@ def _render_report_markdown(payload: Any) -> list[str]:
 
     if not isinstance(payload, dict):
         return []
+    markdown_report = payload.get("markdown_report") if isinstance(payload.get("markdown_report"), dict) else {}
     reporting = payload.get("reporting")
-    if not isinstance(reporting, dict):
-        return []
-    report_markdown = reporting.get("rendered_markdown")
+    if not isinstance(markdown_report, dict) and isinstance(reporting, dict):
+        markdown_report = reporting.get("markdown_report") if isinstance(reporting.get("markdown_report"), dict) else {}
+    if not isinstance(markdown_report, dict) and isinstance(reporting, dict):
+        markdown_report = {}
+    report_markdown = markdown_report.get("markdown") if isinstance(markdown_report, dict) else None
+    if (not isinstance(report_markdown, str) or not report_markdown.strip()) and isinstance(reporting, dict):
+        report_markdown = reporting.get("rendered_markdown")
     if not isinstance(report_markdown, str) or not report_markdown.strip():
         return []
     return ["", "## Report", "", report_markdown.strip()]

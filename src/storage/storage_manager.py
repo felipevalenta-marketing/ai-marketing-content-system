@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 import copy
 
-from src.reporting.report_metrics import safe_dict, safe_list, safe_text
+from src.reports.markdown_utils import safe_dict, safe_list, safe_text
 from src.storage.json_store import read_json
 from src.storage.markdown_store import render_record_markdown
 from src.storage.storage_contracts import SUPPORTED_STORAGE_RECORD_TYPES
@@ -151,6 +151,12 @@ class StorageManager:
     def save_asset(self, result: dict[str, Any], overwrite: bool = False, write_markdown: bool = False) -> dict[str, Any]:
         return self.save_record(self._build_record(result, "asset"), overwrite=overwrite, write_markdown=write_markdown)
 
+    def save_workflow(self, result: dict[str, Any], overwrite: bool = False, write_markdown: bool = False) -> dict[str, Any]:
+        return self.save_record(self._build_record(result, "workflow"), overwrite=overwrite, write_markdown=write_markdown)
+
+    def save_workflow_state(self, result: dict[str, Any], overwrite: bool = False, write_markdown: bool = False) -> dict[str, Any]:
+        return self.save_record(self._build_record(result, "workflow_state"), overwrite=overwrite, write_markdown=write_markdown)
+
     def save_report(self, result: dict[str, Any], overwrite: bool = False, write_markdown: bool = False) -> dict[str, Any]:
         return self.save_record(self._build_record(result, "report"), overwrite=overwrite, write_markdown=write_markdown)
 
@@ -203,6 +209,8 @@ class StorageManager:
     def _source_module(self, record_type: str) -> str:
         mapping = {
             "execution": "pipeline",
+            "workflow": "workflow",
+            "workflow_state": "workflow",
             "generation": "pipeline",
             "campaign": "campaigns",
             "asset": "assets",

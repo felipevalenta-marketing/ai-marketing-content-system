@@ -138,6 +138,7 @@ CONTENT_TYPE_ROLE_MAP: dict[str, str] = {
     "seo_page": "seo_specialist",
     "image_prompt": "visual_storyteller",
     "video_prompt": "cinematic_director",
+    "video_script": "cinematic_director",
     "ad_copy": "campaign_strategist",
     "campaign_pack": "campaign_strategist",
 }

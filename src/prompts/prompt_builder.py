@@ -31,6 +31,7 @@ PROMPT_MODE_MAP = {
     "seo_page": "seo",
     "image_prompt": "image",
     "video_prompt": "video",
+    "video_script": "video_script",
     "ad_copy": "social",
     "campaign_pack": "campaign",
 }
@@ -42,6 +43,7 @@ DEFAULT_CHAIN_STEPS = {
     "seo": ["outline_generation", "section_generation", "cta_generation"],
     "image": ["visual_direction", "composition", "lighting", "camera_style"],
     "video": ["scene_description", "camera_motion", "mood", "voiceover_direction"],
+    "video_script": ["hook_generation", "script_generation", "voiceover_direction", "cta_generation", "storyboard_generation"],
     "campaign": ["campaign_angle", "hook_generation", "caption_generation", "cta_generation"],
 }
 
@@ -464,6 +466,8 @@ class PromptBuilder:
             "camera_motion": "Describe camera motion",
             "mood": "Define the mood",
             "voiceover_direction": "Guide the voiceover",
+            "script_generation": "Write the script",
+            "storyboard_generation": "Plan the storyboard",
             "headline_generation": "Generate the headline",
             "description_generation": "Write the description",
             "outline_generation": "Create the outline",
