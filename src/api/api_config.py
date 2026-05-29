@@ -7,6 +7,7 @@ from typing import Any
 import os
 
 from src.cli.cli_config import build_safe_config_summary
+from src.configuration.config_manager import ConfigManager
 from src.pipeline.pipeline_config import PipelineConfig
 
 
@@ -40,6 +41,7 @@ def build_api_config_summary() -> dict[str, Any]:
     config = ApiConfig()
     pipeline_config = PipelineConfig()
     summary = build_safe_config_summary()
+    config_manager = ConfigManager()
     jwt_secret_present = bool(os.getenv("JWT_SECRET_KEY", "").strip())
     summary.update(
         {
@@ -56,6 +58,8 @@ def build_api_config_summary() -> dict[str, Any]:
             "user_storage_path": pipeline_config.user_storage_path,
             "jwt_secret_present": jwt_secret_present,
             "warnings": ([] if jwt_secret_present else ["JWT secret is not configured. Authentication will remain disabled until JWT_SECRET_KEY is provided."]),
+            "configuration": config_manager.get_system_summary(),
+            "configuration_health": config_manager.get_configuration_health(),
         }
     )
     return summary

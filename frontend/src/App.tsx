@@ -239,7 +239,7 @@ export default function App() {
       case "analytics":
         return "analytics:read";
       case "config":
-        return "system:read";
+        return "";
       default:
         return "";
     }

@@ -37,6 +37,7 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
   const costSummary = readCostSummary(snapshots);
   const latestMarkdown = extractMarkdown(reports) || extractMarkdown(workflow) || extractMarkdown(generate);
   const modules = config?.feature_flags ? Object.values(config.feature_flags).filter(Boolean).length : 0;
+  const configurationHealth = (config?.configuration_health as any) ?? (config?.configuration as any)?.configuration_health ?? null;
   const analyticsSummaryData = analyticsSummary as AnalyticsSummaryData | null;
   const analyticsDashboardData = analyticsDashboard as AnalyticsDashboardData | null;
   const analyticsHealthData = analyticsHealth as AnalyticsHealthData | null;
@@ -63,9 +64,10 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
 
       <div className="metric-grid">
         <MetricCard label="API Status" value={getStatusLabel(health?.status ?? "unknown")} hint={health?.service ?? "service"} />
-        <MetricCard label="Environment" value={config?.app_env ?? "development"} hint={config?.default_model ?? "model"} />
+        <MetricCard label="Environment" value={config?.environment?.environment ?? config?.platform_config?.environment ?? config?.app_env ?? "development"} hint={config?.platform_config?.version ?? config?.default_model ?? "model"} />
         <MetricCard label="Enabled Modules" value={formatCount(modules)} hint="Feature flags" />
         <MetricCard label="Storage Root" value={config?.storage_root ?? "data"} hint="Local persistence" />
+        <MetricCard label="Config Health" value={String(configurationHealth?.status ?? "unknown")} hint={String(configurationHealth?.enabled_flags ?? modules)} />
       </div>
 
       <Card>

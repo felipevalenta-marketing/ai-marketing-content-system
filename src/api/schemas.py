@@ -196,6 +196,10 @@ class RoleAssignmentRequest(BaseApiModel):
     role: str = Field(default="viewer")
 
 
+class FeatureFlagUpdateRequest(BaseApiModel):
+    enabled: bool = True
+
+
 class UserProfileResponse(BaseApiModel):
     user_id: str = ""
     email: str = ""

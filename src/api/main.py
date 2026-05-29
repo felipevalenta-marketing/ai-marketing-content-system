@@ -20,6 +20,7 @@ from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
 from src.cli.cli_config import build_safe_config_summary
 from src.auth.auth_manager import AuthManager, AuthService
+from src.configuration.config_manager import ConfigManager
 from src.rbac.rbac_manager import RBACManager
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
@@ -60,6 +61,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         logger=logger,
     )
     reporting_engine = ReportingEngine(output_root=pipeline_config.report_output_root, markdown_output_root=pipeline_config.markdown_report_output_root, logger=logger)
+    configuration_manager = ConfigManager(config_root="data/config", brand_manager=brand_manager)
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     workflow = WorkflowEngine(config=replace(pipeline_config, enable_persistence=False), pipeline=pipeline, storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
     analytics = AnalyticsEngine(storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
@@ -77,6 +79,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "rbac": rbac_manager,
         "reporting": reporting_engine,
         "brands": brand_manager,
+        "configuration": configuration_manager,
         "logger": logger,
         "pipeline_config": pipeline_config,
     }

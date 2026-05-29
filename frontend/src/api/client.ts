@@ -11,6 +11,8 @@ import type {
   BrandProfile,
   BrandHealth,
   BrandRegistry,
+  ConfigurationHealthData,
+  ConfigurationSummaryData,
   ConfigResponseData,
   AuthResult,
   LoginRequest,
@@ -35,6 +37,14 @@ export interface ApiClient {
   request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<ApiResponse<T>>;
   getHealth(): Promise<ApiResponse<HealthResponseData>>;
   getConfig(): Promise<ApiResponse<ConfigResponseData>>;
+  getConfiguration(): Promise<ApiResponse<ConfigurationSummaryData>>;
+  getPlatformConfig(): Promise<ApiResponse<ConfigResponseData>>;
+  getFeatureFlags(): Promise<ApiResponse<{ features?: Record<string, boolean> }>>;
+  getModules(): Promise<ApiResponse<{ modules?: Array<Record<string, unknown>> }>>;
+  getLimits(): Promise<ApiResponse<{ limits?: Record<string, number> }>>;
+  getEnvironment(): Promise<ApiResponse<{ environment?: string; debug?: boolean; show_stack_traces?: boolean }>>;
+  getConfigurationHealth(): Promise<ApiResponse<ConfigurationHealthData>>;
+  updateFeatureFlag(flag: string, enabled: boolean): Promise<ApiResponse<Record<string, unknown>>>;
   getBrands(): Promise<ApiResponse<BrandRegistry>>;
   getBrandProfile(brandId: string): Promise<ApiResponse<BrandProfile>>;
   validateBrand(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
@@ -155,6 +165,18 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     request,
     getHealth: () => request<HealthResponseData>(API_ENDPOINTS.health),
     getConfig: () => request<ConfigResponseData>(API_ENDPOINTS.config),
+    getConfiguration: () => request<ConfigurationSummaryData>(API_ENDPOINTS.configuration),
+    getPlatformConfig: () => request<ConfigResponseData>(API_ENDPOINTS.configurationPlatform),
+    getFeatureFlags: () => request<{ features?: Record<string, boolean> }>(API_ENDPOINTS.configurationFeatures),
+    getModules: () => request<{ modules?: Array<Record<string, unknown>> }>(API_ENDPOINTS.configurationModules),
+    getLimits: () => request<{ limits?: Record<string, number> }>(API_ENDPOINTS.configurationLimits),
+    getEnvironment: () => request<{ environment?: string; debug?: boolean; show_stack_traces?: boolean }>(API_ENDPOINTS.configurationEnvironment),
+    getConfigurationHealth: () => request<ConfigurationHealthData>(API_ENDPOINTS.configurationHealth),
+    updateFeatureFlag: (flag: string, enabled: boolean) =>
+      request<Record<string, unknown>>(API_ENDPOINTS.configurationFeatureFlag(flag), {
+        method: "PATCH",
+        body: JSON.stringify({ enabled }),
+      }),
     getBrands: () => request<BrandRegistry>(API_ENDPOINTS.brands),
     getBrandProfile: (brandId: string) => request<BrandProfile>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}`),
     validateBrand: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/validate`),

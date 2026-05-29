@@ -13,6 +13,7 @@ from src.api.routes_campaigns import router as campaigns_router
 from src.api.routes_config import router as config_router
 from src.api.routes_generate import router as generate_router
 from src.api.routes_analytics import router as analytics_router
+from src.api.routes_configuration import router as configuration_router
 from src.api.routes_rbac import router as rbac_router
 from src.api.routes_reports import router as reports_router
 from src.api.routes_storage import router as storage_router
@@ -28,6 +29,7 @@ router.include_router(users_router)
 router.include_router(rbac_router)
 router.include_router(brands_router)
 router.include_router(analytics_router)
+router.include_router(configuration_router)
 router.include_router(workflows_router)
 router.include_router(campaigns_router)
 router.include_router(assets_router)

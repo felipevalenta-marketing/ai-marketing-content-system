@@ -53,6 +53,70 @@ export interface ConfigResponseData {
   analytics_include_tokens?: boolean;
   analytics_include_costs?: boolean;
   analytics_include_governance?: boolean;
+  configuration?: ConfigurationSummaryData;
+  configuration_health?: ConfigurationHealthData;
+  platform_config?: PlatformConfigData;
+  feature_flags?: Record<string, boolean>;
+  modules?: ModuleRegistryEntry[];
+  limits?: LimitsData;
+  environment?: EnvironmentConfigData;
+  [key: string]: unknown;
+}
+
+export interface PlatformConfigData {
+  platform_name?: string;
+  environment?: string;
+  version?: string;
+  maintenance_mode?: boolean;
+  registration_enabled?: boolean;
+  analytics_enabled?: boolean;
+  storage_enabled?: boolean;
+  workflow_enabled?: boolean;
+  reporting_enabled?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ModuleRegistryEntry {
+  module?: string;
+  enabled?: boolean;
+  description?: string;
+}
+
+export interface LimitsData {
+  max_brands?: number;
+  max_users?: number;
+  max_reports?: number;
+  max_workflows?: number;
+  max_storage_records?: number;
+}
+
+export interface EnvironmentConfigData {
+  environment?: string;
+  debug?: boolean;
+  show_stack_traces?: boolean;
+}
+
+export interface ConfigurationHealthData {
+  enabled_modules?: number;
+  enabled_flags?: number;
+  environment?: string;
+  valid?: boolean;
+  status?: string;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface ConfigurationSummaryData {
+  platform_config?: PlatformConfigData;
+  feature_flags?: Record<string, boolean>;
+  modules?: ModuleRegistryEntry[];
+  limits?: LimitsData;
+  environment?: EnvironmentConfigData;
+  configuration_health?: ConfigurationHealthData;
+  enabled_modules?: ModuleRegistryEntry[];
+  enabled_flags?: string[];
+  brand_overrides?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

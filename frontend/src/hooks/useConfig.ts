@@ -12,17 +12,49 @@ export function useConfig(apiBaseUrl: string) {
     let active = true;
     const client = createApiClient(apiBaseUrl);
     setLoading(true);
-    client.getConfig().then((response) => {
+    client.getConfiguration().then((response) => {
       if (!active) {
         return;
       }
       if (response.success && response.data) {
         setData(response.data);
         setError("");
-      } else {
-        setError(response.errors?.[0] ?? "Unable to load config.");
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      client.getConfig().then((legacyResponse) => {
+        if (!active) {
+          return;
+        }
+        if (legacyResponse.success && legacyResponse.data) {
+          setData({
+            ...legacyResponse.data,
+            configuration: response.data as any,
+          });
+          setError("");
+        } else {
+          setError(response.errors?.[0] ?? legacyResponse.errors?.[0] ?? "Unable to load config.");
+        }
+        setLoading(false);
+      });
+      return;
+    }).catch(() => {
+      if (!active) {
+        return;
+      }
+      client.getConfig().then((legacyResponse) => {
+        if (!active) {
+          return;
+        }
+        if (legacyResponse.success && legacyResponse.data) {
+          setData(legacyResponse.data);
+          setError("");
+        } else {
+          setError("Unable to load config.");
+        }
+        setLoading(false);
+      });
+      return;
     });
     return () => {
       active = false;
