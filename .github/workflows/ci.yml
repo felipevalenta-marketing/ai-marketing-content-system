@@ -1,0 +1,202 @@
+name: CI
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-validation:
+    name: backend-validation
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: ci
+      API_DEBUG: "false"
+      OPENAI_API_KEY: dummy_ci_key_do_not_use
+      JWT_SECRET_KEY: dummy_ci_jwt_secret_for_tests_only
+      ENABLE_AUTHENTICATION: "true"
+      ENABLE_RBAC: "true"
+      ENABLE_ANALYTICS: "true"
+      ENABLE_OBSERVABILITY: "true"
+      ENABLE_PERSISTENCE: "false"
+      ENABLE_CI_SECURITY_CHECKS: "true"
+      ENABLE_RELEASE_VALIDATION: "true"
+      ENABLE_DOCKER_VALIDATION: "true"
+      STORAGE_ROOT: data
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      VITE_API_BASE_URL: http://localhost:8000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile backend
+        run: python -m compileall src tests scripts
+
+      - name: Run backend tests
+        run: python -m pytest -p no:cacheprovider
+
+      - name: Run backend CI check
+        run: python scripts/ci_backend_check.py
+
+      - name: Run production smoke
+        run: python scripts/production_smoke.py
+
+  frontend-validation:
+    name: frontend-validation
+    runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: http://localhost:8000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate frontend project
+        run: python scripts/ci_frontend_check.py
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  docker-validation:
+    name: docker-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Docker files
+        run: python scripts/ci_docker_check.py
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
+      - name: Build Docker image
+        run: docker build -t ai-marketing-content-system:test .
+
+  security-validation:
+    name: security-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run security scan
+        run: python scripts/ci_security_check.py
+
+  smoke-validation:
+    name: smoke-validation
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: ci
+      API_DEBUG: "false"
+      OPENAI_API_KEY: dummy_ci_key_do_not_use
+      JWT_SECRET_KEY: dummy_ci_jwt_secret_for_tests_only
+      ENABLE_AUTHENTICATION: "true"
+      ENABLE_RBAC: "true"
+      ENABLE_ANALYTICS: "true"
+      ENABLE_OBSERVABILITY: "true"
+      ENABLE_PERSISTENCE: "false"
+      STORAGE_ROOT: data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run backend smoke import check
+        run: python scripts/ci_backend_check.py
+
+      - name: Run production smoke
+        run: python scripts/production_smoke.py
+
+  pipeline-health:
+    name: pipeline-health
+    runs-on: ubuntu-latest
+    needs:
+      - backend-validation
+      - frontend-validation
+      - docker-validation
+      - security-validation
+      - smoke-validation
+    env:
+      APP_ENV: ci
+      API_DEBUG: "false"
+      OPENAI_API_KEY: dummy_ci_key_do_not_use
+      JWT_SECRET_KEY: dummy_ci_jwt_secret_for_tests_only
+      ENABLE_AUTHENTICATION: "true"
+      ENABLE_RBAC: "true"
+      ENABLE_ANALYTICS: "true"
+      ENABLE_OBSERVABILITY: "true"
+      ENABLE_PERSISTENCE: "false"
+      ENABLE_CI_SECURITY_CHECKS: "true"
+      ENABLE_RELEASE_VALIDATION: "true"
+      ENABLE_DOCKER_VALIDATION: "true"
+      STORAGE_ROOT: data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline health
+        run: python scripts/ci_pipeline_health.py

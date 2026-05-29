@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 from collections.abc import Mapping, Sequence
 
@@ -34,11 +35,17 @@ def main() -> int:
     storage_writable = False
     try:
         probe = storage_root / ".smoke-write"
-        probe.write_text("ok", encoding="utf-8")
+        with tempfile.NamedTemporaryFile(mode="w", dir=storage_root, delete=False, encoding="utf-8") as handle:
+            handle.write("ok")
+            handle.flush()
+            probe = Path(handle.name)
         probe.unlink(missing_ok=True)
         storage_writable = True
     except Exception:
-        storage_writable = False
+        try:
+            storage_writable = bool(os.access(storage_root, os.W_OK))
+        except Exception:
+            storage_writable = False
 
     forbidden_keys = {"jwt_secret_key", "openai_api_key", "password_hash", "password", "api_key"}
 

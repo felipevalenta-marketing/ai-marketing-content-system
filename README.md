@@ -49,3 +49,9 @@ python scripts/check_env.py
 docker compose config
 docker compose up --build
 ```
+
+## CI/CD
+
+GitHub Actions validation and release-readiness checks are documented in [docs/CI_CD.md](docs/CI_CD.md).
+Use the documented local commands there to mirror the CI pipeline on your machine.
+The CI layer now also includes pipeline health, dependency validation, documentation validation, structure validation, and release readiness scoring.

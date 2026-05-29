@@ -3,6 +3,9 @@
 This FR provides local development, Docker production-like deployment, and future cloud-ready structure only.
 It does not deploy to a cloud provider, configure HTTPS, implement CI/CD, or add monitoring.
 
+For CI and release readiness, see [docs/CI_CD.md](../docs/CI_CD.md).
+That document also covers pipeline health, quality gates, dependency validation, documentation validation, structure validation, and release readiness scoring.
+
 ## Prerequisites
 
 - Docker
@@ -70,6 +73,12 @@ You can also run the deployment smoke check directly:
 
 ```bash
 python scripts/production_smoke.py
+```
+
+For a quick environment check before running containers:
+
+```bash
+python scripts/check_env.py
 ```
 
 ## Troubleshooting
