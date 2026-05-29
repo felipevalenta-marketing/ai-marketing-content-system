@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -19,11 +19,17 @@ interface CampaignStudioProps extends WorkspaceProps {
 
 const DEFAULT_FORM: CampaignRequest = { ...CAMPAIGN_DEFAULTS };
 
-export function CampaignStudio({ client, onSnapshot }: CampaignStudioProps) {
+export function CampaignStudio({ client, onSnapshot, activeBrand }: CampaignStudioProps) {
   const [form, setForm] = useLocalState<CampaignRequest>("amcs:campaign-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (activeBrand && activeBrand !== form.brand) {
+      setForm((current) => ({ ...current, brand: activeBrand } as CampaignRequest));
+    }
+  }, [activeBrand, form.brand, setForm]);
 
   const update = (key: keyof CampaignRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as CampaignRequest));

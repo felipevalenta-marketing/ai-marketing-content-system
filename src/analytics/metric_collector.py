@@ -62,10 +62,13 @@ class MetricCollector:
             return True
         metadata = safe_dict(record.get("metadata"))
         payload = safe_dict(record.get("payload"))
+        brand_fallback = record.get("brand_id") or metadata.get("brand_id") or record.get("brand") or metadata.get("brand")
         for key, expected in filters.items():
             if expected in (None, ""):
                 continue
             actual = record.get(key, metadata.get(key, payload.get(key)))
+            if key == "brand" and actual in (None, ""):
+                actual = brand_fallback
             if key == "date_range":
                 if not self._matches_date_range(record, safe_dict(expected)):
                     return False

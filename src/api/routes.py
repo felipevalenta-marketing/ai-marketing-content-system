@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTMLResponse, Request
 from src.api.api_config import ApiConfig
 from src.api.health import build_health_payload
 from src.api.routes_assets import router as assets_router
+from src.api.routes_brands import router as brands_router
 from src.api.routes_campaigns import router as campaigns_router
 from src.api.routes_config import router as config_router
 from src.api.routes_generate import router as generate_router
@@ -19,6 +20,7 @@ from src.api.api_result import build_api_response
 
 router = APIRouter()
 router.include_router(generate_router)
+router.include_router(brands_router)
 router.include_router(analytics_router)
 router.include_router(workflows_router)
 router.include_router(campaigns_router)

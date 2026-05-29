@@ -8,6 +8,9 @@ import type {
   ApiResponse,
   AssetRequest,
   CampaignRequest,
+  BrandProfile,
+  BrandHealth,
+  BrandRegistry,
   ConfigResponseData,
   GenerateRequest,
   HealthResponseData,
@@ -21,6 +24,11 @@ export interface ApiClient {
   request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<ApiResponse<T>>;
   getHealth(): Promise<ApiResponse<HealthResponseData>>;
   getConfig(): Promise<ApiResponse<ConfigResponseData>>;
+  getBrands(): Promise<ApiResponse<BrandRegistry>>;
+  getBrandProfile(brandId: string): Promise<ApiResponse<BrandProfile>>;
+  validateBrand(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getBrandDefaults(brandId: string): Promise<ApiResponse<Record<string, unknown>>>;
+  getBrandHealth(brandId: string): Promise<ApiResponse<BrandHealth>>;
   getAnalyticsSummary(): Promise<ApiResponse<AnalyticsSummaryData>>;
   getAnalyticsDashboard(): Promise<ApiResponse<AnalyticsDashboardData>>;
   queryAnalytics(payload: AnalyticsRequest): Promise<ApiResponse<AnalyticsResult>>;
@@ -113,6 +121,11 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     request,
     getHealth: () => request<HealthResponseData>(API_ENDPOINTS.health),
     getConfig: () => request<ConfigResponseData>(API_ENDPOINTS.config),
+    getBrands: () => request<BrandRegistry>(API_ENDPOINTS.brands),
+    getBrandProfile: (brandId: string) => request<BrandProfile>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}`),
+    validateBrand: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/validate`),
+    getBrandDefaults: (brandId: string) => request<Record<string, unknown>>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/defaults`),
+    getBrandHealth: (brandId: string) => request<BrandHealth>(`${API_ENDPOINTS.brands}/${encodeURIComponent(brandId)}/health`),
     getAnalyticsSummary: () => request<AnalyticsSummaryData>(API_ENDPOINTS.analyticsSummary),
     getAnalyticsDashboard: () => request<AnalyticsDashboardData>(API_ENDPOINTS.analyticsDashboard),
     queryAnalytics: (payload: AnalyticsRequest) =>

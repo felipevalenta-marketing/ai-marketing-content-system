@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
   workflow: "/workflow",
   campaign: "/campaign",
   assets: "/assets",
+  brands: "/brands",
   analyticsSummary: "/analytics/summary",
   analyticsDashboard: "/analytics/dashboard",
   analyticsQuery: "/analytics/query",

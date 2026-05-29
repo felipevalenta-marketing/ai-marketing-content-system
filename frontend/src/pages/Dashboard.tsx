@@ -28,7 +28,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, brandProfile, brandValidation, brandDefaults, brands, onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -51,6 +51,7 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
   const hasAnalytics = Boolean(analyticsSummaryData || analyticsDashboardData || dashboardPayload);
   const analyticsRecords = Number((analyticsSummaryData?.metadata as any)?.records_collected ?? dashboardHealth?.records_count ?? 0);
   const analyticsIsEmpty = hasAnalytics && analyticsRecords <= 0;
+  const brandValidationData = brandValidation as any;
 
   return (
     <div className="stack">
@@ -65,6 +66,53 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
         <MetricCard label="Enabled Modules" value={formatCount(modules)} hint="Feature flags" />
         <MetricCard label="Storage Root" value={config?.storage_root ?? "data"} hint="Local persistence" />
       </div>
+
+      <Card>
+        <SectionHeader title="Brand Management" description="Selected brand, validation status, and safe defaults." />
+        <div className="grid-2">
+          <MetricCard label="Active Brand" value={String(activeBrand ?? config?.default_brand ?? "-")} hint={String(brandProfile?.display_name ?? "Selected")} />
+          <MetricCard label="Brand Status" value={String(brandProfile?.status ?? brandValidationData?.valid ?? "unknown")} hint={String(brandProfile?.knowledge_path ?? "profile")} />
+        </div>
+        <div className="metric-grid">
+          <MetricCard label="Health Score" value={String(brandProfile?.health_score ?? "-")} hint={String(brandProfile?.health_status ?? "health")} />
+          <MetricCard label="Markdown Files" value={String(brandProfile?.metadata?.markdown_count ?? 0)} hint="Readable files" />
+        </div>
+        <div className="grid-2">
+          <div className="section">
+            <h3>Defaults</h3>
+            <ul className="simple-list">
+              <li>Platform: {String(brandDefaults?.default_platform ?? config?.default_platform ?? "instagram")}</li>
+              <li>Content Type: {String(brandDefaults?.default_content_type ?? config?.default_content_type ?? "instagram_post")}</li>
+              <li>Campaign Type: {String(brandDefaults?.default_campaign_type ?? config?.default_campaign_type ?? "property_launch")}</li>
+            </ul>
+          </div>
+          <div className="section">
+            <h3>Brands</h3>
+            {brands?.length ? (
+              <ul className="simple-list">
+                {brands.slice(0, 5).map((brand) => (
+                  <li key={String(brand.brand_id ?? brand.display_name)}>
+                    {String(brand.display_name ?? brand.brand_id)}
+                    {typeof brand.health_score === "number" ? ` · ${brand.health_score}/100` : ""}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="No brands found" description="Create a brand folder under brands/ to start." />
+            )}
+          </div>
+        </div>
+        {Array.isArray(brandValidationData?.warnings) && brandValidationData.warnings.length ? (
+          <div className="section">
+            <h3>Validation Warnings</h3>
+            <ul className="simple-list">
+              {brandValidationData.warnings.slice(0, 3).map((warning: string, index: number) => (
+                <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </Card>
 
       {hasAnalytics ? (
         <Card>

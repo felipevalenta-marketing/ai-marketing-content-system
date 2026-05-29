@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { ErrorState } from "../components/ErrorState";
@@ -26,11 +26,17 @@ const DEFAULT_FORM: GenerateRequest = {
   extra_notes: "",
 };
 
-export function ContentStudio({ client, onSnapshot }: ContentStudioProps) {
+export function ContentStudio({ client, onSnapshot, activeBrand }: ContentStudioProps) {
   const [form, setForm] = useLocalState<GenerateRequest>("amcs:content-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (activeBrand && activeBrand !== form.brand) {
+      setForm((current) => ({ ...current, brand: activeBrand } as GenerateRequest));
+    }
+  }, [activeBrand, form.brand, setForm]);
 
   const update = (key: keyof GenerateRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as GenerateRequest));

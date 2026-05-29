@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -26,11 +26,17 @@ const DEFAULT_FORM: WorkflowRequest = {
   dry_run: true,
 };
 
-export function WorkflowCenter({ client, onSnapshot, analyticsSummary }: WorkflowCenterProps) {
+export function WorkflowCenter({ client, onSnapshot, analyticsSummary, activeBrand }: WorkflowCenterProps) {
   const [form, setForm] = useLocalState<WorkflowRequest>("amcs:workflow-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (activeBrand && activeBrand !== form.brand) {
+      setForm((current) => ({ ...current, brand: activeBrand } as WorkflowRequest));
+    }
+  }, [activeBrand, form.brand, setForm]);
 
   const update = (key: keyof WorkflowRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as WorkflowRequest));

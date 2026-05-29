@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.api_config import ApiConfig
 from src.api.api_result import build_api_response
 from src.api.routes import build_docs_html, router as api_router
+from src.brands.brand_manager import BrandManager
 from src.analytics.analytics_engine import AnalyticsEngine
 from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
@@ -39,6 +40,12 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     )
     logger = get_logger("api")
     storage_manager = StorageManager(storage_root=pipeline_config.storage_root, logger=logger)
+    brand_manager = BrandManager(
+        brand_root=pipeline_config.brand_root,
+        default_brand=pipeline_config.default_brand,
+        require_valid_brand=pipeline_config.require_valid_brand,
+        logger=logger,
+    )
     reporting_engine = ReportingEngine(output_root=pipeline_config.report_output_root, markdown_output_root=pipeline_config.markdown_report_output_root, logger=logger)
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     workflow = WorkflowEngine(config=replace(pipeline_config, enable_persistence=False), pipeline=pipeline, storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
@@ -53,6 +60,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         "markdown_report": MarkdownReportGenerator(output_root=pipeline_config.markdown_report_output_root, logger=logger),
         "storage": storage_manager,
         "reporting": reporting_engine,
+        "brands": brand_manager,
         "logger": logger,
         "pipeline_config": pipeline_config,
     }

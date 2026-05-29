@@ -187,6 +187,7 @@ class StorageManager:
             "created_at": self._timestamp(result, metadata),
             "updated_at": self._timestamp(result, metadata),
             "brand": safe_text(result.get("brand") or metadata.get("brand"), limit=120),
+            "brand_id": safe_text(result.get("brand_id") or metadata.get("brand_id") or result.get("brand") or metadata.get("brand"), limit=120),
             "platform": safe_text(result.get("platform") or metadata.get("platform"), limit=120),
             "content_type": safe_text(result.get("content_type") or metadata.get("content_type"), limit=120),
             "campaign_type": safe_text(result.get("campaign_type") or metadata.get("campaign_type"), limit=120),
@@ -235,6 +236,7 @@ class StorageManager:
         normalized.setdefault("created_at", datetime.now(timezone.utc).isoformat())
         normalized.setdefault("updated_at", normalized["created_at"])
         normalized.setdefault("brand", "")
+        normalized.setdefault("brand_id", normalized.get("brand", ""))
         normalized.setdefault("platform", "")
         normalized.setdefault("content_type", "")
         normalized.setdefault("campaign_type", "")

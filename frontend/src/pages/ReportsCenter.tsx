@@ -27,7 +27,7 @@ const DEFAULT_FORM: MarkdownReportRequest = {
   title: "Campaign Workflow Report",
 };
 
-export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary }: ReportsCenterProps) {
+export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary, activeBrand }: ReportsCenterProps) {
   const [form, setForm] = useLocalState<MarkdownReportRequest>("amcs:report-form", DEFAULT_FORM);
   const [reportSource, setReportSource] = useState<ReportSource>("snapshot");
   const [result, setResult] = useState<any>(null);
@@ -59,6 +59,7 @@ export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary 
     const workflowSummary = workflowResult as any;
     return {
       ...form,
+      brand: activeBrand ?? form.brand,
       workflow_result: workflowSummary ?? undefined,
       pipeline_result: getSnapshotChain<any>(snapshots, ["generate", "workflow"]) ?? undefined,
       campaign_result: getSnapshotChain<any>(snapshots, ["campaign"]) ?? undefined,

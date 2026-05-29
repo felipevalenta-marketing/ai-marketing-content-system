@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -20,11 +20,17 @@ interface AssetStudioProps extends WorkspaceProps {
 
 const DEFAULT_FORM: AssetRequest = { ...ASSET_DEFAULTS };
 
-export function AssetStudio({ client, onSnapshot }: AssetStudioProps) {
+export function AssetStudio({ client, onSnapshot, activeBrand }: AssetStudioProps) {
   const [form, setForm] = useLocalState<AssetRequest>("amcs:assets-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (activeBrand && activeBrand !== form.brand) {
+      setForm((current) => ({ ...current, brand: activeBrand } as AssetRequest));
+    }
+  }, [activeBrand, form.brand, setForm]);
 
   const update = (key: keyof AssetRequest, value: unknown) => {
     setForm((current) => ({ ...current, [key]: value } as AssetRequest));

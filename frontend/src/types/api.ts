@@ -24,10 +24,23 @@ export interface ConfigResponseData {
   supported_platforms?: string[];
   supported_content_types?: string[];
   storage_root?: string;
+  default_brand?: string;
+  default_platform?: string;
+  default_content_type?: string;
+  default_campaign_type?: string;
+  default_visual_style?: string;
+  default_image_aspect_ratio?: string;
+  default_video_duration?: string;
+  default_video_type?: string;
+  default_creative_direction_type?: string;
+  default_visual_identity?: string;
   enable_api_layer?: boolean;
   enable_frontend_demo?: boolean;
   api_debug?: boolean;
   cors_origins?: string[];
+  enable_multi_brand_management?: boolean;
+  brand_root?: string;
+  require_valid_brand?: boolean;
   enable_analytics?: boolean;
   analytics_default_type?: string;
   analytics_include_storage?: boolean;
@@ -104,6 +117,58 @@ export interface AnalyticsHealthData extends AnalyticsResult {
   status?: string;
   records_count?: number;
   workflow_count?: number;
+}
+
+export interface BrandDefaults {
+  display_name?: string;
+  default_platform?: string;
+  default_content_type?: string;
+  default_campaign_type?: string;
+  default_objective?: string;
+  default_audience?: string;
+  default_visual_style?: string;
+  default_language?: string;
+  [key: string]: unknown;
+}
+
+export interface BrandProfile {
+  success?: boolean;
+  brand_id?: string;
+  display_name?: string;
+  status?: string;
+  knowledge_path?: string;
+  available_files?: string[];
+  missing_recommended_files?: string[];
+  recommended_files?: string[];
+  optional_files?: string[];
+  defaults?: BrandDefaults;
+  configuration?: Record<string, unknown>;
+  configuration_present?: boolean;
+  health_score?: number;
+  health_status?: string;
+  health?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+  validation?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface BrandRegistryEntry extends BrandProfile {}
+
+export interface BrandHealth {
+  health_score?: number;
+  health_status?: string;
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
+export interface BrandRegistry {
+  updated_at?: string;
+  root_path?: string;
+  count?: number;
+  brands?: BrandRegistryEntry[];
+  [key: string]: unknown;
 }
 
 export interface GenerateRequest {

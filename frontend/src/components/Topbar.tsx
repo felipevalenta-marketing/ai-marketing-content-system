@@ -1,22 +1,36 @@
-import type { ConfigResponseData, HealthResponseData } from "../types/api";
+import type { ApiClient } from "../api/client";
+import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData } from "../types/api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
+import { BrandSelector } from "./BrandSelector";
 import { StatusPill } from "./StatusPill";
 
 interface TopbarProps {
+  client: ApiClient;
   apiBaseUrl: string;
   onApiBaseUrlChange: (value: string) => void;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
+  activeBrand: string;
+  brandProfile?: BrandProfile | null;
+  brandValidation?: Record<string, unknown> | null;
+  brandDefaults?: BrandDefaults | null;
+  onActiveBrandChange: (value: string) => void;
   onRefreshHealth: () => void;
   onRefreshConfig: () => void;
 }
 
 export function Topbar({
+  client,
   apiBaseUrl,
   onApiBaseUrlChange,
   health,
   config,
+  activeBrand,
+  brandProfile,
+  brandValidation,
+  brandDefaults,
+  onActiveBrandChange,
   onRefreshHealth,
   onRefreshConfig,
 }: TopbarProps) {
@@ -34,9 +48,24 @@ export function Topbar({
           <label htmlFor="apiBaseUrl">API</label>
           <input id="apiBaseUrl" value={apiBaseUrl} onChange={(event) => onApiBaseUrlChange(event.target.value)} />
         </div>
+        <div className="topbar__field">
+          <label>Brand</label>
+          <BrandSelector
+            client={client}
+            value={activeBrand}
+            onChange={onActiveBrandChange}
+            brandProfile={brandProfile ?? null}
+            brandValidation={brandValidation ?? null}
+            brandDefaults={brandDefaults ?? null}
+          />
+        </div>
         <div className="topbar__meta">
           <StatusPill status={status} />
           <Badge tone="neutral">{environment}</Badge>
+          <Badge tone={brandProfile?.status === "partial" || brandProfile?.status === "incomplete" ? "warning" : brandProfile?.status === "invalid" ? "error" : "success"}>
+            {brandProfile?.display_name ?? activeBrand}
+          </Badge>
+          {typeof brandProfile?.health_score === "number" ? <Badge tone={brandProfile.health_score >= 80 ? "success" : brandProfile.health_score >= 50 ? "warning" : "error"}>{`${brandProfile.health_score}/100`}</Badge> : null}
           <Button type="button" variant="secondary" onClick={onRefreshHealth}>
             Refresh Health
           </Button>

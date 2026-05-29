@@ -21,6 +21,7 @@ def build_health_payload() -> dict[str, Any]:
             "pipeline": modules.get("src.pipeline", False),
             "workflow": modules.get("src.workflows", False),
             "analytics": modules.get("src.analytics", False),
+            "brands": modules.get("src.brands", False),
             "reporting": modules.get("src.reporting", False),
             "storage": modules.get("src.storage", False),
         },

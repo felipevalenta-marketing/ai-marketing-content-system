@@ -7,7 +7,7 @@ import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ config }: SystemConfigProps) {
+export function SystemConfig({ config, activeBrand, brandProfile, brandValidation, brandDefaults, brands }: SystemConfigProps) {
   if (!config) {
     return (
       <Card>
@@ -18,6 +18,7 @@ export function SystemConfig({ config }: SystemConfigProps) {
   }
 
   const flags = config.feature_flags ?? {};
+  const brandValidationData = brandValidation as any;
 
   return (
     <div className="stack">
@@ -31,6 +32,21 @@ export function SystemConfig({ config }: SystemConfigProps) {
       <Card>
         <SectionHeader title="Feature Flags" description="Enabled modules and safe defaults." />
         <JsonViewer data={flags} title="Feature Flags JSON" />
+      </Card>
+      <Card>
+        <SectionHeader title="Brand Management" description="Available brands, active selection, and validation status." />
+        <div className="metric-grid">
+          <MetricCard label="Active Brand" value={String(activeBrand ?? config.default_brand ?? "-")} hint={String(brandProfile?.display_name ?? "Selected")} />
+          <MetricCard label="Brand Status" value={String(brandProfile?.status ?? brandValidationData?.valid ?? "unknown")} hint={String(brandProfile?.knowledge_path ?? "brand")} />
+          <MetricCard label="Health Score" value={String(brandProfile?.health_score ?? "-")} hint={String(brandProfile?.health_status ?? "health")} />
+          <MetricCard label="Default Platform" value={String(brandDefaults?.default_platform ?? config.default_platform ?? "instagram")} hint="Brand defaults" />
+          <MetricCard label="Default Content" value={String(brandDefaults?.default_content_type ?? config.default_content_type ?? "instagram_post")} hint="Brand defaults" />
+        </div>
+        {brands?.length ? (
+          <JsonViewer data={{ activeBrand, brands }} title="Brands JSON" />
+        ) : (
+          <EmptyState title="No brands found" description="Create a brand folder under brands/ to start." />
+        )}
       </Card>
       <Card>
         <SectionHeader title="Configuration" description="Full safe configuration snapshot." />

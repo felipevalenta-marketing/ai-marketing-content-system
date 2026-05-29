@@ -1,14 +1,21 @@
 import type { ReactNode } from "react";
-import type { ConfigResponseData, HealthResponseData } from "../types/api";
+import type { ApiClient } from "../api/client";
+import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData } from "../types/api";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 interface AppShellProps {
   children: ReactNode;
+  client: ApiClient;
   apiBaseUrl: string;
   onApiBaseUrlChange: (value: string) => void;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
+  activeBrand: string;
+  brandProfile?: BrandProfile | null;
+  brandValidation?: Record<string, unknown> | null;
+  brandDefaults?: BrandDefaults | null;
+  onActiveBrandChange: (value: string) => void;
   activePage: string;
   onSelectPage: (page: string) => void;
   onRefreshConfig: () => void;
@@ -17,10 +24,16 @@ interface AppShellProps {
 
 export function AppShell({
   children,
+  client,
   apiBaseUrl,
   onApiBaseUrlChange,
   health,
   config,
+  activeBrand,
+  brandProfile,
+  brandValidation,
+  brandDefaults,
+  onActiveBrandChange,
   activePage,
   onSelectPage,
   onRefreshConfig,
@@ -29,10 +42,16 @@ export function AppShell({
   return (
     <div className="app-shell">
       <Topbar
+        client={client}
         apiBaseUrl={apiBaseUrl}
         onApiBaseUrlChange={onApiBaseUrlChange}
         health={health}
         config={config}
+        activeBrand={activeBrand}
+        brandProfile={brandProfile ?? null}
+        brandValidation={brandValidation ?? null}
+        brandDefaults={brandDefaults ?? null}
+        onActiveBrandChange={onActiveBrandChange}
         onRefreshHealth={onRefreshHealth}
         onRefreshConfig={onRefreshConfig}
       />

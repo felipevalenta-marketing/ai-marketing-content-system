@@ -1,5 +1,5 @@
 import type { ConfigResponseData, HealthResponseData } from "../types/api";
-import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData } from "../types/api";
+import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "../types/api";
 import type { ApiClient } from "../api/client";
 
 export interface SnapshotEntry {
@@ -15,6 +15,11 @@ export interface WorkspaceProps {
   onSnapshot: (key: string, data: unknown) => void;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
+  activeBrand?: string;
+  brandProfile?: BrandProfile | null;
+  brandValidation?: Record<string, unknown> | null;
+  brandDefaults?: BrandDefaults | null;
+  brands?: BrandRegistryEntry[];
   analyticsSummary?: AnalyticsSummaryData | null;
   analyticsDashboard?: AnalyticsDashboardData | null;
   analyticsHealth?: AnalyticsHealthData | null;

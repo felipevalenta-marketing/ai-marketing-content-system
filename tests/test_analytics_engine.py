@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.analytics.analytics_engine import AnalyticsEngine
+from src.analytics.metric_aggregator import MetricAggregator
 from src.storage.storage_manager import StorageManager
 
 
@@ -197,3 +198,17 @@ def test_analytics_engine_populated_storage(tmp_path) -> None:
     assert result["sections"]["workflow_state_history"]
     assert result["sections"]["workflow_timeline"]
     assert result["sections"]["workflow_status_transitions"]
+
+
+def test_analytics_brand_id_compatibility() -> None:
+    aggregator = MetricAggregator()
+    result = aggregator.aggregate_by_brand(
+        [
+            {"brand_id": "wenzel_partner"},
+            {"brand_id": "wenzel_partner"},
+            {"brand_id": "other_brand"},
+        ]
+    )
+
+    assert result["groups"]["wenzel_partner"] == 2
+    assert result["groups"]["other_brand"] == 1

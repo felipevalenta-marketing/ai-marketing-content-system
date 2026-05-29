@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -46,7 +46,7 @@ function toBreakdownRows(breakdown: Record<string, unknown> | undefined, valueKe
     }));
 }
 
-export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth }: AnalyticsCenterProps) {
+export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand }: AnalyticsCenterProps) {
   const [form, setForm] = useLocalState<AnalyticsRequest>("amcs:analytics-form", DEFAULT_FORM);
   const [result, setResult] = useState<AnalyticsResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +61,12 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
   const recentActivity = dashboard?.recent_activity ?? activeAnalytics?.trends?.recent_activity ?? [];
   const recordsCollected = Number((activeAnalytics?.metadata as any)?.records_collected ?? dashboard?.health?.records_count ?? 0);
   const hasAnalyticsData = recordsCollected > 0;
+
+  useEffect(() => {
+    if (activeBrand && activeBrand !== form.brand) {
+      setForm((current) => ({ ...current, brand: activeBrand } as AnalyticsRequest));
+    }
+  }, [activeBrand, form.brand, setForm]);
 
   const flatExecutiveKpis = useMemo(() => Object.values(kpis.executive ?? {}), [kpis]);
   const flatOperationalKpis = useMemo(() => Object.values(kpis.operational ?? {}), [kpis]);

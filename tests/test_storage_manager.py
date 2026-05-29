@@ -271,6 +271,32 @@ def test_storage_manager_prunes_nested_context_blobs(tmp_path: Path):
     assert "context_summary" not in loaded["record"]["payload"]["cost"]["cost_usage"]["metadata"]
 
 
+def test_storage_manager_preserves_brand_id(tmp_path: Path):
+    manager = StorageManager(storage_root=tmp_path)
+    saved = manager.save_record(
+        {
+            "record_type": "generation",
+            "record_id": "generation_brand_id",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "brand_id": "wenzel_partner",
+            "platform": "instagram",
+            "content_type": "instagram_post",
+            "campaign_type": "property_launch",
+            "execution_id": "exec-brand",
+            "source_module": "pipeline",
+            "payload": {"success": True},
+            "metadata": {"brand_id": "wenzel_partner"},
+            "warnings": [],
+            "errors": [],
+        }
+    )
+
+    loaded = manager.load_record("generation", saved["record_id"])
+    assert saved["success"] is True
+    assert loaded["record"]["brand_id"] == "wenzel_partner"
+
+
 def test_cli_parser_accepts_persistence_flags():
     parser = build_parser()
     args = parser.parse_args(["generate", "--persist", "--persist-markdown", "--storage-root", "tmp-data"])

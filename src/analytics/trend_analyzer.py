@@ -53,7 +53,8 @@ class TrendAnalyzer:
         for record in safe_list(records):
             if not isinstance(record, dict):
                 continue
-            value = safe_text(record.get(key) or safe_dict(record.get("metadata")).get(key) or "unknown", limit=80).lower() or "unknown"
+            fallback_key = "brand_id" if key == "brand" else key
+            value = safe_text(record.get(key) or record.get(fallback_key) or safe_dict(record.get("metadata")).get(key) or safe_dict(record.get("metadata")).get(fallback_key) or "unknown", limit=80).lower() or "unknown"
             groups[value] += 1
         return {"groups": dict(sorted(groups.items())), "total_records": len(safe_list(records))}
 

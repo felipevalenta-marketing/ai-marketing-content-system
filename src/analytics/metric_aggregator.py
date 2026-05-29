@@ -191,7 +191,8 @@ class MetricAggregator:
         for record in safe_list(records):
             if not isinstance(record, dict):
                 continue
-            groups[safe_text(record.get(key) or safe_dict(record.get("metadata")).get(key) or "unknown", limit=80).lower() or "unknown"] += 1
+            fallback_key = "brand_id" if key == "brand" else key
+            groups[safe_text(record.get(key) or record.get(fallback_key) or safe_dict(record.get("metadata")).get(key) or safe_dict(record.get("metadata")).get(fallback_key) or "unknown", limit=80).lower() or "unknown"] += 1
         return {"groups": dict(sorted(groups.items())), "records_count": len(safe_list(records))}
 
     def _usage_payload(self, record: dict[str, Any], usage_type: str) -> dict[str, Any]:

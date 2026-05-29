@@ -17,7 +17,7 @@ import { useHealth } from "./hooks/useHealth";
 import { useLocalState } from "./hooks/useLocalState";
 import { Card } from "./components/Card";
 import { SectionHeader } from "./components/SectionHeader";
-import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData } from "./types/api";
+import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "./types/api";
 import { createApiClient } from "./api/client";
 
 type PageKey =
@@ -39,7 +39,12 @@ export default function App() {
   const { data: health, loading: healthLoading, error: healthError, refresh: refreshHealth } = useHealth(apiBaseUrl);
   const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl);
   const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", "dashboard");
+  const [activeBrand, setActiveBrand] = useLocalState<string>("amcs:active-brand", "wenzel_partner");
   const [snapshots, setSnapshots] = useLocalState<SnapshotStore>("amcs:snapshots", SNAPSHOT_DEFAULT);
+  const [brands, setBrands] = useState<BrandRegistryEntry[]>([]);
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  const [brandValidation, setBrandValidation] = useState<Record<string, unknown> | null>(null);
+  const [brandDefaults, setBrandDefaults] = useState<BrandDefaults | null>(null);
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(null);
   const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(null);
   const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(null);
@@ -70,6 +75,65 @@ export default function App() {
     };
   }, [apiBaseUrl]);
 
+  useEffect(() => {
+    let active = true;
+    client.getBrands().then((response) => {
+      if (!active) {
+        return;
+      }
+      if (response.success && response.data?.brands) {
+        setBrands(response.data.brands as BrandRegistryEntry[]);
+      } else {
+        setBrands([]);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [client, apiBaseUrl]);
+
+  useEffect(() => {
+    let active = true;
+    if (!activeBrand) {
+      return () => {
+        active = false;
+      };
+    }
+    Promise.all([client.getBrandProfile(activeBrand), client.validateBrand(activeBrand), client.getBrandDefaults(activeBrand)]).then(
+      ([profileResponse, validationResponse, defaultsResponse]) => {
+        if (!active) {
+          return;
+        }
+        setBrandProfile(profileResponse.success && profileResponse.data ? (profileResponse.data as BrandProfile) : null);
+        setBrandValidation(validationResponse.success && validationResponse.data ? (validationResponse.data as Record<string, unknown>) : null);
+        const defaultsPayload = defaultsResponse.success && defaultsResponse.data ? (defaultsResponse.data as Record<string, unknown>) : null;
+        setBrandDefaults((defaultsPayload?.defaults as BrandDefaults) ?? null);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [activeBrand, client]);
+
+  useEffect(() => {
+    if (!activeBrand && config?.default_brand) {
+      setActiveBrand(String(config.default_brand));
+    }
+  }, [activeBrand, config?.default_brand, setActiveBrand]);
+
+  useEffect(() => {
+    if (!brands.length) {
+      return;
+    }
+    const available = brands.find((brand) => brand.brand_id === activeBrand);
+    if (!available) {
+      const fallback = brands.find((brand) => brand.brand_id === config?.default_brand)?.brand_id ?? brands[0]?.brand_id;
+      if (fallback && fallback !== activeBrand) {
+        setActiveBrand(String(fallback));
+      }
+    }
+  }, [activeBrand, brands, config?.default_brand, setActiveBrand]);
+
   const onSnapshot = (key: string, data: unknown) => {
     setSnapshots((current) => ({
       ...current,
@@ -84,6 +148,11 @@ export default function App() {
       onSnapshot,
       health: health ?? null,
       config: config ?? null,
+      activeBrand,
+      brandProfile,
+      brandValidation,
+      brandDefaults,
+      brands,
       analyticsSummary,
       analyticsDashboard,
       analyticsHealth,
@@ -115,10 +184,16 @@ export default function App() {
 
   return (
     <AppShell
+      client={client}
       apiBaseUrl={apiBaseUrl}
       onApiBaseUrlChange={setApiBaseUrl}
       health={health ?? null}
       config={config ?? null}
+      activeBrand={activeBrand}
+      brandProfile={brandProfile}
+      brandValidation={brandValidation}
+      brandDefaults={brandDefaults}
+      onActiveBrandChange={setActiveBrand}
       activePage={activePage}
       onSelectPage={setActivePage}
       onRefreshHealth={refreshHealth}
