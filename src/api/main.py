@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -28,6 +29,8 @@ from src.organizations.team_manager import TeamManager
 from src.rbac.rbac_manager import RBACManager
 from src.pipeline.content_generation_pipeline import ContentGenerationPipeline
 from src.pipeline.pipeline_config import PipelineConfig
+from src.observability.log_config import configure_logging
+from src.observability.request_logger import install_request_logging
 from src.reporting.reporting_engine import ReportingEngine
 from src.reports.markdown_generator import MarkdownReportGenerator
 from src.storage.storage_manager import StorageManager
@@ -47,6 +50,7 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
         enable_frontend_demo=api_config.enable_frontend_demo,
         api_debug=api_config.api_debug,
     )
+    configure_logging()
     logger = get_logger("api")
     storage_manager = StorageManager(storage_root=pipeline_config.storage_root, logger=logger)
     user_manager = UserManager(storage_path=pipeline_config.user_storage_path, logger=logger, default_role=pipeline_config.default_user_role, first_user_admin=pipeline_config.first_user_admin)
@@ -109,7 +113,13 @@ def create_app(config: ApiConfig | None = None, services: dict[str, Any] | None 
     app.state.config = api_config
     app.state.api_debug = api_config.api_debug
     app.state.services = services or build_services(api_config)
+    app.state.pipeline_config = app.state.services.get("pipeline_config") if isinstance(app.state.services, dict) else None
+    app.state.started_at = getattr(app.state, "started_at", None) or datetime.now(timezone.utc).isoformat()
     app.state.cors_origins = list(api_config.cors_origins)
+    pipeline_config = app.state.services.get("pipeline_config") if isinstance(app.state.services, dict) else None
+    if getattr(pipeline_config, "enable_observability", True):
+        if getattr(pipeline_config, "enable_request_logging", True):
+            install_request_logging(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(api_config.cors_origins),

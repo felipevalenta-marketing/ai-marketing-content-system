@@ -36,6 +36,17 @@ API:
 - `http://localhost:8000/health`
 - `http://localhost:8000/health/ready`
 - `http://localhost:8000/health/live`
+- `http://localhost:8000/observability/health`
+- `http://localhost:8000/observability/status`
+- `http://localhost:8000/observability/domains`
+- `http://localhost:8000/observability/tokens`
+- `http://localhost:8000/observability/costs`
+- `http://localhost:8000/observability/configuration`
+- `http://localhost:8000/observability/metrics`
+- `http://localhost:8000/observability/runtime`
+- `http://localhost:8000/observability/errors`
+- `http://localhost:8000/observability/workflows`
+- `http://localhost:8000/observability/storage`
 - `http://localhost:8000/docs`
 
 Frontend:
@@ -69,3 +80,10 @@ python scripts/production_smoke.py
 - Frontend cannot reach the API: confirm `CORS_ORIGINS` includes the frontend origin.
 - `docker compose config` fails: ensure Docker Compose is installed and available in your shell.
 - Smoke check fails: confirm `STORAGE_ROOT` is writable and `JWT_SECRET_KEY` is set.
+
+## Logs and Observability
+
+- The API uses structured, redacted request logs for safe runtime diagnostics.
+- Request logs never include passwords, bearer tokens, API keys, or raw prompts.
+- Observability endpoints are authenticated and sanitized before exposure.
+- The `/health` family stays public, while the detailed observability endpoints require auth.

@@ -18,6 +18,17 @@ import type {
   LoginRequest,
   GenerateRequest,
   HealthResponseData,
+  ObservabilityErrorsData,
+  ObservabilityHealthData,
+  ObservabilityStatusData,
+  ObservabilityDomainsData,
+  ObservabilityConfigurationData,
+  ObservabilityMetricsData,
+  RuntimeDiagnosticsData,
+  TokenObservabilityData,
+  CostObservabilityData,
+  StorageObservabilityData,
+  WorkflowObservabilityData,
   MarkdownReportRequest,
   StorageRecord,
   RegisterRequest,
@@ -96,6 +107,17 @@ export interface ApiClient {
   getAnalyticsDashboard(): Promise<ApiResponse<AnalyticsDashboardData>>;
   queryAnalytics(payload: AnalyticsRequest): Promise<ApiResponse<AnalyticsResult>>;
   getAnalyticsHealth(): Promise<ApiResponse<AnalyticsHealthData>>;
+  getObservabilityHealth(): Promise<ApiResponse<ObservabilityHealthData>>;
+  getObservabilityStatus(): Promise<ApiResponse<ObservabilityStatusData>>;
+  getObservabilityDomains(): Promise<ApiResponse<ObservabilityDomainsData>>;
+  getObservabilityTokens(): Promise<ApiResponse<TokenObservabilityData>>;
+  getObservabilityCosts(): Promise<ApiResponse<CostObservabilityData>>;
+  getObservabilityConfiguration(): Promise<ApiResponse<ObservabilityConfigurationData>>;
+  getObservabilityMetrics(): Promise<ApiResponse<ObservabilityMetricsData>>;
+  getRuntimeDiagnostics(): Promise<ApiResponse<RuntimeDiagnosticsData>>;
+  getRecentErrors(): Promise<ApiResponse<ObservabilityErrorsData>>;
+  getWorkflowObservability(): Promise<ApiResponse<WorkflowObservabilityData>>;
+  getStorageObservability(): Promise<ApiResponse<StorageObservabilityData>>;
   generateContent(payload: GenerateRequest): Promise<ApiResponse<unknown>>;
   runWorkflow(payload: WorkflowRequest): Promise<ApiResponse<unknown>>;
   runCampaign(payload: CampaignRequest): Promise<ApiResponse<unknown>>;
@@ -311,6 +333,17 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
         body: JSON.stringify(payload),
       }),
     getAnalyticsHealth: () => request<AnalyticsHealthData>(API_ENDPOINTS.analyticsHealth),
+    getObservabilityHealth: () => request<ObservabilityHealthData>(API_ENDPOINTS.observabilityHealth),
+    getObservabilityStatus: () => request<ObservabilityStatusData>(API_ENDPOINTS.observabilityStatus),
+    getObservabilityDomains: () => request<ObservabilityDomainsData>(API_ENDPOINTS.observabilityDomains),
+    getObservabilityTokens: () => request<TokenObservabilityData>(API_ENDPOINTS.observabilityTokens),
+    getObservabilityCosts: () => request<CostObservabilityData>(API_ENDPOINTS.observabilityCosts),
+    getObservabilityConfiguration: () => request<ObservabilityConfigurationData>(API_ENDPOINTS.observabilityConfiguration),
+    getObservabilityMetrics: () => request<ObservabilityMetricsData>(API_ENDPOINTS.observabilityMetrics),
+    getRuntimeDiagnostics: () => request<RuntimeDiagnosticsData>(API_ENDPOINTS.observabilityRuntime),
+    getRecentErrors: () => request<ObservabilityErrorsData>(API_ENDPOINTS.observabilityErrors),
+    getWorkflowObservability: () => request<WorkflowObservabilityData>(API_ENDPOINTS.observabilityWorkflows),
+    getStorageObservability: () => request<StorageObservabilityData>(API_ENDPOINTS.observabilityStorage),
     generateContent: (payload: GenerateRequest) =>
       request(API_ENDPOINTS.generate, {
         method: "POST",

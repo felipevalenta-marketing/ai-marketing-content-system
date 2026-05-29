@@ -15,6 +15,7 @@ from src.tracking.cost_result import (
 )
 from src.tracking.cost_validator import CostValidator
 from src.tracking.provider_pricing_mapper import ProviderPricingMapper
+from src.observability.metrics_registry import get_metrics_registry
 from src.utils.logger import get_logger, log_warning
 import json
 
@@ -127,6 +128,15 @@ class CostTracker:
         validation = self.validator.validate(result)
         result["warnings"] = list(dict.fromkeys(list(result.get("warnings", [])) + validation.get("warnings", [])))
         result["errors"] = list(dict.fromkeys(list(result.get("errors", [])) + validation.get("errors", [])))
+        get_metrics_registry().increment_counter(
+            "cost_total",
+            labels={
+                "workflow_id": safe_text(meta.get("workflow_id") or meta.get("execution_id") or "", limit=120),
+                "organization_id": safe_text(meta.get("organization_id") or "", limit=120),
+                "brand_id": safe_text(meta.get("brand_id") or meta.get("brand") or "", limit=120),
+            },
+            value=float(result.get("total_cost", 0.0) or 0.0),
+        )
         return result
 
     def record_generation_cost(self, token_usage: dict[str, Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:

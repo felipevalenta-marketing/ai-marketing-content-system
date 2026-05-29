@@ -14,6 +14,165 @@ export interface HealthResponseData {
   [key: string]: unknown;
 }
 
+export interface ObservabilityHealthCheck {
+  status?: string;
+  detail?: string;
+  warnings?: string[];
+  errors?: string[];
+  workflow_runs?: number;
+  [key: string]: unknown;
+}
+
+export interface ObservabilityHealthData {
+  status?: string;
+  health_score?: number;
+  health_status?: string;
+  system_status?: Record<string, string>;
+  configuration?: Record<string, boolean>;
+  checks?: Record<string, ObservabilityHealthCheck>;
+  warnings?: string[];
+  errors?: string[];
+  timestamp?: string;
+  sections?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ObservabilityStatusData {
+  api?: string;
+  storage?: string;
+  auth?: string;
+  rbac?: string;
+  brands?: string;
+  organizations?: string;
+  workflows?: string;
+  analytics?: string;
+  configuration?: string;
+  observability?: string;
+  [key: string]: unknown;
+}
+
+export interface ObservabilityDomainData {
+  domain?: string;
+  metrics?: Record<string, unknown>;
+}
+
+export interface ObservabilityDomainsData {
+  domains?: ObservabilityDomainData[];
+  count?: number;
+  [key: string]: unknown;
+}
+
+export interface TokenObservabilityData {
+  domain?: string;
+  metrics?: {
+    total?: number;
+    total_tokens?: number;
+    by_workflow?: Record<string, number>;
+    by_organization?: Record<string, number>;
+    by_brand?: Record<string, number>;
+    by_scope?: Record<string, number>;
+  };
+  [key: string]: unknown;
+}
+
+export interface CostObservabilityData {
+  domain?: string;
+  metrics?: {
+    total?: number;
+    total_cost?: number;
+    by_workflow?: Record<string, number>;
+    by_organization?: Record<string, number>;
+    by_brand?: Record<string, number>;
+    by_scope?: Record<string, number>;
+  };
+  [key: string]: unknown;
+}
+
+export interface ObservabilityConfigurationData {
+  observability_enabled?: boolean;
+  request_logging_enabled?: boolean;
+  error_tracking_enabled?: boolean;
+  runtime_metrics_enabled?: boolean;
+  workflow_monitoring_enabled?: boolean;
+  [key: string]: unknown;
+}
+
+export interface ObservabilityMetricsData {
+  total_requests?: number;
+  requests_by_path?: Record<string, number>;
+  requests_by_status?: Record<string, number>;
+  error_count?: number;
+  average_response_time_ms?: number;
+  workflow_runs?: number;
+  workflow_failures?: number;
+  storage_errors?: number;
+  token_usage_total?: number;
+  cost_total?: number;
+  auth_failures?: number;
+  domains?: string[];
+  durations?: Record<string, Record<string, unknown>>;
+  counters?: Record<string, Record<string, number>>;
+  [key: string]: unknown;
+}
+
+export interface RuntimeDiagnosticsData {
+  python_version?: string;
+  app_env?: string;
+  platform?: string;
+  process_uptime_seconds?: number;
+  storage_root_exists?: boolean;
+  storage_root_writable?: boolean;
+  enabled_modules?: Record<string, boolean>;
+  log_level?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+export interface RecentErrorEntry {
+  error_id?: string;
+  timestamp?: string;
+  error_type?: string;
+  module?: string;
+  message?: string;
+  request_id?: string;
+  workflow_id?: string;
+  severity?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ErrorSummaryData {
+  total_errors?: number;
+  by_type?: Record<string, number>;
+  by_module?: Record<string, number>;
+  by_severity?: Record<string, number>;
+}
+
+export interface ObservabilityErrorsData {
+  recent_errors?: RecentErrorEntry[];
+  summary?: ErrorSummaryData;
+  [key: string]: unknown;
+}
+
+export interface WorkflowObservabilityData {
+  workflow_runs?: number;
+  workflow_failures?: number;
+  recent_workflows?: Array<Record<string, unknown>>;
+  status_breakdown?: Record<string, number>;
+  workflow_metrics?: Record<string, unknown>;
+  workflow_summary?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface StorageObservabilityData {
+  storage_root_exists?: boolean;
+  storage_root_writable?: boolean;
+  record_count?: number;
+  latest_record_timestamp?: string;
+  recent_records?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
 export interface ConfigResponseData {
   app_env?: string;
   openai_api_key_present?: boolean;

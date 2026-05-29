@@ -171,6 +171,13 @@ class PipelineConfig:
     analytics_include_tokens: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_TOKENS", True))
     analytics_include_costs: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_COSTS", True))
     analytics_include_governance: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_GOVERNANCE", True))
+    enable_observability: bool = field(default_factory=lambda: _env_flag("ENABLE_OBSERVABILITY", True))
+    enable_request_logging: bool = field(default_factory=lambda: _env_flag("ENABLE_REQUEST_LOGGING", True))
+    enable_error_tracking: bool = field(default_factory=lambda: _env_flag("ENABLE_ERROR_TRACKING", True))
+    enable_runtime_metrics: bool = field(default_factory=lambda: _env_flag("ENABLE_RUNTIME_METRICS", True))
+    enable_workflow_monitoring: bool = field(default_factory=lambda: _env_flag("ENABLE_WORKFLOW_MONITORING", True))
+    observability_log_level: str = field(default_factory=lambda: os.getenv("OBSERVABILITY_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).strip() or "info")
+    recent_error_limit: int = field(default_factory=lambda: _env_int("RECENT_ERROR_LIMIT", 50))
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS

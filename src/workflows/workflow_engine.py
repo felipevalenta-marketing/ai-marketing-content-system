@@ -32,6 +32,8 @@ from src.workflows.workflow_runner import WorkflowRunner
 from src.workflows.workflow_state import serialize_state
 from src.workflows.workflow_validator import validate_workflow_plan
 from src.reporting.report_metrics import safe_text
+from src.observability.metrics_registry import get_metrics_registry
+from src.observability.workflow_monitor import get_workflow_monitor
 
 
 class WorkflowEngine:
@@ -375,6 +377,15 @@ class WorkflowEngine:
                 result["duration_seconds"] = round((end - start).total_seconds(), 3)
             except Exception:
                 result["duration_seconds"] = 0.0
+        monitor = get_workflow_monitor()
+        observation = monitor.record_workflow(result)
+        metrics = get_metrics_registry()
+        metrics.increment_counter("workflow_runs")
+        if str(result.get("status", "")).lower() == "failed":
+            metrics.increment_counter("workflow_failures")
+        result.setdefault("observability", {})
+        if isinstance(result.get("observability"), dict):
+            result["observability"].update({"workflow": observation})
         return result
 
     def _resolve_brand_context(self, request: dict[str, Any]) -> dict[str, Any]:

@@ -17,6 +17,7 @@ export default defineConfig({
       "/storage": "http://127.0.0.1:8000",
       "/analytics": "http://127.0.0.1:8000",
       "/brands": "http://127.0.0.1:8000",
+      "/observability": "http://127.0.0.1:8000",
     },
   },
 });

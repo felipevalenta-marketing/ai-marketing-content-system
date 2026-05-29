@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from src.cli.cli_config import build_module_presence
-from src.api.api_config import ApiConfig
 
 
 def _timestamp() -> str:
@@ -14,6 +13,8 @@ def _timestamp() -> str:
 
 
 def build_health_payload(config: ApiConfig | None = None) -> dict[str, Any]:
+    from src.api.api_config import ApiConfig
+
     config = config or ApiConfig()
     modules = build_module_presence()
     return {
@@ -36,6 +37,8 @@ def build_health_payload(config: ApiConfig | None = None) -> dict[str, Any]:
 
 
 def build_readiness_payload(app: Any | None = None) -> dict[str, Any]:
+    from src.api.api_config import ApiConfig
+
     config = getattr(getattr(app, "state", None), "config", None) or ApiConfig()
     services = getattr(getattr(app, "state", None), "services", {}) if app is not None else {}
     storage = services.get("storage") if isinstance(services, dict) else None
@@ -52,6 +55,8 @@ def build_readiness_payload(app: Any | None = None) -> dict[str, Any]:
 
 
 def build_liveness_payload(app: Any | None = None) -> dict[str, Any]:
+    from src.api.api_config import ApiConfig
+
     config = getattr(getattr(app, "state", None), "config", None) or ApiConfig()
     return {
         "status": "ok",

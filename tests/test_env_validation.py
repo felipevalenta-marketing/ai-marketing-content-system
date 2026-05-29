@@ -15,8 +15,11 @@ def test_env_validation_warns_without_secrets(monkeypatch, tmp_path) -> None:
     assert result["success"] is True
     assert result["environment"] == "development"
     assert result["app_env_present"] is True
+    assert result["APP_ENV_PRESENT"] is True
     assert result["openai_api_key_present"] is False
+    assert result["OPENAI_API_KEY_PRESENT"] is False
     assert result["jwt_secret_key_present"] is False
+    assert result["JWT_SECRET_KEY_PRESENT"] is False
     assert result["errors"] == []
     assert any("JWT_SECRET_KEY" in warning for warning in result["warnings"])
 

@@ -28,7 +28,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -53,6 +53,17 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
   const analyticsRecords = Number((analyticsSummaryData?.metadata as any)?.records_collected ?? dashboardHealth?.records_count ?? 0);
   const analyticsIsEmpty = hasAnalytics && analyticsRecords <= 0;
   const brandValidationData = brandValidation as any;
+  const observabilityHealthStatus = String(observabilityHealth?.status ?? "unknown");
+  const requestMetrics = observabilityMetrics ?? {};
+  const runtime = runtimeDiagnostics ?? {};
+  const recentErrorCount = Array.isArray(recentErrors?.recent_errors) ? recentErrors.recent_errors.length : 0;
+  const workflowSummary = workflowObservability ?? {};
+  const storageSummary = storageObservability ?? {};
+  const systemStatus = observabilityStatus ?? observabilityHealth?.system_status ?? {};
+  const observabilityDomainsData = observabilityDomains?.domains ?? [];
+  const observabilityTokensData = observabilityTokens?.metrics ?? {};
+  const observabilityCostsData = observabilityCosts?.metrics ?? {};
+  const observabilityConfigData = observabilityConfiguration ?? {};
   const can = (permission: string) => permissions.includes("admin:all") || permissions.includes(permission);
 
   return (
@@ -69,6 +80,77 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
         <MetricCard label="Storage Root" value={config?.storage_root ?? "data"} hint="Local persistence" />
         <MetricCard label="Config Health" value={String(configurationHealth?.status ?? "unknown")} hint={String(configurationHealth?.enabled_flags ?? modules)} />
       </div>
+
+      <Card>
+        <SectionHeader title="Observability" description="Safe runtime visibility into API health, requests, errors, workflows, and storage." />
+        <div className="metric-grid">
+          <MetricCard label="Health" value={observabilityHealthStatus} hint="Observability" />
+          <MetricCard label="Requests" value={formatCount(Number(requestMetrics.total_requests ?? 0))} hint={String(requestMetrics.average_response_time_ms ?? 0) + " ms avg"} />
+          <MetricCard label="Recent Errors" value={formatCount(recentErrorCount)} hint={String(requestMetrics.error_count ?? 0)} />
+          <MetricCard label="Workflow Runs" value={formatCount(Number(workflowSummary.workflow_runs ?? 0))} hint={String(workflowSummary.workflow_failures ?? 0) + " failures"} />
+          <MetricCard label="Storage Status" value={String(storageSummary.storage_root_writable ?? false)} hint={String(storageSummary.record_count ?? 0) + " records"} />
+          <MetricCard label="Process Uptime" value={formatCount(Math.round(Number(runtime.process_uptime_seconds ?? 0)))} hint={String(runtime.app_env ?? "development")} />
+          <MetricCard label="Global Status" value={String((systemStatus as any).observability ?? observabilityHealthStatus)} hint={String((systemStatus as any).api ?? "healthy")} />
+        </div>
+        <div className="metric-grid">
+          <MetricCard label="Observability Enabled" value={String(observabilityConfigData.observability_enabled ?? true)} hint="Config" />
+          <MetricCard label="Request Logging" value={String(observabilityConfigData.request_logging_enabled ?? true)} hint="Config" />
+          <MetricCard label="Error Tracking" value={String(observabilityConfigData.error_tracking_enabled ?? true)} hint="Config" />
+          <MetricCard label="Runtime Metrics" value={String(observabilityConfigData.runtime_metrics_enabled ?? true)} hint="Config" />
+        </div>
+        {observabilityDomainsData.length ? (
+          <div className="section">
+            <h3>Metric Domains</h3>
+            <ul className="simple-list">
+              {observabilityDomainsData.slice(0, 5).map((domain: any) => (
+                <li key={String(domain.domain ?? "domain")}>{String(domain.domain ?? "domain")} | {Object.keys(domain.metrics ?? {}).length} metrics</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="grid-2">
+          <div className="section">
+            <h3>Token Observability</h3>
+            <ul className="simple-list">
+              <li>Total: {formatCount(Number(observabilityTokensData.total_tokens ?? observabilityTokensData.total ?? 0))}</li>
+              <li>By workflow: {formatCount(Object.keys(observabilityTokensData.by_workflow ?? {}).length)}</li>
+              <li>By organization: {formatCount(Object.keys(observabilityTokensData.by_organization ?? {}).length)}</li>
+              <li>By brand: {formatCount(Object.keys(observabilityTokensData.by_brand ?? {}).length)}</li>
+            </ul>
+          </div>
+          <div className="section">
+            <h3>Cost Observability</h3>
+            <ul className="simple-list">
+              <li>Total: {formatCurrency(Number(observabilityCostsData.total_cost ?? observabilityCostsData.total ?? 0), String((costSummary as any)?.currency ?? "USD"))}</li>
+              <li>By workflow: {formatCount(Object.keys(observabilityCostsData.by_workflow ?? {}).length)}</li>
+              <li>By organization: {formatCount(Object.keys(observabilityCostsData.by_organization ?? {}).length)}</li>
+              <li>By brand: {formatCount(Object.keys(observabilityCostsData.by_brand ?? {}).length)}</li>
+            </ul>
+          </div>
+        </div>
+        {Array.isArray(observabilityHealth?.warnings) && observabilityHealth.warnings.length ? (
+          <div className="section">
+            <h3>Observability Warnings</h3>
+            <ul className="simple-list">
+              {observabilityHealth.warnings.slice(0, 3).map((warning, index) => (
+                <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {Array.isArray(recentErrors?.recent_errors) && recentErrors.recent_errors.length ? (
+          <div className="section">
+            <h3>Recent Errors</h3>
+            <ul className="simple-list">
+              {recentErrors.recent_errors.slice(0, 3).map((error, index) => (
+                <li key={String(error.error_id ?? index)}>
+                  {String(error.error_type ?? "error")} | {String(error.module ?? "module")} | {String(error.message ?? "")}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </Card>
 
       <Card>
         <SectionHeader title="Organization Management" description="Active organization, team, and access context." />

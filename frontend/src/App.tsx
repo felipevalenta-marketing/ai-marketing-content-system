@@ -36,7 +36,18 @@ import type {
   MembershipProfile,
   OrganizationProfile,
   OrganizationRegistryEntry,
+  ObservabilityErrorsData,
+  ObservabilityHealthData,
+  ObservabilityStatusData,
+  ObservabilityDomainsData,
+  ObservabilityConfigurationData,
+  ObservabilityMetricsData,
+  RuntimeDiagnosticsData,
+  TokenObservabilityData,
+  CostObservabilityData,
   TeamProfile,
+  StorageObservabilityData,
+  WorkflowObservabilityData,
 } from "./types/api";
 import { createApiClient } from "./api/client";
 
@@ -79,6 +90,17 @@ export default function App() {
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(null);
   const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(null);
   const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(null);
+  const [observabilityHealth, setObservabilityHealth] = useState<ObservabilityHealthData | null>(null);
+  const [observabilityStatus, setObservabilityStatus] = useState<ObservabilityStatusData | null>(null);
+  const [observabilityDomains, setObservabilityDomains] = useState<ObservabilityDomainsData | null>(null);
+  const [observabilityTokens, setObservabilityTokens] = useState<TokenObservabilityData | null>(null);
+  const [observabilityCosts, setObservabilityCosts] = useState<CostObservabilityData | null>(null);
+  const [observabilityConfiguration, setObservabilityConfiguration] = useState<ObservabilityConfigurationData | null>(null);
+  const [observabilityMetrics, setObservabilityMetrics] = useState<ObservabilityMetricsData | null>(null);
+  const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<RuntimeDiagnosticsData | null>(null);
+  const [recentErrors, setRecentErrors] = useState<ObservabilityErrorsData | null>(null);
+  const [workflowObservability, setWorkflowObservability] = useState<WorkflowObservabilityData | null>(null);
+  const [storageObservability, setStorageObservability] = useState<StorageObservabilityData | null>(null);
   const permissions = auth.permissions;
   const role = auth.role;
 
@@ -107,6 +129,55 @@ export default function App() {
       active = false;
     };
   }, [apiBaseUrl]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      setObservabilityHealth(null);
+      setObservabilityStatus(null);
+      setObservabilityDomains(null);
+      setObservabilityTokens(null);
+      setObservabilityCosts(null);
+      setObservabilityConfiguration(null);
+      setObservabilityMetrics(null);
+      setRuntimeDiagnostics(null);
+      setRecentErrors(null);
+      setWorkflowObservability(null);
+      setStorageObservability(null);
+      return;
+    }
+    let active = true;
+    Promise.all([
+      client.getObservabilityHealth(),
+      client.getObservabilityStatus(),
+      client.getObservabilityDomains(),
+      client.getObservabilityTokens(),
+      client.getObservabilityCosts(),
+      client.getObservabilityConfiguration(),
+      client.getObservabilityMetrics(),
+      client.getRuntimeDiagnostics(),
+      client.getRecentErrors(),
+      client.getWorkflowObservability(),
+      client.getStorageObservability(),
+    ]).then(([healthResponse, statusResponse, domainsResponse, tokensResponse, costsResponse, configurationResponse, metricsResponse, runtimeResponse, errorsResponse, workflowResponse, storageResponse]) => {
+      if (!active) {
+        return;
+      }
+      setObservabilityHealth(healthResponse.success && healthResponse.data ? healthResponse.data : null);
+      setObservabilityStatus(statusResponse.success && statusResponse.data ? statusResponse.data : null);
+      setObservabilityDomains(domainsResponse.success && domainsResponse.data ? domainsResponse.data : null);
+      setObservabilityTokens(tokensResponse.success && tokensResponse.data ? tokensResponse.data : null);
+      setObservabilityCosts(costsResponse.success && costsResponse.data ? costsResponse.data : null);
+      setObservabilityConfiguration(configurationResponse.success && configurationResponse.data ? configurationResponse.data : null);
+      setObservabilityMetrics(metricsResponse.success && metricsResponse.data ? metricsResponse.data : null);
+      setRuntimeDiagnostics(runtimeResponse.success && runtimeResponse.data ? runtimeResponse.data : null);
+      setRecentErrors(errorsResponse.success && errorsResponse.data ? errorsResponse.data : null);
+      setWorkflowObservability(workflowResponse.success && workflowResponse.data ? (workflowResponse.data as WorkflowObservabilityData) : null);
+      setStorageObservability(storageResponse.success && storageResponse.data ? (storageResponse.data as StorageObservabilityData) : null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [auth.isAuthenticated, client]);
 
   useEffect(() => {
     let active = true;
@@ -293,6 +364,17 @@ export default function App() {
       analyticsSummary,
       analyticsDashboard,
       analyticsHealth,
+      observabilityHealth,
+      observabilityStatus,
+      observabilityDomains,
+      observabilityTokens,
+      observabilityCosts,
+      observabilityConfiguration,
+      observabilityMetrics,
+      runtimeDiagnostics,
+      recentErrors,
+      workflowObservability,
+      storageObservability,
     };
     switch (activePage) {
       case "content":
@@ -365,7 +447,7 @@ export default function App() {
   }
 
   return (
-    <AppShell
+      <AppShell
       client={client}
       apiBaseUrl={apiBaseUrl}
       onApiBaseUrlChange={setApiBaseUrl}
@@ -384,8 +466,8 @@ export default function App() {
       organizationProfile={organizationProfile}
       organizationContext={organizationContext}
       organizationTeams={organizationTeams}
-      organizationMembers={organizationMembers}
-      onLogout={async () => {
+        organizationMembers={organizationMembers}
+        onLogout={async () => {
         await auth.logout();
         setActivePage("login");
       }}

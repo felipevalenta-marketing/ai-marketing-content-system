@@ -23,6 +23,7 @@ from src.storage.storage_result import (
 )
 from src.storage.storage_validator import StorageValidator
 from src.storage.storage_writer import StorageWriter
+from src.observability.metrics_registry import get_metrics_registry
 from src.utils.logger import get_logger
 
 
@@ -73,6 +74,7 @@ class StorageManager:
         try:
             normalized = self._normalize_record(record)
         except Exception as exc:
+            get_metrics_registry().increment_counter("storage_errors")
             return build_validation_failure_result(
                 errors=[str(exc)],
                 warnings=[],
@@ -82,6 +84,7 @@ class StorageManager:
             )
         validation = self.validator.validate(normalized)
         if not validation["valid"]:
+            get_metrics_registry().increment_counter("storage_errors")
             return build_validation_failure_result(
                 errors=validation.get("errors", []),
                 warnings=validation.get("warnings", []),
@@ -91,6 +94,7 @@ class StorageManager:
             )
         write_result = self.writer.write_record(normalized, overwrite=overwrite, write_markdown=write_markdown)
         if not write_result.get("success"):
+            get_metrics_registry().increment_counter("storage_errors")
             return build_failure_result(
                 error="Failed to write storage record.",
                 record_type=normalized.get("record_type", ""),

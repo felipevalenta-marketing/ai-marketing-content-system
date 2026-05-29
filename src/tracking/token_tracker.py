@@ -15,6 +15,7 @@ from src.tracking.token_result import (
     build_unavailable_usage_result,
 )
 from src.tracking.token_validator import TokenValidator
+from src.observability.metrics_registry import get_metrics_registry
 from src.utils.logger import get_logger, log_warning
 
 
@@ -80,6 +81,13 @@ class TokenTracker:
             normalized["errors"] = list(dict.fromkeys(list(normalized.get("errors", [])) + validation["errors"]))
         normalized["validation"] = validation
         normalized["metadata"] = {**meta, **safe_dict(normalized.get("metadata"))}
+        metrics = get_metrics_registry()
+        labels = {
+            "workflow_id": safe_text(meta.get("workflow_id") or meta.get("execution_id") or "", limit=120),
+            "organization_id": safe_text(meta.get("organization_id") or "", limit=120),
+            "brand_id": safe_text(meta.get("brand_id") or meta.get("brand") or "", limit=120),
+        }
+        metrics.increment_counter("token_usage_total", labels=labels, value=float(normalized.get("total_tokens", 0) or 0))
         return normalized
 
     def record_generation(self, usage_payload: dict[str, Any], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -200,4 +208,3 @@ class TokenTracker:
         if total_tokens >= 12000:
             warnings.append("Suspiciously high token usage detected.")
         return warnings
-

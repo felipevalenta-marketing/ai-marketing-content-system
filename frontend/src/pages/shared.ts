@@ -2,6 +2,7 @@ import type { ConfigResponseData, HealthResponseData } from "../types/api";
 import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData, BrandDefaults, BrandProfile, BrandRegistryEntry } from "../types/api";
 import type { OrganizationProfile, OrganizationRegistryEntry, TeamProfile, MembershipProfile } from "../types/api";
 import type { OrganizationContext } from "../types/api";
+import type { ObservabilityConfigurationData, ObservabilityDomainsData, ObservabilityErrorsData, ObservabilityHealthData, ObservabilityMetricsData, ObservabilityStatusData, RuntimeDiagnosticsData, StorageObservabilityData, WorkflowObservabilityData, TokenObservabilityData, CostObservabilityData } from "../types/api";
 import type { ApiClient } from "../api/client";
 
 export interface SnapshotEntry {
@@ -34,6 +35,17 @@ export interface WorkspaceProps {
   analyticsSummary?: AnalyticsSummaryData | null;
   analyticsDashboard?: AnalyticsDashboardData | null;
   analyticsHealth?: AnalyticsHealthData | null;
+  observabilityHealth?: ObservabilityHealthData | null;
+  observabilityStatus?: ObservabilityStatusData | null;
+  observabilityDomains?: ObservabilityDomainsData | null;
+  observabilityTokens?: TokenObservabilityData | null;
+  observabilityCosts?: CostObservabilityData | null;
+  observabilityConfiguration?: ObservabilityConfigurationData | null;
+  observabilityMetrics?: ObservabilityMetricsData | null;
+  runtimeDiagnostics?: RuntimeDiagnosticsData | null;
+  recentErrors?: ObservabilityErrorsData | null;
+  workflowObservability?: WorkflowObservabilityData | null;
+  storageObservability?: StorageObservabilityData | null;
 }
 
 export function getSnapshot<T = unknown>(snapshots: SnapshotStore, key: string): T | null {

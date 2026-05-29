@@ -13,7 +13,7 @@ import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ client, config, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
+export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
   const canManageConfig = Boolean(role === "admin" || role === "manager");
   const [editableFlags, setEditableFlags] = useState<Record<string, boolean>>({});
   const [updateMessage, setUpdateMessage] = useState<string>("");
@@ -37,6 +37,16 @@ export function SystemConfig({ client, config, activeBrand, activeOrganizationId
   const limits = summary.limits ?? config.limits ?? {};
   const environment = summary.environment ?? config.environment ?? {};
   const health = summary.configuration_health ?? config.configuration_health ?? {};
+  const observabilityHealthStatus = String(observabilityHealth?.status ?? "unknown");
+  const observabilityMetricsData = observabilityMetrics ?? {};
+  const runtime = runtimeDiagnostics ?? {};
+  const recentErrorItems = Array.isArray(recentErrors?.recent_errors) ? recentErrors.recent_errors : [];
+  const workflowSummary = workflowObservability ?? {};
+  const storageSummary = storageObservability ?? {};
+  const observabilityDomainItems = observabilityDomains?.domains ?? [];
+  const observabilityTokensData = observabilityTokens?.metrics ?? {};
+  const observabilityCostsData = observabilityCosts?.metrics ?? {};
+  const observabilityConfigData = observabilityConfiguration ?? {};
   const brandValidationData = brandValidation as any;
 
   function flagsFromConfig(payload: typeof config | null): Record<string, boolean> {
@@ -144,6 +154,65 @@ export function SystemConfig({ client, config, activeBrand, activeOrganizationId
             <ul className="simple-list">
               {health.warnings.slice(0, 3).map((warning: string, index: number) => (
                 <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </ConfigurationCard>
+      <ConfigurationCard title="Observability" description="Safe runtime visibility and request-level diagnostics.">
+        <div className="metric-grid">
+          <MetricCard label="Health" value={observabilityHealthStatus} hint="Observability" />
+          <MetricCard label="System Status" value={String((observabilityStatus as any)?.observability ?? observabilityHealthStatus)} hint="Unified status" />
+          <MetricCard label="Requests" value={String(observabilityMetricsData.total_requests ?? 0)} hint={`${String(observabilityMetricsData.error_count ?? 0)} errors`} />
+          <MetricCard label="Avg Latency" value={`${String(observabilityMetricsData.average_response_time_ms ?? 0)} ms`} hint="Requests" />
+          <MetricCard label="Workflow Runs" value={String(workflowSummary.workflow_runs ?? 0)} hint={String(workflowSummary.workflow_failures ?? 0)} />
+          <MetricCard label="Storage Writable" value={String(storageSummary.storage_root_writable ?? false)} hint={String(storageSummary.record_count ?? 0)} />
+          <MetricCard label="Uptime" value={`${String(Math.round(Number(runtime.process_uptime_seconds ?? 0)))}s`} hint={String(runtime.app_env ?? "development")} />
+        </div>
+        <div className="metric-grid">
+          <MetricCard label="Observability Enabled" value={String(observabilityConfigData.observability_enabled ?? true)} hint="Config" />
+          <MetricCard label="Request Logging" value={String(observabilityConfigData.request_logging_enabled ?? true)} hint="Config" />
+          <MetricCard label="Error Tracking" value={String(observabilityConfigData.error_tracking_enabled ?? true)} hint="Config" />
+          <MetricCard label="Runtime Metrics" value={String(observabilityConfigData.runtime_metrics_enabled ?? true)} hint="Config" />
+        </div>
+        {observabilityDomainItems.length ? (
+          <div className="section">
+            <h3>Metric Domains</h3>
+            <ul className="simple-list">
+              {observabilityDomainItems.slice(0, 6).map((domain: any) => (
+                <li key={String(domain.domain ?? "domain")}>{String(domain.domain ?? "domain")} | {Object.keys(domain.metrics ?? {}).length} metrics</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="grid-2">
+          <div className="section">
+            <h3>Token Observability</h3>
+            <JsonViewer data={observabilityTokensData} title="Token Metrics JSON" />
+          </div>
+          <div className="section">
+            <h3>Cost Observability</h3>
+            <JsonViewer data={observabilityCostsData} title="Cost Metrics JSON" />
+          </div>
+        </div>
+        {Array.isArray(observabilityHealth?.warnings) && observabilityHealth.warnings.length ? (
+          <div className="section">
+            <h3>Observability Warnings</h3>
+            <ul className="simple-list">
+              {observabilityHealth.warnings.slice(0, 3).map((warning: string, index: number) => (
+                <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {recentErrorItems.length ? (
+          <div className="section">
+            <h3>Recent Errors</h3>
+            <ul className="simple-list">
+              {recentErrorItems.slice(0, 3).map((error, index: number) => (
+                <li key={String(error.error_id ?? index)}>
+                  {String(error.error_type ?? "error")} | {String(error.module ?? "module")} | {String(error.message ?? "")}
+                </li>
               ))}
             </ul>
           </div>

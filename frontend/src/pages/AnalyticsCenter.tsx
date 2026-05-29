@@ -46,7 +46,7 @@ function toBreakdownRows(breakdown: Record<string, unknown> | undefined, valueKe
     }));
 }
 
-export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth, activeBrand, activeOrganizationId, activeTeamId }: AnalyticsCenterProps) {
+export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, activeBrand, activeOrganizationId, activeTeamId }: AnalyticsCenterProps) {
   const [form, setForm] = useLocalState<AnalyticsRequest>("amcs:analytics-form", DEFAULT_FORM);
   const [result, setResult] = useState<AnalyticsResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,6 +110,13 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
   };
 
   const analyticsHealthLabel = String((analyticsHealth?.sections as any)?.health?.status ?? analyticsHealth?.status ?? "unknown");
+  const observabilityLabel = String(observabilityHealth?.status ?? "unknown");
+  const observabilitySystemLabel = String((observabilityStatus as any)?.observability ?? observabilityLabel);
+  const observabilityErrorCount = Array.isArray(recentErrors?.recent_errors) ? recentErrors.recent_errors.length : 0;
+  const observabilityDomainRows = observabilityDomains?.domains ?? [];
+  const tokenMetrics = observabilityTokens?.metrics ?? {};
+  const costMetrics = observabilityCosts?.metrics ?? {};
+  const observabilityConfig = observabilityConfiguration ?? {};
 
   return (
     <div className="content-grid">
@@ -220,6 +227,29 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
             </ul>
           </div>
         ) : null}
+        <div className="metric-grid" style={{ marginTop: 20 }}>
+          <MetricCard label="Observability" value={observabilityLabel} hint={String(observabilityMetrics?.total_requests ?? 0)} />
+          <MetricCard label="System Status" value={observabilitySystemLabel} hint={String((observabilityStatus as any)?.api ?? "healthy")} />
+          <MetricCard label="Runtime" value={String(runtimeDiagnostics?.app_env ?? "development")} hint={String(runtimeDiagnostics?.python_version ?? "python")} />
+          <MetricCard label="Errors" value={String(observabilityErrorCount)} hint={String(observabilityMetrics?.error_count ?? 0)} />
+          <MetricCard label="Storage" value={String(storageObservability?.storage_root_writable ?? false)} hint={String(storageObservability?.record_count ?? 0)} />
+        </div>
+        <div className="metric-grid">
+          <MetricCard label="Monitoring Enabled" value={String(observabilityConfig.observability_enabled ?? true)} hint="Config" />
+          <MetricCard label="Request Logging" value={String(observabilityConfig.request_logging_enabled ?? true)} hint="Config" />
+          <MetricCard label="Error Tracking" value={String(observabilityConfig.error_tracking_enabled ?? true)} hint="Config" />
+          <MetricCard label="Runtime Metrics" value={String(observabilityConfig.runtime_metrics_enabled ?? true)} hint="Config" />
+        </div>
+        {observabilityDomainRows.length ? (
+          <div className="section">
+            <h3>Metric Domains</h3>
+            <ul className="simple-list">
+              {observabilityDomainRows.slice(0, 6).map((domain: any) => (
+                <li key={String(domain.domain ?? "domain")}>{String(domain.domain ?? "domain")} | {Object.keys(domain.metrics ?? {}).length} metrics</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </Card>
 
       <Card className="panel--sticky">
@@ -317,9 +347,9 @@ export function AnalyticsCenter({ client, analyticsSummary, analyticsDashboard, 
             <div className="grid-2">
               <Card>
                 <SectionHeader title="Token / Cost" description="Tracked usage metrics." />
-                <p><strong>Tokens:</strong> {formatCount((sections.tokens as Record<string, unknown>)?.total_tokens ?? 0)}</p>
+                <p><strong>Tokens:</strong> {formatCount((sections.tokens as Record<string, unknown>)?.total_tokens ?? tokenMetrics.total_tokens ?? tokenMetrics.total ?? 0)}</p>
                 <p><strong>Estimated Token Records:</strong> {formatCount((sections.tokens as Record<string, unknown>)?.estimated_records ?? 0)}</p>
-                <p><strong>Cost:</strong> {formatCurrency((sections.costs as Record<string, unknown>)?.total_cost ?? 0, String((sections.costs as Record<string, unknown>)?.currency ?? "USD"))}</p>
+                <p><strong>Cost:</strong> {formatCurrency((sections.costs as Record<string, unknown>)?.total_cost ?? costMetrics.total_cost ?? costMetrics.total ?? 0, String((sections.costs as Record<string, unknown>)?.currency ?? "USD"))}</p>
                 <p><strong>Unknown Pricing:</strong> {formatCount((sections.costs as Record<string, unknown>)?.unknown_pricing_records ?? 0)}</p>
               </Card>
               <Card>
