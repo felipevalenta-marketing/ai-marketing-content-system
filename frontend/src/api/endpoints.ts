@@ -5,6 +5,10 @@ export const API_ENDPOINTS = {
   workflow: "/workflow",
   campaign: "/campaign",
   assets: "/assets",
+  analyticsSummary: "/analytics/summary",
+  analyticsDashboard: "/analytics/dashboard",
+  analyticsQuery: "/analytics/query",
+  analyticsHealth: "/analytics/health",
   markdownReport: "/reports/markdown",
   latestReports: "/reports/latest",
   storageRecords: "/storage/records",
@@ -19,6 +23,12 @@ export const REPORT_TYPES = [
   "tracking_report",
   "cost_report",
   "media_report",
+  "image_prompt_report",
+  "image_prompt_validation_report",
+  "visual_style_report",
+  "storyboard_report",
+  "video_script_report",
+  "video_prompt_report",
 ] as const;
 
 export const NAV_ITEMS = [

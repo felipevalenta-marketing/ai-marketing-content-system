@@ -57,3 +57,9 @@ export const ASSET_DEFAULTS = {
   visual_style: "mediterranean_lifestyle",
   creative_direction: "Rustic exterior with modern comfort inside, close to Manacor and beaches.",
 };
+
+export const ANALYTICS_DEFAULTS = {
+  brand: "wenzel_partner",
+  platform: "instagram",
+  analytics_type: "executive_dashboard",
+};

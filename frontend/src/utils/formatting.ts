@@ -27,6 +27,13 @@ export function formatCurrency(value: unknown, currency = "USD"): string {
   }).format(value);
 }
 
+export function formatPercent(value: unknown): string {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "0.00%";
+  }
+  return `${value.toFixed(2)}%`;
+}
+
 export function formatStatusTone(status?: string): "ok" | "warn" | "error" | "neutral" {
   const normalized = (status ?? "").toLowerCase();
   if (["ok", "healthy", "success", "completed", "approved", "persisted"].includes(normalized)) {

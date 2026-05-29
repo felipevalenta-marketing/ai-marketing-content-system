@@ -4,9 +4,10 @@ import { EmptyState } from "../components/EmptyState";
 import { MetricCard } from "../components/MetricCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { StatusPill } from "../components/StatusPill";
-import { extractMarkdown, formatCount, formatCurrency, getStatusLabel } from "../utils/formatting";
+import { extractMarkdown, formatCount, formatCurrency, formatPercent, getStatusLabel } from "../utils/formatting";
 import type { WorkspaceProps } from "./shared";
 import { getSnapshot } from "./shared";
+import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData } from "../types/api";
 
 interface DashboardProps extends WorkspaceProps {
   onNavigate: (page: string) => void;
@@ -27,7 +28,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -36,6 +37,20 @@ export function Dashboard({ snapshots, health, config, onNavigate, onCheckHealth
   const costSummary = readCostSummary(snapshots);
   const latestMarkdown = extractMarkdown(reports) || extractMarkdown(workflow) || extractMarkdown(generate);
   const modules = config?.feature_flags ? Object.values(config.feature_flags).filter(Boolean).length : 0;
+  const analyticsSummaryData = analyticsSummary as AnalyticsSummaryData | null;
+  const analyticsDashboardData = analyticsDashboard as AnalyticsDashboardData | null;
+  const analyticsHealthData = analyticsHealth as AnalyticsHealthData | null;
+  const dashboardPayload = analyticsDashboardData ?? analyticsSummaryData?.dashboard_payload ?? null;
+  const dashboardCards = Array.isArray(dashboardPayload?.cards) ? dashboardPayload.cards : [];
+  const dashboardHealth = (analyticsHealthData?.sections as any)?.health ?? dashboardPayload?.health ?? (analyticsSummaryData?.sections as any)?.storage ?? null;
+  const executiveSummary = analyticsSummaryData?.executive_summary ?? dashboardPayload?.summaries?.executive ?? null;
+  const recentActivity = dashboardPayload?.recent_activity ?? (analyticsSummaryData?.trends as any)?.recent_activity ?? [];
+  const analyticsInsights = analyticsSummaryData?.insights ?? dashboardPayload?.summaries?.insights ?? [];
+  const analyticsRecommendations = analyticsSummaryData?.recommendations ?? dashboardPayload?.summaries?.recommendations ?? [];
+  const executiveKpis = (analyticsSummaryData?.kpis as any)?.executive ?? {};
+  const hasAnalytics = Boolean(analyticsSummaryData || analyticsDashboardData || dashboardPayload);
+  const analyticsRecords = Number((analyticsSummaryData?.metadata as any)?.records_collected ?? dashboardHealth?.records_count ?? 0);
+  const analyticsIsEmpty = hasAnalytics && analyticsRecords <= 0;
 
   return (
     <div className="stack">
@@ -50,6 +65,93 @@ export function Dashboard({ snapshots, health, config, onNavigate, onCheckHealth
         <MetricCard label="Enabled Modules" value={formatCount(modules)} hint="Feature flags" />
         <MetricCard label="Storage Root" value={config?.storage_root ?? "data"} hint="Local persistence" />
       </div>
+
+      {hasAnalytics ? (
+        <Card>
+          <SectionHeader title="Executive Analytics" description="Live dashboard-ready summaries from the backend analytics layer." />
+          {analyticsIsEmpty ? (
+            <EmptyState
+              title="No analytics data yet"
+              description="Run a persisted workflow or generate content with reporting enabled to populate executive KPIs, recent activity, and cost summaries."
+              action={
+                <>
+                  <Button type="button" variant="primary" onClick={() => onNavigate("workflow")}>
+                    Run Workflow Dry Run
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => onNavigate("content")}>
+                    Generate Content
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={onCheckHealth}>
+                    Check API Health
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => onNavigate("storage")}>
+                    Browse Storage
+                  </Button>
+                </>
+              }
+            />
+          ) : executiveSummary ? (
+            <div className="section">
+              <StatusPill status={String(executiveSummary.approval_status ?? dashboardHealth?.status ?? "neutral")} />
+              <p><strong>{String(executiveSummary.headline ?? "Analytics ready")}</strong></p>
+              <p>{String(executiveSummary.outcome ?? "")}</p>
+            </div>
+          ) : null}
+          <div className="metric-grid">
+            {dashboardCards.length > 0
+              ? dashboardCards.slice(0, 4).map((card, index) => (
+                  <MetricCard
+                    key={`${String(card.label ?? "card")}-${index}`}
+                    label={String(card.label ?? "Metric")}
+                    value={String(card.value ?? "-")}
+                    hint={card.description ? String(card.description) : String(card.unit ?? "")}
+                  />
+                ))
+              : (
+                <>
+                  <MetricCard label="Total Tokens" value={formatCount(Number(executiveKpis.total_tokens?.value ?? 0))} hint="Analytics" />
+                  <MetricCard label="Total Cost" value={formatCurrency(Number(executiveKpis.total_cost?.value ?? 0), String((costSummary as any)?.currency ?? "USD"))} hint="Analytics" />
+                  <MetricCard label="Workflow Success" value={formatPercent(Number(executiveKpis.workflow_success_rate?.value ?? 0))} hint="Analytics" />
+                  <MetricCard label="Approval Rate" value={formatPercent(Number(executiveKpis.governance_approval_rate?.value ?? 0))} hint="Analytics" />
+                </>
+              )}
+          </div>
+          {recentActivity.length > 0 ? (
+            <div className="section">
+              <h3>Recent Activity</h3>
+              <div className="stack">
+                {recentActivity.slice(0, 4).map((item, index) => (
+                  <div key={`${String(item.record_id ?? index)}`} className="metric-card">
+                    <p className="metric-card__label">{String(item.record_type ?? "record")}</p>
+                    <p className="metric-card__value">{String(item.brand ?? item.platform ?? "Activity")}</p>
+                    <p className="metric-card__hint">{String(item.created_at ?? item.status ?? "")}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {analyticsInsights.length > 0 ? (
+            <div className="section">
+              <h3>Insights</h3>
+              <ul className="simple-list">
+                {analyticsInsights.slice(0, 3).map((item, index) => (
+                  <li key={`${String(item)}-${index}`}>{String(item)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {analyticsRecommendations.length > 0 ? (
+            <div className="section">
+              <h3>Recommendations</h3>
+              <ul className="simple-list">
+                {analyticsRecommendations.slice(0, 3).map((item, index) => (
+                  <li key={`${String(item)}-${index}`}>{String(item)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       <div className="grid-2">
         <Card>

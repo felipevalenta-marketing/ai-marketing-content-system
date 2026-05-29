@@ -144,6 +144,20 @@ class MarkdownReportRequest(BaseApiModel):
     export_markdown_report: bool = False
 
 
+class AnalyticsRequest(BaseApiModel):
+    analytics_type: str = Field(default="executive_dashboard")
+    brand: str = Field(default="")
+    platform: str = Field(default="")
+    date_range: dict[str, str] = Field(default_factory=lambda: {"start": "", "end": ""})
+    filters: dict[str, Any] = Field(default_factory=dict)
+    include_storage: bool = True
+    include_tokens: bool = True
+    include_costs: bool = True
+    include_governance: bool = True
+    include_reports: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class StorageRecordQuery(BaseApiModel):
     record_type: str | None = None
     record_id: str | None = None

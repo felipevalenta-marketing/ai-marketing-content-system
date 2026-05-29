@@ -137,6 +137,12 @@ class PipelineConfig:
     enable_api_layer: bool = field(default_factory=lambda: _env_flag("ENABLE_API_LAYER", True))
     enable_frontend_demo: bool = field(default_factory=lambda: _env_flag("ENABLE_FRONTEND_DEMO", True))
     api_debug: bool = field(default_factory=lambda: _env_flag("API_DEBUG", False))
+    enable_analytics: bool = field(default_factory=lambda: _env_flag("ENABLE_ANALYTICS", True))
+    analytics_default_type: str = field(default_factory=lambda: os.getenv("ANALYTICS_DEFAULT_TYPE", "executive_dashboard"))
+    analytics_include_storage: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_STORAGE", True))
+    analytics_include_tokens: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_TOKENS", True))
+    analytics_include_costs: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_COSTS", True))
+    analytics_include_governance: bool = field(default_factory=lambda: _env_flag("ANALYTICS_INCLUDE_GOVERNANCE", True))
     governance_min_score: float = 70.0
     reject_on_critical_safety_error: bool = True
     supported_platforms: tuple[str, ...] = DEFAULT_SUPPORTED_PLATFORMS

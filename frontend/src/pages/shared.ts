@@ -1,4 +1,5 @@
 import type { ConfigResponseData, HealthResponseData } from "../types/api";
+import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData } from "../types/api";
 import type { ApiClient } from "../api/client";
 
 export interface SnapshotEntry {
@@ -14,6 +15,9 @@ export interface WorkspaceProps {
   onSnapshot: (key: string, data: unknown) => void;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
+  analyticsSummary?: AnalyticsSummaryData | null;
+  analyticsDashboard?: AnalyticsDashboardData | null;
+  analyticsHealth?: AnalyticsHealthData | null;
 }
 
 export function getSnapshot<T = unknown>(snapshots: SnapshotStore, key: string): T | null {

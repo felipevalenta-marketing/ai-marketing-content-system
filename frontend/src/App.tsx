@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { Dashboard } from "./pages/Dashboard";
 import { ContentStudio } from "./pages/ContentStudio";
@@ -17,6 +17,8 @@ import { useHealth } from "./hooks/useHealth";
 import { useLocalState } from "./hooks/useLocalState";
 import { Card } from "./components/Card";
 import { SectionHeader } from "./components/SectionHeader";
+import type { AnalyticsDashboardData, AnalyticsHealthData, AnalyticsSummaryData } from "./types/api";
+import { createApiClient } from "./api/client";
 
 type PageKey =
   | "dashboard"
@@ -38,6 +40,35 @@ export default function App() {
   const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl);
   const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", "dashboard");
   const [snapshots, setSnapshots] = useLocalState<SnapshotStore>("amcs:snapshots", SNAPSHOT_DEFAULT);
+  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(null);
+  const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(null);
+  const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const analyticsClient = createApiClient(apiBaseUrl);
+    Promise.all([
+      analyticsClient.getAnalyticsSummary(),
+      analyticsClient.getAnalyticsDashboard(),
+      analyticsClient.getAnalyticsHealth(),
+    ]).then(([summaryResponse, dashboardResponse, healthResponse]) => {
+      if (!active) {
+        return;
+      }
+      if (summaryResponse.success && summaryResponse.data) {
+        setAnalyticsSummary(summaryResponse.data);
+      }
+      if (dashboardResponse.success && dashboardResponse.data) {
+        setAnalyticsDashboard(dashboardResponse.data);
+      }
+      if (healthResponse.success && healthResponse.data) {
+        setAnalyticsHealth(healthResponse.data);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [apiBaseUrl]);
 
   const onSnapshot = (key: string, data: unknown) => {
     setSnapshots((current) => ({
@@ -47,7 +78,16 @@ export default function App() {
   };
 
   const currentPage = (() => {
-    const pageProps = { client, snapshots, onSnapshot, health: health ?? null, config: config ?? null };
+    const pageProps = {
+      client,
+      snapshots,
+      onSnapshot,
+      health: health ?? null,
+      config: config ?? null,
+      analyticsSummary,
+      analyticsDashboard,
+      analyticsHealth,
+    };
     switch (activePage) {
       case "content":
         return <ContentStudio {...pageProps} />;

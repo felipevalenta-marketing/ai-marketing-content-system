@@ -20,6 +20,7 @@ def build_health_payload() -> dict[str, Any]:
             "frontend_demo": config.enable_frontend_demo,
             "pipeline": modules.get("src.pipeline", False),
             "workflow": modules.get("src.workflows", False),
+            "analytics": modules.get("src.analytics", False),
             "reporting": modules.get("src.reporting", False),
             "storage": modules.get("src.storage", False),
         },

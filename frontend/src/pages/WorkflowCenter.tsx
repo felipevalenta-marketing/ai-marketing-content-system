@@ -26,7 +26,7 @@ const DEFAULT_FORM: WorkflowRequest = {
   dry_run: true,
 };
 
-export function WorkflowCenter({ client, onSnapshot }: WorkflowCenterProps) {
+export function WorkflowCenter({ client, onSnapshot, analyticsSummary }: WorkflowCenterProps) {
   const [form, setForm] = useLocalState<WorkflowRequest>("amcs:workflow-form", DEFAULT_FORM);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -117,6 +117,13 @@ export function WorkflowCenter({ client, onSnapshot }: WorkflowCenterProps) {
             <StatusPill status={String(result.status ?? "completed")} />
             <p><strong>Workflow ID:</strong> {String(result.workflow_id ?? "-")}</p>
             <p><strong>Status:</strong> {getStatusLabel(String(result.status ?? "completed"))}</p>
+            {analyticsSummary ? (
+              <Card>
+                <SectionHeader title="Analytics Snapshot" description="Live executive summary from the analytics layer." />
+                <p><strong>{String((analyticsSummary.executive_summary as any)?.headline ?? "Analytics ready")}</strong></p>
+                <p>{String((analyticsSummary.executive_summary as any)?.outcome ?? "")}</p>
+              </Card>
+            ) : null}
             <div className="grid-2">
               <div className="metric-card">
                 <p className="metric-card__label">Completed</p>

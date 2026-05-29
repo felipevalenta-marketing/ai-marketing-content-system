@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.api_config import ApiConfig
 from src.api.api_result import build_api_response
 from src.api.routes import build_docs_html, router as api_router
+from src.analytics.analytics_engine import AnalyticsEngine
 from src.assets.asset_coordinator import AssetCoordinator
 from src.campaigns.campaign_composer import CampaignComposer
 from src.cli.cli_config import build_safe_config_summary
@@ -41,10 +42,12 @@ def build_services(config: ApiConfig | None = None) -> dict[str, Any]:
     reporting_engine = ReportingEngine(output_root=pipeline_config.report_output_root, markdown_output_root=pipeline_config.markdown_report_output_root, logger=logger)
     pipeline = ContentGenerationPipeline(config=pipeline_config, logger=logger)
     workflow = WorkflowEngine(config=replace(pipeline_config, enable_persistence=False), pipeline=pipeline, storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
+    analytics = AnalyticsEngine(storage_manager=storage_manager, reporting_engine=reporting_engine, logger=logger)
     return {
         "config": api_config,
         "pipeline": pipeline,
         "workflow": workflow,
+        "analytics": analytics,
         "campaign": CampaignComposer(output_root=pipeline_config.campaign_output_root, logger=logger),
         "assets": AssetCoordinator(output_root=pipeline_config.asset_output_root, logger=logger),
         "markdown_report": MarkdownReportGenerator(output_root=pipeline_config.markdown_report_output_root, logger=logger),

@@ -1,5 +1,10 @@
 import { API_ENDPOINTS } from "./endpoints";
 import type {
+  AnalyticsDashboardData,
+  AnalyticsHealthData,
+  AnalyticsRequest,
+  AnalyticsResult,
+  AnalyticsSummaryData,
   ApiResponse,
   AssetRequest,
   CampaignRequest,
@@ -16,6 +21,10 @@ export interface ApiClient {
   request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<ApiResponse<T>>;
   getHealth(): Promise<ApiResponse<HealthResponseData>>;
   getConfig(): Promise<ApiResponse<ConfigResponseData>>;
+  getAnalyticsSummary(): Promise<ApiResponse<AnalyticsSummaryData>>;
+  getAnalyticsDashboard(): Promise<ApiResponse<AnalyticsDashboardData>>;
+  queryAnalytics(payload: AnalyticsRequest): Promise<ApiResponse<AnalyticsResult>>;
+  getAnalyticsHealth(): Promise<ApiResponse<AnalyticsHealthData>>;
   generateContent(payload: GenerateRequest): Promise<ApiResponse<unknown>>;
   runWorkflow(payload: WorkflowRequest): Promise<ApiResponse<unknown>>;
   runCampaign(payload: CampaignRequest): Promise<ApiResponse<unknown>>;
@@ -104,6 +113,14 @@ export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
     request,
     getHealth: () => request<HealthResponseData>(API_ENDPOINTS.health),
     getConfig: () => request<ConfigResponseData>(API_ENDPOINTS.config),
+    getAnalyticsSummary: () => request<AnalyticsSummaryData>(API_ENDPOINTS.analyticsSummary),
+    getAnalyticsDashboard: () => request<AnalyticsDashboardData>(API_ENDPOINTS.analyticsDashboard),
+    queryAnalytics: (payload: AnalyticsRequest) =>
+      request<AnalyticsResult>(API_ENDPOINTS.analyticsQuery, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getAnalyticsHealth: () => request<AnalyticsHealthData>(API_ENDPOINTS.analyticsHealth),
     generateContent: (payload: GenerateRequest) =>
       request(API_ENDPOINTS.generate, {
         method: "POST",

@@ -28,7 +28,82 @@ export interface ConfigResponseData {
   enable_frontend_demo?: boolean;
   api_debug?: boolean;
   cors_origins?: string[];
+  enable_analytics?: boolean;
+  analytics_default_type?: string;
+  analytics_include_storage?: boolean;
+  analytics_include_tokens?: boolean;
+  analytics_include_costs?: boolean;
+  analytics_include_governance?: boolean;
   [key: string]: unknown;
+}
+
+export interface DateRange {
+  start?: string;
+  end?: string;
+}
+
+export interface AnalyticsRequest {
+  analytics_type: string;
+  brand?: string;
+  platform?: string;
+  date_range?: DateRange;
+  filters?: Record<string, unknown>;
+  include_storage?: boolean;
+  include_tokens?: boolean;
+  include_costs?: boolean;
+  include_governance?: boolean;
+  include_reports?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalyticsKpi {
+  label?: string;
+  value?: string | number;
+  unit?: string;
+  status?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalyticsDashboardPayload {
+  cards?: Array<Record<string, unknown>>;
+  tables?: Record<string, Array<Record<string, unknown>>>;
+  summaries?: Record<string, unknown>;
+  recent_activity?: Array<Record<string, unknown>>;
+  health?: Record<string, unknown>;
+  warnings?: string[];
+  errors?: string[];
+}
+
+export interface AnalyticsResult {
+  success?: boolean;
+  analytics_type?: string;
+  generated_at?: string;
+  date_range?: DateRange;
+  filters?: Record<string, unknown>;
+  executive_summary?: Record<string, unknown>;
+  kpis?: Record<string, Record<string, AnalyticsKpi>>;
+  sections?: Record<string, unknown>;
+  trends?: Record<string, unknown>;
+  insights?: string[];
+  recommendations?: string[];
+  dashboard_payload?: AnalyticsDashboardPayload;
+  warnings?: string[];
+  errors?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface AnalyticsSummaryData extends AnalyticsResult {}
+
+export interface AnalyticsDashboardData extends AnalyticsDashboardPayload {
+  summaries?: Record<string, unknown>;
+}
+
+export interface AnalyticsHealthData extends AnalyticsResult {
+  status?: string;
+  records_count?: number;
+  workflow_count?: number;
 }
 
 export interface GenerateRequest {
@@ -132,6 +207,10 @@ export interface WorkflowResult extends Record<string, unknown> {
   workflow_type?: string;
   status?: string;
   steps?: Array<Record<string, unknown>>;
+  workflow_snapshot?: Record<string, unknown>;
+  workflow_state_history?: Array<Record<string, unknown>>;
+  workflow_timeline?: Array<Record<string, unknown>>;
+  workflow_status_transitions?: Array<Record<string, unknown>>;
   token_summary?: TokenSummary;
   cost_summary?: CostSummary;
   report_summary?: Record<string, unknown>;

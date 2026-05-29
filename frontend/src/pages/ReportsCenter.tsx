@@ -27,7 +27,7 @@ const DEFAULT_FORM: MarkdownReportRequest = {
   title: "Campaign Workflow Report",
 };
 
-export function ReportsCenter({ client, snapshots, onSnapshot }: ReportsCenterProps) {
+export function ReportsCenter({ client, snapshots, onSnapshot, analyticsSummary }: ReportsCenterProps) {
   const [form, setForm] = useLocalState<MarkdownReportRequest>("amcs:report-form", DEFAULT_FORM);
   const [reportSource, setReportSource] = useState<ReportSource>("snapshot");
   const [result, setResult] = useState<any>(null);
@@ -127,6 +127,12 @@ export function ReportsCenter({ client, snapshots, onSnapshot }: ReportsCenterPr
 
       <Card className="panel--sticky">
         <SectionHeader title="Report Preview" description="Latest report metadata and the generated markdown output." />
+        {analyticsSummary ? (
+          <div className="section">
+            <StatusPill status={String((analyticsSummary.executive_summary as any)?.approval_status ?? "review")} />
+            <p><strong>Analytics:</strong> {String((analyticsSummary.executive_summary as any)?.headline ?? "Ready")}</p>
+          </div>
+        ) : null}
         {latestLoading ? <LoadingState label="Loading latest report..." /> : null}
         {latestReport ? (
           <div className="section">

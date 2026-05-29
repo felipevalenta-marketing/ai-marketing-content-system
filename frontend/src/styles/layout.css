@@ -485,6 +485,42 @@
   border: 1px solid var(--border);
 }
 
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.simple-table th,
+.simple-table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(222, 215, 202, 0.7);
+}
+
+.simple-table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: rgba(250, 248, 244, 0.96);
+}
+
+.simple-table tr:last-child td {
+  border-bottom: none;
+}
+
+.simple-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+}
+
 .table th,
 .table td {
   padding: 12px 14px;
