@@ -1,536 +1,288 @@
 # AI Marketing Content System
-
-## Knowledge-Driven AI Marketing Platform
-
-An AI-powered multi-tenant content generation platform that combines GPT-4o, organizational knowledge bases, brand guidelines and contextual business intelligence to generate highly relevant marketing content across multiple marketing channels.
+## Wenzel & Partner — Multi-Brand AI Marketing Infrastructure
 
 ---
 
-# Project Overview
+# Overview
 
-Traditional AI tools generate content using only the user prompt, often producing generic outputs that lack brand consistency, audience relevance and business alignment.
-
-The AI Marketing Content System introduces a knowledge-driven architecture where every request is enriched with contextual business information before reaching the AI model.
+AI Marketing Content System is a scalable AI-powered marketing infrastructure designed to generate premium multimodal marketing assets for real estate brands and future business verticals.
 
 The platform combines:
+- AI copywriting
+- visual AI workflows
+- markdown-based knowledge systems
+- reusable prompt orchestration
+- multi-brand architecture
+- scalable content pipelines
 
-- Brand Guidelines
-- Audience Profiles
-- Business Objectives
-- Organizational Context
-- Property Information
-- Prompt Orchestration
-- GPT-4o Reasoning
-
-to generate highly relevant and brand-aligned marketing content.
+The first implementation targets Wenzel & Partner Real Estate, with long-term plans to evolve the system into a reusable AI Marketing Operating System.
 
 ---
 
-# Problem Statement
+# Vision
 
-Marketing teams frequently face challenges such as:
+The goal of the platform is to automate and scale premium marketing workflows while maintaining:
+- luxury brand consistency
+- platform adaptation
+- reusable campaign systems
+- structured AI orchestration
 
-- Generic AI-generated content
-- Inconsistent brand messaging
-- Poor audience targeting
-- Lack of contextual business understanding
-- Time-consuming content creation workflows
-
-This project solves these issues through contextual knowledge injection and AI workflow orchestration.
-
----
-
-# Solution
-
-The platform enriches every content generation request with organizational knowledge before sending it to GPT-4o.
-
-This produces:
-
-- More relevant content
-- Better audience targeting
-- Consistent brand messaging
-- Multi-channel content generation
-- Reduced manual editing
+The project is intentionally designed as:
+- reusable AI infrastructure
+- multi-brand architecture
+- modular AI workflow system
+- future SaaS-ready platform
 
 ---
 
-# Key Features
+# Core Features
 
-## Multi-Tenant Architecture
-
-Supports multiple:
-
-- Organizations
-- Teams
-- Workspaces
-- Brands
-
-while maintaining data isolation.
-
----
-
-## Contextual Knowledge Injection
-
-Every request is enriched using:
-
-- Brand Guidelines
-- Audience Profiles
-- Business Objectives
-- Property Information
-- Organizational Context
-
-before content generation.
+## AI Content Generation
+Generate:
+- Instagram captions
+- Facebook posts
+- LinkedIn posts
+- property descriptions
+- campaign messaging
+- ad copy
+- SEO content
+- reel scripts
 
 ---
 
-## GPT-4o Content Generation
-
-Generates:
-
-- Instagram Posts
-- Facebook Posts
-- LinkedIn Content
-- Property Descriptions
-- Video Scripts
-- Image Prompts
-- Ad Copy
+## Visual AI Workflows
+Generate:
+- image prompts
+- Midjourney prompts
+- Runway prompts
+- Kling prompts
+- creative direction
+- moodboards
+- visual storytelling concepts
 
 ---
 
-## Prompt Orchestration Engine
-
-Builds structured prompts dynamically based on:
-
-- User request
-- Business context
-- Brand requirements
-- Audience intelligence
+## Multi-Brand Architecture
+Support:
+- isolated brand systems
+- reusable AI core engine
+- scalable brand configurations
+- future white-label deployment
 
 ---
 
-# Architecture Overview
-
-```text
-User Request
-      │
-      ▼
-Knowledge Sources
-      │
-      ▼
-Context Enrichment
-      │
-      ▼
-Prompt Orchestration
-      │
-      ▼
-GPT-4o
-      │
-      ▼
-Structured Marketing Content
-```
+## Knowledge-Driven Generation
+Use:
+- markdown knowledge bases
+- campaign examples
+- market research
+- brand tone systems
+- audience context
+- platform strategies
 
 ---
 
-# Content Generation Pipeline
-
-## Step 1 – Prompt Submission
-
-User submits a content request containing:
-
-- Property Details
-- Marketing Objective
-- Audience Information
-- Platform Selection
+## Export System
+Export:
+- markdown files
+- structured outputs
+- campaign assets
+- generation reports
 
 ---
 
-## Step 2 – Knowledge Enrichment
-
-The system retrieves:
-
-- Brand Guidelines
-- Audience Profiles
-- Property Information
-- Business Objectives
-
----
-
-## Step 3 – Prompt Orchestration
-
-The context is merged into a structured prompt optimized for GPT-4o.
-
----
-
-## Step 4 – Content Generation
-
-GPT-4o generates contextual marketing content.
-
----
-
-## Step 5 – Delivery
-
-Structured outputs are returned for:
-
-- Instagram
-- Facebook
-- LinkedIn
-- Ad Copy
-- Property Listings
-- Video Scripts
-
----
-
-# Knowledge Sources
-
-The platform uses five contextual layers:
-
-## 1. Brand Guidelines
-
-Defines:
-
-- Voice
-- Tone
-- Messaging Style
-- Content Standards
-
----
-
-## 2. Property Information
-
-Includes:
-
-- Location
-- Amenities
-- Pricing
-- Property Features
-- Selling Points
-
----
-
-## 3. Audience Profiles
-
-Contains:
-
-- Buyer Personas
-- Customer Segments
-- Audience Preferences
-
----
-
-## 4. Business Objectives
-
-Supports goals such as:
-
-- Lead Generation
-- Awareness
-- Engagement
-- Conversion
-
----
-
-## 5. Organizational Context
-
-Provides:
-
-- Workspace Configuration
-- Team Settings
-- Organization Information
-
----
-
-# Uniqueness Demonstration
-
-## Generic AI vs Knowledge-Driven AI
-
-| Feature | Generic AI | AI Marketing Content System |
-|----------|------------|----------------------------|
-| Brand Alignment | ❌ | ✅ |
-| Audience Awareness | ❌ | ✅ |
-| Business Objectives | ❌ | ✅ |
-| Organizational Context | ❌ | ✅ |
-| Knowledge Sources | ❌ | ✅ |
-| Multi-Channel Outputs | Limited | ✅ |
-| Structured Delivery | ❌ | ✅ |
-
----
-
-# Generated Content Examples
-
-The platform can generate:
-
-## Instagram & Facebook Posts
-
-- Hook
-- Caption
-- CTA
-- Hashtags
-
----
-
-## LinkedIn Content
-
-- Professional Copy
-- CTA
-- Engagement Optimization
-
----
-
-## Video Scripts
-
-- Hook
-- Scene Structure
-- CTA
-
----
-
-## Property Descriptions
-
-- Highlights
-- Benefits
-- Audience Positioning
-- CTA
-
----
-
-# Technical Architecture
-
-## Frontend
-
-Built using:
-
-- React 18
-- TypeScript
-- Vite
-
-Features:
-
-- Responsive SaaS Dashboard
-- Content Studio
-- Workspace Management
-- Multi-Tenant Interface
-
----
-
-## Backend
-
-Built using:
-
-- Python
-- FastAPI
-
-Responsibilities:
-
-- API Management
-- Workflow Orchestration
-- Content Generation
-- Validation
-
----
-
-## AI Layer
-
-Powered by:
-
-- GPT-4o
-- Prompt Engineering
-- Context Injection
-
----
-
-## Knowledge Layer
-
-Includes:
-
-- Brand Guidelines
-- Audience Profiles
-- Property Information
-- Business Objectives
-
----
-
-## Storage
-
-Stores:
-
-- JSON Knowledge Bases
-- Generated Assets
-- Configuration Files
-
----
-
-## Infrastructure
-
-Built with:
-
-- Docker
-- Docker Compose
-
----
-
-# Project Structure
+# Project Architecture
 
 ```text
 ai-marketing-content-system/
 │
-├── frontend/
-├── fastapi/
-├── scripts/
-├── templates/
+├── brands/
+│   └── wenzel_partner/
+│       ├── brand_config/
+│       ├── knowledge_base/
+│       └── examples/
+│
+├── config/
+├── docs/
 ├── outputs/
-├── tests/
 ├── screenshots/
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
+├── templates/
+├── tests/
+│
+├── src/
+│   ├── core/
+│   │   ├── llm/
+│   │   ├── prompts/
+│   │   ├── pipeline/
+│   │   ├── media/
+│   │   ├── reporting/
+│   │   └── validation/
+│   │
+│   └── utils/
+│
+├── .env
+├── .env.example
+├── .gitignore
 ├── README.md
-└── PROJECT_REQUIREMENTS.md
+├── PROJECT_REQUIREMENTS.md
+├── requirements.txt
+└── main.py
 ```
 
 ---
 
-# Installation
+# Core System Layers
 
-## Clone Repository
+## Foundation Layer
+- configuration
+- environment management
+- Git workflows
+- engineering governance
 
-```bash
-git clone https://github.com/felipevalenta-marketing/ai-marketing-content-system.git
-cd ai-marketing-content-system
+---
+
+## Knowledge Engine
+Responsible for:
+- markdown ingestion
+- context loading
+- research aggregation
+- future RAG workflows
+
+---
+
+## Content Engine
+Responsible for:
+- AI copywriting
+- prompt generation
+- platform adaptation
+- campaign generation
+
+---
+
+## Visual AI Engine
+Responsible for:
+- image prompts
+- video prompts
+- multimodal workflows
+- campaign visual direction
+
+---
+
+## Orchestration Layer
+Responsible for:
+- workflow coordination
+- pipeline execution
+- future multi-agent systems
+
+---
+
+## Analytics Layer
+Responsible for:
+- token tracking
+- cost estimation
+- generation logs
+- workflow monitoring
+
+---
+
+# Current MVP Scope
+
+## Included
+- OpenAI integration
+- markdown knowledge loading
+- reusable prompt system
+- Instagram caption generation
+- property description generation
+- image prompt generation
+- markdown exports
+- token estimation
+
+---
+
+## Future Roadmap
+- Streamlit UI
+- vector databases
+- RAG architecture
+- AI agents
+- multimodal orchestration
+- automated workflows
+- SaaS deployment
+
+---
+
+# Technology Stack
+
+| Category | Technology |
+|---|---|
+| Language | Python 3.11+ |
+| AI Provider | OpenAI API |
+| Knowledge Format | Markdown |
+| Project Management | Trello |
+| Version Control | Git + GitHub |
+| Environment Management | python-dotenv |
+| Testing | pytest |
+
+---
+
+# Development Workflow
+
+This project follows:
+- Kanban methodology
+- feature-based development
+- modular architecture principles
+- AI-assisted engineering workflows
+- human-in-the-loop review processes
+
+---
+
+# Engineering Principles
+
+The platform prioritizes:
+- modularity
+- scalability
+- maintainability
+- provider abstraction
+- reusable AI systems
+- clean workflow orchestration
+
+---
+
+# Security Principles
+
+The system includes:
+- environment-based secret management
+- prompt injection protection
+- isolated user input handling
+- validation workflows
+- protected AI prompting
+
+---
+
+# Long-Term Vision
+
+The long-term objective is to evolve this project into:
+
+- a multi-brand AI marketing platform
+- an AI content operations system
+- a multimodal marketing orchestration engine
+- a reusable SaaS infrastructure
+- an autonomous AI marketing ecosystem
+
+---
+
+# Status
+
+Current Stage:
+```text
+MVP Architecture & Foundation Phase
 ```
 
----
-
-## Backend Setup
-
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+Development Methodology:
+```text
+Kanban + AI-Assisted Engineering Workflow
 ```
 
----
-
-## Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
+Repository Status:
+```text
+Active Development
 ```
-
----
-
-## Run API
-
-```bash
-uvicorn src.api.main:app --reload
-```
-
----
-
-# Environment Variables
-
-Create a `.env` file:
-
-```env
-OPENAI_API_KEY=your_api_key_here
-```
-
----
-
-# Docker Deployment
-
-```bash
-docker compose up --build
-```
-
----
-
-# Agile Project Management
-
-The project was developed using an agile Kanban workflow.
-
-Required checkpoints:
-
-- Planning Board
-- Midpoint Board
-- Final Board
-
-Development was tracked through:
-
-- Scope Definition
-- Feature Prioritization
-- Sprint Execution
-- Acceptance Validation
-
----
-
-# Deliverables
-
-## GitHub Repository
-
-- Organized project structure
-- Version control history
-- Documentation
-
----
-
-## Product Demonstration
-
-Demonstrates:
-
-- Knowledge Base Integration
-- Prompt Orchestration
-- GPT-4o Content Generation
-- Structured Outputs
-
----
-
-## Uniqueness Validation
-
-Shows the difference between:
-
-- Generic AI Outputs
-- Context-Enriched AI Outputs
-
----
-
-## Technical Implementation
-
-Includes:
-
-- Multi-Tenant Architecture
-- Context Injection
-- Prompt Engineering
-- GPT-4o Integration
-- API Development
-
----
-
-# Future Improvements
-
-Planned enhancements:
-
-- Vector Database Integration
-- Full RAG Architecture
-- Semantic Search
-- CRM Integrations
-- Analytics Dashboard
-- Automated Campaign Scheduling
-
----
-
-# Author
-
-Carlos Felipe Valencia
-
-Ironhack AI Engineering Bootcamp
-
-Final Project – AI Marketing Content System
-
-2026
-
----
-
-# License
-
-This project was developed for educational purposes as part of the Ironhack AI Engineering Bootcamp Final Project.

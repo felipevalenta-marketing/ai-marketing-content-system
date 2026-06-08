@@ -1,20 +1,53 @@
-.env
-.env.*
-!.env.example
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual Environment
+venv/
+.env/
+
+# Environment Variables
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# Outputs
+outputs/
+
+# Testing
 .pytest_cache/
-.vite/
+
+# Coverage
+htmlcov/
+.coverage
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build
 dist/
-node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-*.tsbuildinfo
+build/
+
+# Temporary Files
 *.tmp
 *.temp
-*.bak
-*.swp
-*.orig
-data/
-outputs/
+
+# AI Generated Assets
+generated_assets/
+
+# Local Config
+local_settings.py
+
+frontend/node_modules/
+frontend/dist/
