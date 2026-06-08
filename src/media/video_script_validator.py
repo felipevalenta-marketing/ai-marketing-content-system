@@ -28,30 +28,32 @@ class VideoScriptValidator:
             return {"valid": False, "warnings": [], "errors": ["Video script payload must be a dictionary."], "scores": scores}
 
         hook = str(payload.get("hook") or "").strip()
-        script = str(payload.get("script") or "").strip()
         voiceover = str(payload.get("voiceover") or "").strip()
         cta = str(payload.get("cta") or "").strip()
-        music_mood = str(payload.get("music_mood") or "").strip()
         platform = normalize_key(str(payload.get("platform") or ""))
         video_type = normalize_key(str(payload.get("video_type") or ""))
         duration = str(payload.get("duration") or "").strip().lower()
+        scene_1 = str(payload.get("scene_1") or "").strip()
+        scene_2 = str(payload.get("scene_2") or "").strip()
+        scene_3 = str(payload.get("scene_3") or "").strip()
+        legacy_script = str(payload.get("script") or "").strip()
         scene_sequence = payload.get("scene_sequence")
         storyboard = payload.get("storyboard")
 
         if not hook:
             warnings.append("Video script is missing a hook.")
-        if not script:
+        if not any([scene_1, scene_2, scene_3]) and not legacy_script and not isinstance(scene_sequence, list):
             errors.append("Video script is empty.")
+        if not scene_1:
+            warnings.append("Video script is missing scene_1.")
+        if not scene_2:
+            warnings.append("Video script is missing scene_2.")
+        if not scene_3:
+            warnings.append("Video script is missing scene_3.")
         if not voiceover:
             warnings.append("Video script is missing a voiceover structure.")
         if not cta:
             warnings.append("Video script is missing a CTA.")
-        if not music_mood:
-            warnings.append("Music mood is missing.")
-        if not isinstance(scene_sequence, list) or not scene_sequence:
-            errors.append("Scene sequence is missing.")
-        if not isinstance(storyboard, list) or not storyboard:
-            errors.append("Storyboard is missing.")
 
         if duration and duration not in get_supported_durations():
             errors.append(f"Unsupported duration: {duration}")
@@ -60,7 +62,7 @@ class VideoScriptValidator:
         if platform and platform not in get_supported_platforms():
             warnings.append(f"Unsupported platform: {platform}")
 
-        lower = " ".join([hook, script, voiceover, cta, music_mood]).lower()
+        lower = " ".join([hook, scene_1, scene_2, scene_3, voiceover, cta, legacy_script]).lower()
         if any(term in lower for term in ("guaranteed roi", "guaranteed return", "risk-free investment")):
             errors.append("Video script contains unsupported investment claims.")
         if any(term in lower for term in ("limited time only", "act now", "hurry", "don't miss", "fake scarcity", "fake urgency")):
@@ -70,7 +72,7 @@ class VideoScriptValidator:
         if self._detect_invented_claims(lower):
             errors.append("Video script may invent property facts.")
 
-        structure_score = self._score_structure(hook, script, voiceover, cta, scene_sequence, storyboard)
+        structure_score = self._score_structure(hook, scene_1, scene_2, scene_3, voiceover, cta, scene_sequence, storyboard)
         pacing_score = self._score_pacing(duration, scene_sequence, voiceover)
         brand_fit_score = self._score_brand_fit(lower)
         platform_fit_score = self._score_platform_fit(platform, duration, video_type, scene_sequence)
@@ -90,14 +92,14 @@ class VideoScriptValidator:
             },
         }
 
-    def _score_structure(self, hook: str, script: str, voiceover: str, cta: str, scene_sequence: Any, storyboard: Any) -> float:
-        fields = [hook, script, voiceover, cta]
+    def _score_structure(self, hook: str, scene_1: str, scene_2: str, scene_3: str, voiceover: str, cta: str, scene_sequence: Any, storyboard: Any) -> float:
+        fields = [hook, scene_1, scene_2, scene_3, voiceover, cta]
         non_empty = sum(1 for value in fields if bool(value.strip()))
-        if isinstance(scene_sequence, list) and scene_sequence:
+        if isinstance(scene_sequence, list) and len(scene_sequence) >= 3:
             non_empty += 1
         if isinstance(storyboard, list) and storyboard:
             non_empty += 1
-        return round(min(100.0, (non_empty / 6.0) * 100.0), 2)
+        return round(min(100.0, (non_empty / 7.0) * 100.0), 2)
 
     def _score_pacing(self, duration: str, scene_sequence: Any, voiceover: str) -> float:
         scene_count = len(scene_sequence) if isinstance(scene_sequence, list) else 0

@@ -10,10 +10,51 @@ import json
 import os
 from typing import Any
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency fallback
+    def load_dotenv(*args: Any, **kwargs: Any) -> bool:
+        return False
+
+
+load_dotenv()
+
+
+DEVELOPMENT_JWT_SECRET = "amcs-development-jwt-secret"
+_DEVELOPMENT_ENVIRONMENTS = {"development", "dev", "local", "ci", "test"}
+
 
 def _secret(secret: str | None = None) -> str:
     value = str(secret or os.getenv("JWT_SECRET_KEY", "")).strip()
-    return value
+    if value:
+        return value
+    environment = str(os.getenv("APP_ENV", "development")).strip().lower() or "development"
+    if environment in _DEVELOPMENT_ENVIRONMENTS:
+        return DEVELOPMENT_JWT_SECRET
+    return ""
+
+
+def resolve_signing_secret(secret: str | None = None) -> tuple[str, str]:
+    explicit = str(secret or "").strip()
+    if explicit:
+        return explicit, "configured"
+    env_secret = str(os.getenv("JWT_SECRET_KEY", "")).strip()
+    if env_secret:
+        return env_secret, "environment"
+    environment = str(os.getenv("APP_ENV", "development")).strip().lower() or "development"
+    if environment in _DEVELOPMENT_ENVIRONMENTS:
+        return DEVELOPMENT_JWT_SECRET, "development-fallback"
+    return "", "missing"
+
+
+def get_secret_status(secret: str | None = None) -> dict[str, Any]:
+    resolved, source = resolve_signing_secret(secret)
+    return {
+        "available": bool(resolved),
+        "source": source,
+        "configured": source == "configured",
+        "development_fallback": source == "development-fallback",
+    }
 
 
 def create_access_token(payload: dict[str, Any], expires_in_hours: int = 24, secret: str | None = None) -> str:

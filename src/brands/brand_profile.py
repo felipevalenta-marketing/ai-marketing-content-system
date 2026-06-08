@@ -102,10 +102,14 @@ def _discover_markdown_files(path: Path) -> list[str]:
         return []
     files: list[str] = []
     for md_file in sorted(path.rglob("*.md")):
-        if any(part.startswith(".") for part in md_file.parts):
+        try:
+            relative = md_file.relative_to(path)
+        except Exception:
+            relative = md_file
+        if any(part.startswith(".") for part in relative.parts):
             continue
         try:
-            files.append(md_file.relative_to(path).as_posix())
+            files.append(relative.as_posix())
         except Exception:
             files.append(md_file.name)
     return files
@@ -125,8 +129,15 @@ def _count_files(path: Path) -> int:
         return 0
     count = 0
     for item in path.rglob("*"):
-        if item.is_file() and not any(part.startswith(".") for part in item.parts):
-            count += 1
+        if not item.is_file():
+            continue
+        try:
+            relative = item.relative_to(path)
+        except Exception:
+            relative = item
+        if any(part.startswith(".") for part in relative.parts):
+            continue
+        count += 1
     return count
 
 

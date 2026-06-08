@@ -33,6 +33,8 @@ class OutputFormatter:
             return self.format_video_prompt(parsed_output)
         if canonical_type == "video_script":
             return self.format_video_script(parsed_output)
+        if canonical_type == "ad_copy":
+            return self.format_ad_copy(parsed_output)
         return self.format_campaign_asset(parsed_output)
 
     def format_instagram_post(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
@@ -71,6 +73,12 @@ class OutputFormatter:
         contract = get_output_contract("video_script")
         return self._format_with_contract(parsed_output, contract)
 
+    def format_ad_copy(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
+        """Format an ad copy output."""
+
+        contract = get_output_contract("ad_copy")
+        return self._format_with_contract(parsed_output, contract)
+
     def format_campaign_asset(self, parsed_output: dict[str, Any]) -> dict[str, Any]:
         """Format a campaign asset output."""
 
@@ -102,6 +110,8 @@ class OutputFormatter:
 
         if contract.content_type == "instagram_post":
             output = self._normalize_instagram_post_output(output, raw_content)
+        if contract.content_type == "video_script":
+            output = self._normalize_video_script_output(output, raw_content)
 
         missing_required = [field for field in contract.required_fields if self._is_empty(output.get(field))]
         if missing_required:
@@ -188,20 +198,18 @@ class OutputFormatter:
             }
         if content_type == "property_description":
             return {
-                "title": sections.get("title", ""),
-                "short_description": sections.get("short_description", sections.get("summary", "")),
-                "long_description": sections.get("long_description", sections.get("description", normalized_text)),
-                "highlights": self._extract_list_like(sections.get("highlights", "")),
+                "title": sections.get("title", sections.get("headline", "")),
+                "description": sections.get("description", sections.get("long_description", sections.get("short_description", sections.get("summary", normalized_text)))),
+                "highlights": self._extract_list_like(sections.get("highlights", sections.get("features", ""))),
                 "cta": sections.get("cta", ""),
                 "notes": sections.get("notes", ""),
             }
         if content_type == "image_prompt":
             return {
-                "visual_direction": sections.get("visual_direction", sections.get("visual", normalized_text)),
-                "subject": sections.get("subject", ""),
-                "composition": sections.get("composition", ""),
-                "lighting": sections.get("lighting", ""),
+                "image_prompt": sections.get("image_prompt", sections.get("prompt", sections.get("visual_direction", sections.get("visual", normalized_text)))),
                 "style": sections.get("style", sections.get("visual_style", "")),
+                "camera": sections.get("camera", sections.get("camera_direction", "")),
+                "lighting": sections.get("lighting", ""),
                 "negative_prompt": sections.get("negative_prompt", ""),
                 "notes": sections.get("notes", ""),
             }
@@ -215,15 +223,29 @@ class OutputFormatter:
                 "notes": sections.get("notes", ""),
             }
         if content_type == "video_script":
+            scene_1 = sections.get("scene_1", sections.get("scene1", sections.get("scene", sections.get("script", normalized_text))))
+            scene_2 = sections.get("scene_2", sections.get("scene2", ""))
+            scene_3 = sections.get("scene_3", sections.get("scene3", ""))
             return {
                 "hook": sections.get("hook", self._extract_first_sentence(normalized_text)),
-                "script": sections.get("script", normalized_text),
+                "scene_1": scene_1,
+                "scene_2": scene_2,
+                "scene_3": scene_3,
                 "voiceover": sections.get("voiceover", sections.get("voiceover_direction", "")),
                 "cta": sections.get("cta", self._detect_cta(normalized_text)),
+                "script": sections.get("script", normalized_text),
                 "music_mood": sections.get("music_mood", sections.get("mood", "")),
                 "scene_sequence": self._extract_list_like(sections.get("scene_sequence", sections.get("scenes", ""))),
                 "storyboard": self._extract_list_like(sections.get("storyboard", "")),
                 "camera_direction": sections.get("camera_direction", sections.get("camera", "")),
+                "notes": sections.get("notes", ""),
+            }
+        if content_type == "ad_copy":
+            return {
+                "headline": sections.get("headline", sections.get("hook", sections.get("title", ""))),
+                "primary_text": sections.get("primary_text", sections.get("primarytext", sections.get("body_copy", sections.get("copy", normalized_text)))),
+                "description": sections.get("description", sections.get("summary", "")),
+                "cta": sections.get("cta", self._detect_cta(normalized_text)),
                 "notes": sections.get("notes", ""),
             }
         return {
@@ -253,7 +275,7 @@ class OutputFormatter:
             buffer = []
 
         for line in lines:
-            match = re.match(r"^\s*(hook|caption|cta|notes|script|title|summary|description|short_description|long_description|highlights|visual_direction|visual|subject|composition|lighting|style|negative_prompt|scene_description|scene|camera_motion|motion|mood|music_mood|sequence|voiceover_direction|voiceover|scene_sequence|storyboard|camera_direction|campaign_name|name|objective|main_message|message|assets|resources)\s*[:\-]\s*(.*)$", line, flags=re.IGNORECASE)
+            match = re.match(r"^\s*(hook|caption|cta|notes|script|title|headline|primary_text|primarytext|summary|description|short_description|long_description|highlights|features|image_prompt|prompt|visual_direction|visual|style|camera|camera_direction|lighting|negative_prompt|scene_1|scene_2|scene_3|scene1|scene2|scene3|scene_description|scene|camera_motion|motion|mood|music_mood|sequence|voiceover_direction|voiceover|scene_sequence|storyboard|campaign_name|name|objective|main_message|message|assets|resources)\s*[:\-]\s*(.*)$", line, flags=re.IGNORECASE)
             if match:
                 flush()
                 current_label = match.group(1).lower()
@@ -346,6 +368,30 @@ class OutputFormatter:
             return ""
         return str(value).strip()
 
+    def _normalize_video_script_output(self, output: dict[str, Any], raw_content: str) -> dict[str, Any]:
+        """Ensure video scripts expose the new reel-friendly schema."""
+
+        script_source = normalize_markdown_content(raw_content or str(output.get("script", "")))
+        scene_sequence = output.get("scene_sequence") or []
+        if self._is_empty(output.get("scene_1")):
+            first_scene = ""
+            if isinstance(scene_sequence, list) and scene_sequence:
+                first_scene = self._stringify(scene_sequence[0])
+            output["scene_1"] = first_scene or self._extract_first_sentence(script_source) or script_source
+        if self._is_empty(output.get("scene_2")) and isinstance(scene_sequence, list) and len(scene_sequence) > 1:
+            output["scene_2"] = self._stringify(scene_sequence[1])
+        if self._is_empty(output.get("scene_3")) and isinstance(scene_sequence, list) and len(scene_sequence) > 2:
+            output["scene_3"] = self._stringify(scene_sequence[2])
+        if self._is_empty(output.get("scene_2")):
+            output["scene_2"] = self._extract_first_sentence(script_source) if script_source else ""
+        if self._is_empty(output.get("scene_3")):
+            output["scene_3"] = self._detect_cta(script_source) or output.get("cta", "")
+        if self._is_empty(output.get("voiceover")):
+            output["voiceover"] = self._detect_cta(script_source) or output.get("scene_1", "")
+        if self._is_empty(output.get("cta")):
+            output["cta"] = self._detect_cta(script_source) or "Contact our team to learn more."
+        return output
+
     def _extract_raw_content(self, parsed_output: dict[str, Any]) -> str:
         """Return the raw content if available."""
 
@@ -367,3 +413,16 @@ class OutputFormatter:
         if isinstance(value, list):
             return len(value) == 0
         return False
+
+    def _stringify(self, value: Any) -> str:
+        """Convert values into readable text."""
+
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, list):
+            return ", ".join(self._stringify(item) for item in value if self._stringify(item))
+        if isinstance(value, dict):
+            return json.dumps(value, ensure_ascii=False, default=str)
+        return str(value).strip()

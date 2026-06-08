@@ -13,9 +13,12 @@ def test_video_script_generation(sample_video_script_request):
     assert result["video_type"] == "instagram_reel"
     assert result["duration"] == "30s"
     assert result["hook"]
-    assert result["script"]
+    assert result["scene_1"]
+    assert result["scene_2"]
+    assert result["scene_3"]
     assert result["voiceover"]
     assert result["cta"]
+    assert result["script"]
     assert isinstance(result["scene_sequence"], list)
     assert isinstance(result["storyboard"], list)
     assert result["camera_direction"]
@@ -39,6 +42,7 @@ def test_storyboard_generation(sample_video_script_request):
     assert len(storyboard) == len(scenes)
     assert storyboard[0]["scene_number"] == 1
     assert storyboard[0]["visual_description"]
+    assert len(scenes) == 3
 
 
 def test_voiceover_building(sample_video_script_request):

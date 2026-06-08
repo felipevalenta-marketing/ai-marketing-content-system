@@ -23,11 +23,11 @@ class ContextBuilder:
     def __init__(self, logger: Any | None = None) -> None:
         self.logger = logger or get_logger(self.__class__.__name__)
 
-    def build_brand_context(self, bundle: BrandKnowledge) -> dict[str, Any]:
+    def build_brand_context(self, bundle: BrandKnowledge, brand_profile: dict[str, Any] | None = None) -> dict[str, Any]:
         """Return a structured view of the brand knowledge."""
 
         log_context(self.logger, f"Assembling brand context for {bundle.brand}")
-        return {
+        context = {
             "brand": bundle.brand,
             "brand_root": bundle.brand_root,
             "brand_config": bundle.brand_config,
@@ -38,6 +38,10 @@ class ContextBuilder:
             "detected_categories": bundle.detected_categories,
             "warnings": bundle.warnings,
         }
+        if brand_profile:
+            context["brand_profile"] = brand_profile
+            context["brand_defaults"] = brand_profile.get("defaults", {})
+        return context
 
     def build_combined_context(self, bundle: BrandKnowledge) -> str:
         """Build a long-form combined context string for prompt injection."""

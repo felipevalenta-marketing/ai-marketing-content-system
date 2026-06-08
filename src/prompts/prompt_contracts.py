@@ -61,14 +61,16 @@ OUTPUT_CONTRACTS: dict[str, OutputContract] = {
     "facebook_post": OutputContract(
         content_type="facebook_post",
         name="facebook_post_contract",
-        fields=["hook", "caption", "cta"],
+        fields=["hook", "caption", "cta", "hashtags"],
         description="Facebook-friendly post structure.",
+        notes=["Return hook, caption, CTA, and a short hashtag list."],
     ),
     "linkedin_post": OutputContract(
         content_type="linkedin_post",
         name="linkedin_post_contract",
-        fields=["hook", "insight", "cta"],
+        fields=["hook", "caption", "cta", "hashtags"],
         description="Professional thought-leadership structure.",
+        notes=["Return hook, caption, CTA, and a short hashtag list."],
     ),
     "property_description": OutputContract(
         content_type="property_description",
@@ -103,8 +105,12 @@ OUTPUT_CONTRACTS: dict[str, OutputContract] = {
     "image_prompt": OutputContract(
         content_type="image_prompt",
         name="image_prompt_contract",
-        fields=["visual_direction", "lighting", "composition", "camera_style"],
+        fields=["image_prompt", "style", "camera", "lighting", "negative_prompt"],
         description="Image generation prompt output.",
+        notes=[
+            "Return a single image prompt string plus concise style, camera, lighting, and negative_prompt fields.",
+            "Keep the response realistic, photorealistic, and production-ready.",
+        ],
     ),
     "video_prompt": OutputContract(
         content_type="video_prompt",
@@ -115,11 +121,11 @@ OUTPUT_CONTRACTS: dict[str, OutputContract] = {
     "video_script": OutputContract(
         content_type="video_script",
         name="video_script_contract",
-        fields=["hook", "script", "voiceover", "cta", "music_mood", "scene_sequence", "storyboard", "camera_direction"],
-        description="Structured short-form video script and storyboard output.",
+        fields=["hook", "scene_1", "scene_2", "scene_3", "voiceover", "cta"],
+        description="Structured Instagram Reels video script output.",
         notes=[
-            "Return a hook, a concise script, a voiceover structure, CTA, music mood, scene sequence, storyboard, and camera direction.",
-            "Keep scenes platform-ready and production-friendly.",
+            "Return a hook, three short reel scenes, a voiceover, and a CTA.",
+            "Target Instagram Reels and keep the script grounded in property marketing.",
         ],
     ),
     "ad_copy": OutputContract(

@@ -3,12 +3,14 @@ import type { ApiClient } from "../api/client";
 import type { BrandDefaults, BrandProfile, ConfigResponseData, HealthResponseData, MembershipProfile, OrganizationProfile, OrganizationRegistryEntry, TeamProfile, UserProfile } from "../types/api";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { IS_DEMO_MODE } from "../utils/demo";
 
 interface AppShellProps {
   children: ReactNode;
   client: ApiClient;
   apiBaseUrl: string;
   onApiBaseUrlChange: (value: string) => void;
+  authWarning?: string | null;
   health: HealthResponseData | null;
   config: ConfigResponseData | null;
   activeBrand: string;
@@ -40,6 +42,7 @@ export function AppShell({
   client,
   apiBaseUrl,
   onApiBaseUrlChange,
+  authWarning,
   health,
   config,
   activeBrand,
@@ -71,6 +74,7 @@ export function AppShell({
         client={client}
         apiBaseUrl={apiBaseUrl}
         onApiBaseUrlChange={onApiBaseUrlChange}
+        authWarning={IS_DEMO_MODE ? null : authWarning}
         health={health}
         config={config}
         activeBrand={activeBrand}

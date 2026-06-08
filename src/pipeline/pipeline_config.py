@@ -20,6 +20,9 @@ load_dotenv()
 
 DEFAULT_SUPPORTED_CONTENT_TYPES = (
     "instagram_post",
+    "facebook_post",
+    "linkedin_post",
+    "ad_copy",
     "instagram_reel",
     "property_description",
     "image_prompt",
@@ -176,6 +179,24 @@ class PipelineConfig:
     enable_error_tracking: bool = field(default_factory=lambda: _env_flag("ENABLE_ERROR_TRACKING", True))
     enable_runtime_metrics: bool = field(default_factory=lambda: _env_flag("ENABLE_RUNTIME_METRICS", True))
     enable_workflow_monitoring: bool = field(default_factory=lambda: _env_flag("ENABLE_WORKFLOW_MONITORING", True))
+    enable_security_hardening: bool = field(default_factory=lambda: _env_flag("ENABLE_SECURITY_HARDENING", True))
+    enable_security_headers: bool = field(default_factory=lambda: _env_flag("ENABLE_SECURITY_HEADERS", True))
+    enable_rate_limiting: bool = field(default_factory=lambda: _env_flag("ENABLE_RATE_LIMITING", True))
+    enable_secret_scanning: bool = field(default_factory=lambda: _env_flag("ENABLE_SECRET_SCANNING", True))
+    enable_dependency_validation: bool = field(default_factory=lambda: _env_flag("ENABLE_DEPENDENCY_VALIDATION", True))
+    enable_input_sanitization: bool = field(default_factory=lambda: _env_flag("ENABLE_INPUT_SANITIZATION", True))
+    enable_output_sanitization: bool = field(default_factory=lambda: _env_flag("ENABLE_OUTPUT_SANITIZATION", True))
+    security_request_size_limit_kb: int = field(default_factory=lambda: _env_int("REQUEST_SIZE_LIMIT_KB", 256))
+    anonymous_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("ANONYMOUS_RATE_LIMIT_PER_HOUR", 100))
+    authenticated_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("AUTHENTICATED_RATE_LIMIT_PER_HOUR", 1000))
+    admin_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("ADMIN_RATE_LIMIT_PER_HOUR", 5000))
+    enable_ci_security_checks: bool = field(default_factory=lambda: _env_flag("ENABLE_CI_SECURITY_CHECKS", False))
+    enable_release_validation: bool = field(default_factory=lambda: _env_flag("ENABLE_RELEASE_VALIDATION", False))
+    enable_docker_validation: bool = field(default_factory=lambda: _env_flag("ENABLE_DOCKER_VALIDATION", False))
+    enable_mvp_acceptance: bool = field(default_factory=lambda: _env_flag("ENABLE_MVP_ACCEPTANCE", True))
+    enable_readiness_scoring: bool = field(default_factory=lambda: _env_flag("ENABLE_READINESS_SCORING", True))
+    enable_release_certification: bool = field(default_factory=lambda: _env_flag("ENABLE_RELEASE_CERTIFICATION", True))
+    enable_maturity_scoring: bool = field(default_factory=lambda: _env_flag("ENABLE_MATURITY_SCORING", True))
     observability_log_level: str = field(default_factory=lambda: os.getenv("OBSERVABILITY_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).strip() or "info")
     recent_error_limit: int = field(default_factory=lambda: _env_int("RECENT_ERROR_LIMIT", 50))
     governance_min_score: float = 70.0

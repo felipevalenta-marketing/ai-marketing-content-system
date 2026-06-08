@@ -73,6 +73,8 @@ class OutputRenderer:
             return self._render_video_prompt(output)
         if content_type == "video_script":
             return self._render_video_script(output)
+        if content_type == "ad_copy":
+            return self._render_ad_copy(output)
         return self._render_campaign_asset(output)
 
     def _render_instagram_post(self, output: dict[str, Any]) -> list[str]:
@@ -121,11 +123,8 @@ class OutputRenderer:
             "## Title",
             self._stringify(output.get("title", "")),
             "",
-            "## Short Description",
-            self._stringify(output.get("short_description", "")),
-            "",
-            "## Long Description",
-            self._stringify(output.get("long_description", "")),
+            "## Description",
+            self._stringify(output.get("description", output.get("long_description", output.get("short_description", "")))),
         ]
         highlights = output.get("highlights") or []
         if highlights:
@@ -139,23 +138,40 @@ class OutputRenderer:
             lines.extend(["", "## Notes", self._stringify(notes)])
         return lines
 
+    def _render_ad_copy(self, output: dict[str, Any]) -> list[str]:
+        lines = [
+            "",
+            "## Headline",
+            self._stringify(output.get("headline", "")),
+            "",
+            "## Primary Text",
+            self._stringify(output.get("primary_text", "")),
+            "",
+            "## Description",
+            self._stringify(output.get("description", "")),
+        ]
+        cta = output.get("cta")
+        if cta:
+            lines.extend(["", "## CTA", self._stringify(cta)])
+        notes = output.get("notes")
+        if notes:
+            lines.extend(["", "## Notes", self._stringify(notes)])
+        return lines
+
     def _render_image_prompt(self, output: dict[str, Any]) -> list[str]:
         lines = [
             "",
-            "## Visual Direction",
-            self._stringify(output.get("visual_direction", "")),
-            "",
-            "## Subject",
-            self._stringify(output.get("subject", "")),
-            "",
-            "## Composition",
-            self._stringify(output.get("composition", "")),
-            "",
-            "## Lighting",
-            self._stringify(output.get("lighting", "")),
+            "## Image Prompt",
+            self._stringify(output.get("image_prompt", output.get("prompt", ""))),
             "",
             "## Style",
-            self._stringify(output.get("style", "")),
+            self._stringify(output.get("style", output.get("visual_style", ""))),
+            "",
+            "## Camera",
+            self._stringify(output.get("camera", output.get("camera_direction", ""))),
+            "",
+            "## Lighting",
+            self._stringify(output.get("lighting", output.get("lighting_style", ""))),
         ]
         negative_prompt = output.get("negative_prompt")
         if negative_prompt:
@@ -195,14 +211,20 @@ class OutputRenderer:
             "## Hook",
             self._stringify(output.get("hook", "")),
             "",
-            "## Script",
-            self._stringify(output.get("script", "")),
+            "## Scene 1",
+            self._stringify(output.get("scene_1", output.get("script", ""))),
+            "",
+            "## Scene 2",
+            self._stringify(output.get("scene_2", "")),
+            "",
+            "## Scene 3",
+            self._stringify(output.get("scene_3", "")),
             "",
             "## Voiceover",
             self._stringify(output.get("voiceover", "")),
             "",
-            "## Music Mood",
-            self._stringify(output.get("music_mood", "")),
+            "## CTA",
+            self._stringify(output.get("cta", "")),
         ]
         scene_sequence = output.get("scene_sequence") or []
         if scene_sequence:
@@ -217,9 +239,9 @@ class OutputRenderer:
         camera_direction = output.get("camera_direction")
         if camera_direction:
             lines.extend(["", "## Camera Direction", self._stringify(camera_direction)])
-        cta = output.get("cta")
-        if cta:
-            lines.extend(["", "## CTA", self._stringify(cta)])
+        music_mood = output.get("music_mood")
+        if music_mood:
+            lines.extend(["", "## Music Mood", self._stringify(music_mood)])
         notes = output.get("notes")
         if notes:
             lines.extend(["", "## Notes", self._stringify(notes)])

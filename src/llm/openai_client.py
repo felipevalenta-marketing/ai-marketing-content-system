@@ -206,6 +206,12 @@ class OpenAIClient:
         start_time = time.perf_counter()
         try:
             sanitized_metadata = self._sanitize_metadata(metadata)
+            log_context(
+                self.logger,
+                "Final OpenAI prompt:\n"
+                f"--- SYSTEM ---\n{system_prompt}\n"
+                f"--- USER ---\n{user_prompt}",
+            )
             response = self._client.responses.create(  # type: ignore[union-attr]
                 model=model_name,
                 instructions=system_prompt,

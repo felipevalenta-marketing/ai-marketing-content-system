@@ -13,7 +13,6 @@ from fastapi import FastAPI, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.api_config import ApiConfig
-from src.api.api_result import build_api_response
 from src.api.routes import build_docs_html, router as api_router
 from src.brands.brand_manager import BrandManager
 from src.analytics.analytics_engine import AnalyticsEngine
@@ -150,16 +149,10 @@ def create_app(config: ApiConfig | None = None, services: dict[str, Any] | None 
 
     @app.get("/", summary="Root endpoint", description="Return a small landing response for the local API.")
     def root(request: Any) -> dict[str, Any]:
-        return build_api_response(
-            success=True,
-            data={
-                "service": api_config.service_name,
-                "version": api_config.api_version,
-                "environment": api_config.environment,
-                "frontend_demo": api_config.enable_frontend_demo,
-            },
-            metadata={"route": "root"},
-        )
+        return {
+            "service": api_config.service_name,
+            "status": "ok",
+        }
 
     return app
 

@@ -22,6 +22,7 @@ class PromptRequest:
     platform: str
     content_type: str
     objective: str
+    prompt: str | None = None
     audience: str | None = None
     location: str | None = None
     property_type: str | None = None
@@ -88,6 +89,16 @@ CONTENT_CONTEXT_MAP: dict[str, list[str]] = {
 }
 
 DEFAULT_CONTEXT_SEQUENCE = CONTENT_CONTEXT_MAP["campaign_pack"]
+COMPACT_CONTEXT_TYPES = {
+    "linkedin_post",
+    "facebook_post",
+    "ad_copy",
+    "property_description",
+    "image_prompt",
+    "video_script",
+    "instagram_reel",
+}
+COMPACT_CONTEXT_CHAR_LIMIT = 1500
 
 
 SECTION_PRIORITY = {
@@ -109,15 +120,25 @@ class ContextInjector:
         self.logger = logger or get_logger(self.__class__.__name__)
         self.builder = ContextBuilder(logger=self.logger)
 
-    def inject(self, bundle: BrandKnowledge, request: PromptRequest, token_budget: int | None = None) -> InjectedContext:
+    def inject(
+        self,
+        bundle: BrandKnowledge,
+        request: PromptRequest,
+        token_budget: int | None = None,
+        compact: bool = False,
+    ) -> InjectedContext:
         """Build a selective context package for the requested prompt."""
 
         log_context(self.logger, f"Injecting context for {request.brand}/{request.platform}/{request.content_type}")
         content_type_key = normalize_key(request.content_type)
+        compact_mode = compact or content_type_key in COMPACT_CONTEXT_TYPES
         role = get_role(request.role, request.content_type)
         version = resolve_prompt_version(request.content_type, request.platform)
-        selected_sections = self._select_sections(bundle, request, content_type_key, role, version)
+        selected_sections = self._select_sections(bundle, request, content_type_key, role, version, compact_mode=compact_mode)
         ordered_sections = self._apply_token_budget(selected_sections, token_budget)
+        if compact_mode:
+            char_limit = min(token_budget or COMPACT_CONTEXT_CHAR_LIMIT, COMPACT_CONTEXT_CHAR_LIMIT)
+            ordered_sections = self._cap_sections_to_chars(ordered_sections, char_limit)
 
         sections = {section["name"]: section["text"] for section in ordered_sections}
         context_used = [section["source"] for section in ordered_sections]
@@ -144,10 +165,22 @@ class ContextInjector:
             source_preview=source_preview,
         )
 
-    def _select_sections(self, bundle: BrandKnowledge, request: PromptRequest, content_type_key: str, role: PromptRole, version: PromptVersion) -> list[dict[str, Any]]:
+    def _select_sections(
+        self,
+        bundle: BrandKnowledge,
+        request: PromptRequest,
+        content_type_key: str,
+        role: PromptRole,
+        version: PromptVersion,
+        *,
+        compact_mode: bool = False,
+    ) -> list[dict[str, Any]]:
         """Select the sections relevant to the prompt request."""
 
-        content_section_names = CONTENT_CONTEXT_MAP.get(content_type_key, DEFAULT_CONTEXT_SEQUENCE)
+        if compact_mode:
+            content_section_names = ["tone"]
+        else:
+            content_section_names = CONTENT_CONTEXT_MAP.get(content_type_key, DEFAULT_CONTEXT_SEQUENCE)
         sections: list[dict[str, Any]] = []
 
         for section_name in content_section_names:
@@ -183,11 +216,12 @@ class ContextInjector:
                 text = self.builder.get_examples_context(bundle)
                 sections.append(self._build_section("examples", text, "content_examples/*"))
 
-        if request.extra_context:
+        if request.extra_context and not compact_mode:
             sections.append(self._build_section("extra_context", self._stringify_extra_context(request.extra_context), "input/extra_context"))
 
-        sections.append(self._build_section("role_strategy", self._render_role_strategy(role), f"role/{role.name}"))
-        sections.append(self._build_section("prompt_version", self._render_prompt_version(version), f"version/{version.version}"))
+        if not compact_mode:
+            sections.append(self._build_section("role_strategy", self._render_role_strategy(role), f"role/{role.name}"))
+            sections.append(self._build_section("prompt_version", self._render_prompt_version(version), f"version/{version.version}"))
 
         return sections
 
@@ -218,6 +252,29 @@ class ContextInjector:
             "source": source,
             "chars": len(cleaned),
         }
+
+    def _cap_sections_to_chars(self, sections: list[dict[str, Any]], max_chars: int) -> list[dict[str, Any]]:
+        """Trim a section list to a hard character limit."""
+
+        if max_chars <= 0:
+            return []
+
+        remaining = max_chars
+        capped: list[dict[str, Any]] = []
+        for section in sections:
+            if remaining <= 0:
+                break
+            text = str(section.get("text", "")).strip()
+            if not text:
+                continue
+            if len(text) > remaining:
+                text = text[:remaining].rstrip()
+            if not text:
+                continue
+            capped_section = self._build_section(str(section.get("name", "")), text, str(section.get("source", "")))
+            capped.append(capped_section)
+            remaining -= capped_section["chars"]
+        return capped
 
     def _resolve_location(self, location: str | None) -> str:
         """Normalize a location key for neighborhood lookups."""

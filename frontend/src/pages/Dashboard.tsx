@@ -29,7 +29,7 @@ function readCostSummary(snapshots: WorkspaceProps["snapshots"]) {
   return (source && (source.cost_summary || source.cost_usage || source.execution_cost_summary)) as any;
 }
 
-export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationTeams, organizationMembers, permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
+export function Dashboard({ snapshots, health, config, analyticsSummary, analyticsDashboard, analyticsHealth, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands = [], organizations = [], organizationProfile, organizationTeams = [], organizationMembers = [], permissions = [], onNavigate, onCheckHealth }: DashboardProps) {
   const workflow = getSnapshot<any>(snapshots, "workflow");
   const generate = getSnapshot<any>(snapshots, "generate");
   const reports = getSnapshot<any>(snapshots, "reports");
@@ -53,7 +53,7 @@ export function Dashboard({ snapshots, health, config, analyticsSummary, analyti
   const hasAnalytics = Boolean(analyticsSummaryData || analyticsDashboardData || dashboardPayload);
   const analyticsRecords = Number((analyticsSummaryData?.metadata as any)?.records_collected ?? dashboardHealth?.records_count ?? 0);
   const analyticsIsEmpty = hasAnalytics && analyticsRecords <= 0;
-  const brandValidationData = brandValidation as any;
+  const brandValidationData = (brandValidation ?? {}) as any;
   const observabilityHealthStatus = String(observabilityHealth?.status ?? "unknown");
   const requestMetrics = observabilityMetrics ?? {};
   const runtime = runtimeDiagnostics ?? {};

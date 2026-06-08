@@ -207,41 +207,96 @@ function buildFailure(message: string): ApiResponse<never> {
   };
 }
 
+export function isUnauthorizedResponse(response: Pick<ApiResponse<unknown>, "errors" | "metadata"> | null | undefined): boolean {
+  if (!response) {
+    return false;
+  }
+  const status = Number((response.metadata as Record<string, unknown> | undefined)?.status ?? 0);
+  if (status === 401) {
+    return true;
+  }
+  return Array.isArray(response.errors) && response.errors.some((error) => /authentication token is required|unauthorized|authentication required/i.test(error));
+}
+
 export function createApiClient(baseUrl = "http://127.0.0.1:8000"): ApiClient {
+  const pendingGetRequests = new Map<string, Promise<ApiResponse<unknown>>>();
+
+  const buildRequestKey = (path: string, token: string, init: RequestInit & { timeoutMs?: number }) => {
+    const method = String(init.method ?? "GET").toUpperCase();
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    const body = typeof init.body === "string" ? init.body : "";
+    return [baseUrl, method, normalizedPath, token, body].join("|");
+  };
+
   const request = async <T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<ApiResponse<T>> => {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), init.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-    try {
-      const response = await fetch(buildUrl(baseUrl, path), {
-        method: init.method ?? "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": init.body ? "application/json" : "application/json",
-          ...(readAuthToken() ? { Authorization: `Bearer ${readAuthToken()}` } : {}),
-          ...(init.headers ?? {}),
-        },
-        body: init.body as BodyInit | null | undefined,
-        signal: controller.signal,
-      });
-      const parsed = (await safeJson(response)) as ApiResponse<T> | Record<string, unknown> | null;
-      if (parsed && typeof parsed === "object" && "success" in parsed) {
-        return parsed as ApiResponse<T>;
-      }
-      if (!response.ok) {
-        return buildFailure(`Request failed with status ${response.status}.`);
-      }
-      return {
-        success: true,
-        data: parsed as T,
-        warnings: [],
-        errors: [],
-        metadata: { status: response.status },
-      };
-    } catch (error) {
-      return buildFailure(normalizeError(error));
-    } finally {
-      window.clearTimeout(timeout);
+    const method = String(init.method ?? "GET").toUpperCase();
+    const token = readAuthToken();
+    const isGet = method === "GET";
+    const requestKey = isGet ? buildRequestKey(path, token, init) : "";
+    if (isGet && pendingGetRequests.has(requestKey)) {
+      return pendingGetRequests.get(requestKey) as Promise<ApiResponse<T>>;
     }
+
+    const promise = (async (): Promise<ApiResponse<T>> => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), init.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+      try {
+        const headers = new Headers(init.headers ?? {});
+        headers.set("Accept", "application/json");
+        headers.set("Content-Type", "application/json");
+        if (token) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
+        const response = await fetch(buildUrl(baseUrl, path), {
+          method,
+          headers,
+          body: init.body as BodyInit | null | undefined,
+          signal: controller.signal,
+        });
+        const parsed = (await safeJson(response)) as ApiResponse<T> | Record<string, unknown> | null;
+        const metadata = {
+          ...(parsed && typeof parsed === "object" && "metadata" in parsed && parsed.metadata && typeof parsed.metadata === "object"
+            ? (parsed.metadata as Record<string, unknown>)
+            : {}),
+          status: response.status,
+        };
+        if (parsed && typeof parsed === "object" && "success" in parsed) {
+          return {
+            ...(parsed as ApiResponse<T>),
+            metadata,
+          };
+        }
+        if (!response.ok) {
+          return {
+            success: false,
+            data: null,
+            warnings: [],
+            errors: [response.status === 401 ? "Authentication token is required." : `Request failed with status ${response.status}.`],
+            metadata,
+          };
+        }
+        return {
+          success: true,
+          data: parsed as T,
+          warnings: [],
+          errors: [],
+          metadata,
+        };
+      } catch (error) {
+        return buildFailure(normalizeError(error));
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    })();
+
+    if (isGet) {
+      pendingGetRequests.set(requestKey, promise as Promise<ApiResponse<unknown>>);
+      promise.finally(() => {
+        pendingGetRequests.delete(requestKey);
+      });
+    }
+
+    return promise;
   };
 
   return {

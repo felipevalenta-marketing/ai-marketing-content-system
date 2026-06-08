@@ -31,25 +31,22 @@ class ImagePromptValidator:
         if not isinstance(payload, dict):
             return {"valid": False, "warnings": [], "errors": ["Image prompt payload must be a dictionary."], "scores": scores}
 
-        prompt = str(payload.get("prompt") or payload.get("enhanced_image_prompt") or "").strip()
+        prompt = str(payload.get("image_prompt") or payload.get("prompt") or payload.get("enhanced_image_prompt") or "").strip()
         negative_prompt = str(payload.get("negative_prompt") or "").strip()
-        visual_style = normalize_key(str(payload.get("visual_style") or ""))
-        lighting_style = str(payload.get("lighting_style") or "").strip()
-        composition_style = str(payload.get("composition_style") or "").strip()
-        camera_direction = str(payload.get("camera_direction") or "").strip()
+        visual_style = normalize_key(str(payload.get("style") or payload.get("visual_style") or ""))
+        lighting_style = str(payload.get("lighting") or payload.get("lighting_style") or "").strip()
+        camera_direction = str(payload.get("camera") or payload.get("camera_direction") or "").strip()
         aspect_ratio = str(payload.get("aspect_ratio") or "").strip()
         platform = normalize_key(str(payload.get("platform") or ""))
         image_type = normalize_key(str(payload.get("image_type") or ""))
         negative_prompt_enabled = bool(payload.get("enable_negative_prompts", True))
 
         required_fields = {
-            "prompt": prompt,
+            "image_prompt": prompt,
             "negative_prompt": negative_prompt,
-            "visual_style": visual_style,
-            "lighting_style": lighting_style,
-            "composition_style": composition_style,
-            "camera_direction": camera_direction,
-            "aspect_ratio": aspect_ratio,
+            "style": visual_style,
+            "lighting": lighting_style,
+            "camera": camera_direction,
         }
         missing = [field for field, value in required_fields.items() if not value]
         if not prompt:

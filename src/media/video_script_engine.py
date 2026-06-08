@@ -54,6 +54,7 @@ class VideoScriptEngine:
             hook = self._build_hook(normalized, template)
 
         script = self._build_script_text(normalized, hook, scenes, voiceover, cta, music_mood)
+        scene_1, scene_2, scene_3 = self._build_reel_scenes(normalized, scenes, hook)
         script = self.enhancer.enhance_script(script, normalized)
         validation_payload = {
             "brand": normalized["brand"],
@@ -62,9 +63,12 @@ class VideoScriptEngine:
             "video_type": normalized["video_type"],
             "duration": normalized["duration"],
             "hook": hook,
-            "script": script,
+            "scene_1": scene_1,
+            "scene_2": scene_2,
+            "scene_3": scene_3,
             "voiceover": voiceover,
             "cta": cta,
+            "script": script,
             "music_mood": music_mood,
             "scene_sequence": scenes,
             "storyboard": storyboard,
@@ -87,6 +91,9 @@ class VideoScriptEngine:
             duration=normalized["duration"],
             platform=normalized["platform"],
             hook=hook,
+            scene_1=scene_1,
+            scene_2=scene_2,
+            scene_3=scene_3,
             script=script,
             voiceover=voiceover,
             cta=cta,
@@ -149,7 +156,7 @@ class VideoScriptEngine:
         """Build a structured sequence of scenes."""
 
         duration = normalize_duration(str(request.get("duration") or "30s"))
-        target_count = self._scene_count_for_duration(duration, int(template.get("scene_count", 5)))
+        target_count = 3 if normalize_key(str(request.get("video_type", ""))) == "instagram_reel" else self._scene_count_for_duration(duration, int(template.get("scene_count", 5)))
         purposes = list(template.get("scene_purposes", [])) or [f"Scene {index + 1}" for index in range(target_count)]
         distributions = list(template.get("recommended_duration_distribution", []))
         if len(distributions) != target_count:
@@ -262,6 +269,9 @@ class VideoScriptEngine:
         duration: str,
         platform: str,
         hook: str,
+        scene_1: str,
+        scene_2: str,
+        scene_3: str,
         script: str,
         voiceover: str,
         cta: str,
@@ -286,6 +296,9 @@ class VideoScriptEngine:
             "duration": duration,
             "platform": platform,
             "hook": hook,
+            "scene_1": scene_1,
+            "scene_2": scene_2,
+            "scene_3": scene_3,
             "script": script,
             "voiceover": voiceover,
             "cta": cta,
@@ -329,6 +342,25 @@ class VideoScriptEngine:
         normalized["enable_storyboard_generation"] = bool(normalized.get("enable_storyboard_generation", True))
         return normalized
 
+    def _build_reel_scenes(self, request: dict[str, Any], scenes: list[dict[str, Any]], hook: str) -> tuple[str, str, str]:
+        """Render the first three reel scenes into compact text blocks."""
+
+        reel_scenes: list[str] = []
+        for index in range(3):
+            scene = scenes[index] if index < len(scenes) else {}
+            purpose = str(scene.get("purpose", f"Scene {index + 1}")).strip()
+            visual = str(scene.get("visual", "")).strip()
+            voiceover = str(scene.get("voiceover", "")).strip()
+            parts = [purpose]
+            if visual:
+                parts.append(visual)
+            if voiceover:
+                parts.append(f"VO: {voiceover}")
+            reel_scenes.append(" | ".join(part for part in parts if part))
+        while len(reel_scenes) < 3:
+            reel_scenes.append(hook if hook else f"Scene {len(reel_scenes) + 1}")
+        return reel_scenes[0], reel_scenes[1], reel_scenes[2]
+
     def _build_script_text(self, request: dict[str, Any], hook: str, scenes: list[dict[str, Any]], voiceover: str, cta: str, music_mood: str) -> str:
         """Build the core script text."""
 
@@ -361,6 +393,8 @@ class VideoScriptEngine:
         return "A calm, premium look at a Mallorca property."
 
     def _scene_count_for_duration(self, duration: str, template_count: int) -> int:
+        if normalize_key(str(duration or "")) == "30s" and template_count <= 3:
+            return 3
         mapping = {"15s": 3, "30s": 5, "45s": 5, "60s": 6, "90s": 7}
         return max(3, mapping.get(duration, template_count or 5))
 
@@ -450,7 +484,7 @@ class VideoScriptEngine:
     def _build_metadata(self, request: dict[str, Any], template: dict[str, Any]) -> dict[str, Any]:
         """Build safe metadata for observability and reporting."""
 
-        scene_count = int(template.get("scene_count", 5))
+        scene_count = 3 if normalize_key(str(request.get("video_type", ""))) == "instagram_reel" else int(template.get("scene_count", 5))
         return {
             "brand": request.get("brand", ""),
             "platform": request.get("platform", ""),

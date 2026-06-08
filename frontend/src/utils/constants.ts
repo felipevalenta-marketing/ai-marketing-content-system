@@ -23,6 +23,16 @@ export const CONTENT_DEFAULTS = {
   property_type: "rustic_home",
 };
 
+export const CONTENT_TYPE_OPTIONS = [
+  { value: "instagram_post", label: "Instagram Post" },
+  { value: "image_prompt", label: "Image Prompt" },
+  { value: "video_script", label: "Video Script" },
+  { value: "linkedin_post", label: "LinkedIn Post" },
+  { value: "facebook_post", label: "Facebook Post" },
+  { value: "ad_copy", label: "Ad Copy" },
+  { value: "property_description", label: "Property Description" },
+] as const;
+
 export const WORKFLOW_DEFAULTS = {
   workflow_type: "full_campaign_package",
   brand: "wenzel_partner",

@@ -52,16 +52,34 @@ def test_property_description_output_contract(sample_parsed_output):
 
     assert output["content_type"] == "property_description"
     assert output["title"]
-    assert output["long_description"]
+    assert output["description"]
+
+
+def test_ad_copy_output_contract():
+    formatter = OutputFormatter()
+    parsed = {
+        "json": {
+            "headline": "Limited availability in Mallorca",
+            "primary_text": "A calm, grounded home with real lifestyle appeal.",
+            "description": "Targeted paid social copy.",
+            "cta": "Learn more today",
+        },
+        "content": "",
+        "raw_content": "",
+    }
+    output = formatter.format(parsed, "ad_copy")
+
+    assert output["content_type"] == "ad_copy"
+    assert output["headline"]
+    assert output["primary_text"]
 
 
 def test_image_prompt_output_contract():
     formatter = OutputFormatter()
     parsed = {
         "json": {
-            "visual_direction": "Mediterranean natural light",
-            "subject": "Rustic home",
-            "composition": "Wide exterior shot",
+            "image_prompt": "Mediterranean natural light with a wide exterior shot.",
+            "camera": "Wide exterior photography",
             "lighting": "Soft daylight",
             "style": "Premium but approachable",
             "negative_prompt": "No people, no text overlays",
@@ -71,8 +89,9 @@ def test_image_prompt_output_contract():
     }
     output = formatter.format_image_prompt(parsed)
 
-    assert output["subject"]
+    assert output["image_prompt"]
     assert output["style"]
+    assert output["camera"]
 
 
 def test_video_prompt_output_contract():
@@ -94,12 +113,35 @@ def test_video_prompt_output_contract():
     assert isinstance(output["sequence"], list)
 
 
+def test_video_script_output_contract():
+    formatter = OutputFormatter()
+    parsed = {
+        "json": {
+            "hook": "A calm look at a Mallorca home.",
+            "scene_1": "Exterior reveal with clean architectural framing.",
+            "scene_2": "Interior sweep with natural light.",
+            "scene_3": "Closing shot with location and CTA.",
+            "voiceover": "A calm, premium property story.",
+            "cta": "Send us a message to learn more.",
+        },
+        "content": "",
+        "raw_content": "",
+    }
+    output = formatter.format_video_script(parsed)
+
+    assert output["hook"]
+    assert output["scene_1"]
+    assert output["scene_2"]
+    assert output["scene_3"]
+    assert output["voiceover"]
+    assert output["cta"]
+
+
 def test_missing_optional_fields_are_safely_filled():
     formatter = OutputFormatter()
     output = formatter.format({"json": {"title": "Only title"}, "content": "", "raw_content": ""}, "property_description")
 
-    assert "short_description" in output
-    assert "long_description" in output
+    assert "description" in output
     assert isinstance(output["highlights"], list)
 
 
@@ -112,7 +154,7 @@ def test_malformed_parsed_output_returns_warnings():
 
 def test_validator_catches_missing_required_fields():
     validator = OutputValidator()
-    validation = validator.validate({"title": "", "short_description": "", "long_description": "", "highlights": [], "cta": ""}, "property_description")
+    validation = validator.validate({"title": "", "description": "", "highlights": [], "cta": ""}, "property_description")
 
     assert not validation["valid"]
     assert validation["errors"]
@@ -122,8 +164,7 @@ def test_renderer_produces_markdown():
     renderer = OutputRenderer()
     output = {
         "title": "Rustic home",
-        "short_description": "Short text",
-        "long_description": "Long text",
+        "description": "Long text",
         "highlights": ["Modern interiors"],
         "cta": "Request a viewing",
         "metadata": {"brand": "wenzel_partner"},
@@ -138,8 +179,7 @@ def test_renderer_produces_plain_text():
     renderer = OutputRenderer()
     output = {
         "title": "Rustic home",
-        "short_description": "Short text",
-        "long_description": "Long text",
+        "description": "Long text",
         "highlights": ["Modern interiors"],
         "cta": "Request a viewing",
     }

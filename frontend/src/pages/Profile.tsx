@@ -1,157 +1,159 @@
-import { FormEvent, useEffect, useState } from "react";
-import type { ApiClient } from "../api/client";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { EmptyState } from "../components/EmptyState";
-import { SectionHeader } from "../components/SectionHeader";
-import { Badge } from "../components/Badge";
-import { useAuth } from "../hooks/useAuth";
-import type { UserProfile } from "../types/api";
+import { useEffect, useState } from "react";
+import { isUnauthorizedResponse } from "../api/client";
+import { DEMO_USER, IS_DEMO_MODE } from "../utils/demo";
 
-interface ProfileProps {
-  client: ApiClient;
-  auth: ReturnType<typeof useAuth>;
-  onNavigate: (page: string) => void;
+type ProfileProps = {
+  client: any;
+  auth: any;
+  onNavigate?: (page: string) => void;
+};
+
+type UserProfile = {
+  id?: string;
+  user_id?: string;
+  email?: string;
+  display_name?: string;
+  name?: string;
+  roles?: string[];
+  permissions?: string[];
+  organizations?: string[];
+  teams?: string[];
+};
+
+function normalizeUser(payload: any): UserProfile | null {
+  const candidate = payload?.data?.user ?? payload?.data ?? payload?.user ?? payload;
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+  return candidate as UserProfile;
 }
 
-export function Profile({ auth, onNavigate }: ProfileProps) {
-  const [displayName, setDisplayName] = useState("");
-  const [settingsText, setSettingsText] = useState("{}");
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [usersError, setUsersError] = useState("");
-  const user = auth.currentUser;
-  const organizationIds = Array.isArray(user?.organizations) ? user?.organizations : [];
+export function Profile({ client, auth, onNavigate }: ProfileProps) {
+  const [profile, setProfile] = useState<UserProfile | null>(() => (IS_DEMO_MODE ? (DEMO_USER as UserProfile) : auth?.currentUser ?? null));
+  const [isLoading, setIsLoading] = useState<boolean>(() => (!IS_DEMO_MODE ? !auth?.currentUser : false));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setDisplayName(String(user?.display_name ?? ""));
-    setSettingsText(JSON.stringify(user?.settings ?? {}, null, 2));
-  }, [user]);
-
-  useEffect(() => {
-    if (!auth.hasAnyPermission(["user:manage", "admin:all"])) {
+    if (IS_DEMO_MODE) {
+      setProfile(DEMO_USER as UserProfile);
+      setIsLoading(false);
+      setError(null);
       return;
     }
-    void client.listUsers().then((response) => {
-      if (response.success && response.data?.users) {
-        setUsers(response.data.users as UserProfile[]);
-        setUsersError("");
-      } else {
-        setUsers([]);
-        setUsersError(response.errors?.[0] ?? "Unable to load users.");
+    let active = true;
+
+    async function loadProfile() {
+      if (!auth?.isAuthenticated || !client) {
+        if (active) {
+          setIsLoading(false);
+        }
+        return;
       }
-    });
-  }, [auth.currentUser?.user_id, auth.permissions.join("|"), auth.role, client]);
 
-  if (!user) {
-    return (
-      <Card>
-        <EmptyState title="No profile loaded" description="Log in to view your account profile." action={<Button type="button" variant="primary" onClick={() => onNavigate("login")}>Go to login</Button>} />
-      </Card>
-    );
-  }
+      if (active) {
+        setIsLoading(true);
+        setError(null);
+      }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    let parsedSettings: Record<string, unknown> = {};
-    try {
-      parsedSettings = settingsText.trim() ? (JSON.parse(settingsText) as Record<string, unknown>) : {};
-    } catch {
-      parsedSettings = user.settings ?? {};
-    }
-    await auth.updateProfile({
-      display_name: displayName,
-      settings: parsedSettings,
-    });
-  };
-
-  const handleRoleChange = async (userId: string, role: string) => {
-    const response = await client.updateUserRole(userId, role);
-    if (response.success) {
-      const refreshed = await client.listUsers();
-      if (refreshed.success && refreshed.data?.users) {
-        setUsers(refreshed.data.users as UserProfile[]);
+      try {
+        const response = await client.getCurrentUser();
+        if (!response?.success) {
+          const message = isUnauthorizedResponse(response) ? "Your session expired. Please log in again." : response?.errors?.[0] || "Unable to load profile.";
+          throw new Error(message);
+        }
+        const nextProfile = normalizeUser(response);
+        if (active && nextProfile) {
+          setProfile(nextProfile);
+        }
+      } catch (loadError: any) {
+        if (active) {
+          setError(loadError?.message || "Unable to load profile.");
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
       }
     }
-  };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [auth?.isAuthenticated, client]);
+
+  const currentUser = profile ?? auth?.currentUser ?? null;
+  const organizationList = currentUser?.organizations ?? [];
+  const teamList = currentUser?.teams ?? [];
+  const permissionList = currentUser?.permissions ?? [];
+  const roleList = currentUser?.roles ?? [];
+  const displayName = currentUser?.display_name || currentUser?.name || currentUser?.email || "User";
 
   return (
-    <Card>
-      <SectionHeader title="Profile" description="Review and update your account details." />
-      <div className="grid-2">
-        <div className="stack">
-          <p><strong>Email:</strong> {user.email ?? "-"}</p>
-          <p><strong>Status:</strong> {user.status ?? "active"}</p>
-          <p><strong>Created:</strong> {user.created_at ?? "-"}</p>
-          <p><strong>Updated:</strong> {user.updated_at ?? "-"}</p>
-          <div className="row wrap">
-            <Badge tone="neutral">Org: {String(user.active_organization_id ?? "none")}</Badge>
-            <Badge tone="neutral">Team: {String(user.active_team_id ?? "none")}</Badge>
+    <div className="space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-bold text-slate-900">Profile</h1>
+        <p className="text-sm text-slate-600">Review your authenticated account and access context.</p>
+      </header>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+          Loading profile...
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">Profile data unavailable</div>
+          <div>{error}</div>
+          <div className="mt-2 text-xs text-amber-800">
+            Your session remains active. This is an optional profile fetch error.
           </div>
         </div>
-        <form className="stack" onSubmit={handleSubmit}>
-          <label className="field">
-            <span>Display name</span>
-            <input className="input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Settings JSON</span>
-            <textarea className="textarea" rows={8} value={settingsText} onChange={(event) => setSettingsText(event.target.value)} />
-          </label>
-          {auth.error ? <p className="error-text">{auth.error}</p> : null}
-          <div className="button-row">
-            <Button type="submit" variant="primary">
-              Save Profile
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => onNavigate("dashboard")}>
-              Back to dashboard
-            </Button>
-          </div>
-        </form>
-      </div>
-      {organizationIds.length ? (
-        <Card>
-          <SectionHeader title="Organizations" description="Organizations attached to this user account." />
-          <div className="row wrap">
-            {organizationIds.map((organizationId) => (
-              <Badge key={organizationId} tone="neutral">{organizationId}</Badge>
-            ))}
-          </div>
-        </Card>
       ) : null}
-      {auth.hasAnyPermission(["user:manage", "admin:all"]) ? (
-        <Card>
-          <SectionHeader title="User Management" description="Manage user roles with RBAC permissions." />
-          {usersError ? <p className="error-text">{usersError}</p> : null}
-          {users.length ? (
-            <div className="stack">
-              {users.map((entry) => (
-                <div key={String(entry.user_id)} className="metric-card">
-                  <div className="row-between">
-                    <div>
-                      <strong>{entry.display_name ?? entry.email}</strong>
-                      <p className="muted">{entry.email}</p>
-                    </div>
-                    <select
-                      className="select"
-                      value={String(entry.role ?? "viewer")}
-                      onChange={async (event) => handleRoleChange(String(entry.user_id ?? ""), event.target.value)}
-                      disabled={String(entry.user_id) === String(user.user_id)}
-                    >
-                      <option value="admin">admin</option>
-                      <option value="manager">manager</option>
-                      <option value="editor">editor</option>
-                      <option value="viewer">viewer</option>
-                      <option value="disabled">disabled</option>
-                    </select>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No users loaded" description="Users appear here when the API exposes list access." />
-          )}
-        </Card>
-      ) : null}
-    </Card>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">{displayName}</h2>
+        <p className="text-sm text-slate-600">{currentUser?.email || "No email available"}</p>
+
+        <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Roles</dt>
+            <dd className="mt-1 text-sm text-slate-900">{roleList.length > 0 ? roleList.join(", ") : "None"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Permissions</dt>
+            <dd className="mt-1 text-sm text-slate-900">
+              {permissionList.length > 0 ? permissionList.join(", ") : "None"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Organizations</dt>
+            <dd className="mt-1 text-sm text-slate-900">
+              {organizationList.length > 0 ? organizationList.join(", ") : "None"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-slate-500">Teams</dt>
+            <dd className="mt-1 text-sm text-slate-900">{teamList.length > 0 ? teamList.join(", ") : "None"}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-6 flex gap-3">
+          {onNavigate ? (
+            <button
+              type="button"
+              onClick={() => onNavigate("dashboard")}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Back to Dashboard
+            </button>
+          ) : null}
+        </div>
+      </section>
+    </div>
   );
 }
+
+export default Profile;

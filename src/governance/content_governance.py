@@ -214,32 +214,35 @@ class ContentGovernanceEngine:
         image_result = payload.get("image_prompt_result")
         if not isinstance(image_result, dict) or not image_result:
             image_result = {
-                "prompt": payload.get("formatted_output", {}).get("visual_direction", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "image_prompt": payload.get("formatted_output", {}).get("image_prompt", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "prompt": payload.get("formatted_output", {}).get("image_prompt", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "negative_prompt": payload.get("formatted_output", {}).get("negative_prompt", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "style": payload.get("formatted_output", {}).get("style", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "visual_style": payload.get("formatted_output", {}).get("style", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "lighting": payload.get("formatted_output", {}).get("lighting", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "lighting_style": payload.get("formatted_output", {}).get("lighting", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "composition_style": payload.get("formatted_output", {}).get("composition", "") if isinstance(payload.get("formatted_output"), dict) else "",
-                "camera_direction": payload.get("formatted_output", {}).get("visual_direction", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "camera": payload.get("formatted_output", {}).get("camera", "") if isinstance(payload.get("formatted_output"), dict) else "",
+                "camera_direction": payload.get("formatted_output", {}).get("camera", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "aspect_ratio": payload.get("formatted_output", {}).get("aspect_ratio", "") if isinstance(payload.get("formatted_output"), dict) else "",
                 "platform": payload.get("platform", ""),
                 "metadata": payload.get("metadata", {}),
             }
 
         validation = self.image_prompt_validator.validate(image_result)
-        prompt_text = str(image_result.get("prompt") or image_result.get("enhanced_image_prompt") or "").strip()
+        prompt_text = str(image_result.get("image_prompt") or image_result.get("prompt") or image_result.get("enhanced_image_prompt") or "").strip()
         image_payload = {
             "brand": payload.get("brand", ""),
             "platform": payload.get("platform", ""),
             "content_type": "image_prompt",
             "formatted_output": {
-                "visual_direction": prompt_text,
+                "image_prompt": prompt_text,
                 "caption": prompt_text,
                 "main_message": prompt_text,
                 "notes": prompt_text,
-                "subject": str(image_result.get("metadata", {}).get("image_type", "")) if isinstance(image_result.get("metadata"), dict) else "",
-                "composition": str(image_result.get("composition_style", "")),
-                "lighting": str(image_result.get("lighting_style", "")),
-                "style": str(image_result.get("visual_style", "")),
+                "style": str(image_result.get("style", image_result.get("visual_style", ""))),
+                "camera": str(image_result.get("camera", image_result.get("camera_direction", ""))),
+                "lighting": str(image_result.get("lighting", image_result.get("lighting_style", ""))),
                 "negative_prompt": str(image_result.get("negative_prompt", "")),
             },
             "platform_variants": payload.get("platform_variants", {}),

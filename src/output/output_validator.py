@@ -88,8 +88,11 @@ class OutputValidator:
             if self._is_empty(output.get("cta")):
                 warnings.append("Property description is missing a CTA.")
 
+        if content_type == "ad_copy" and self._is_empty(output.get("cta")):
+            warnings.append("Ad copy is missing a CTA.")
+
         if content_type == "image_prompt":
-            for field_name in ("subject", "style", "lighting", "composition"):
+            for field_name in ("image_prompt", "style", "camera", "lighting"):
                 if self._is_empty(output.get(field_name)):
                     warnings.append(f"Image prompt is missing '{field_name}'.")
 
@@ -99,11 +102,11 @@ class OutputValidator:
                     warnings.append(f"Video prompt is missing '{field_name}'.")
 
         if content_type == "video_script":
-            for field_name in ("hook", "script", "voiceover", "cta", "music_mood", "scene_sequence", "storyboard", "camera_direction"):
+            for field_name in ("hook", "scene_1", "scene_2", "scene_3", "voiceover", "cta"):
                 if self._is_empty(output.get(field_name)):
                     warnings.append(f"Video script is missing '{field_name}'.")
-            if self._is_empty(output.get("cta")):
-                warnings.append("Video script is missing a CTA.")
+            if self._is_empty(output.get("scene_1")) and self._is_empty(output.get("script")):
+                warnings.append("Video script is missing the main reel scene.")
 
         if content_type == "campaign_asset" and self._is_empty(output.get("cta")):
             warnings.append("Campaign asset is missing a CTA.")

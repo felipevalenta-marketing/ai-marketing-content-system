@@ -1,65 +1,62 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConfigResponseData } from "../types/api";
 import { createApiClient } from "../api/client";
 
-export function useConfig(apiBaseUrl: string) {
+export function useConfig(apiBaseUrl: string, enabled = true) {
   const [data, setData] = useState<ConfigResponseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const refresh = useCallback(() => setRefreshIndex((value) => value + 1), []);
 
-  useEffect(() => {
-    let active = true;
+  const loadConfig = useCallback(async () => {
+    if (!enabled) {
+      inFlightRef.current = false;
+      setLoading(false);
+      setError("");
+      return;
+    }
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
     const client = createApiClient(apiBaseUrl);
     setLoading(true);
-    client.getConfiguration().then((response) => {
-      if (!active) {
-        return;
-      }
+    try {
+      const response = await client.getConfiguration();
       if (response.success && response.data) {
         setData(response.data);
         setError("");
-        setLoading(false);
+        hasLoadedRef.current = true;
         return;
       }
-      client.getConfig().then((legacyResponse) => {
-        if (!active) {
-          return;
-        }
-        if (legacyResponse.success && legacyResponse.data) {
-          setData({
-            ...legacyResponse.data,
-            configuration: response.data as any,
-          });
-          setError("");
-        } else {
-          setError(response.errors?.[0] ?? legacyResponse.errors?.[0] ?? "Unable to load config.");
-        }
-        setLoading(false);
-      });
-      return;
-    }).catch(() => {
-      if (!active) {
-        return;
+      const legacyResponse = await client.getConfig();
+      if (legacyResponse.success && legacyResponse.data) {
+        setData({
+          ...legacyResponse.data,
+          configuration: response.data as any,
+        });
+        setError("");
+      } else {
+        setData(null);
+        setError(response.errors?.[0] ?? legacyResponse.errors?.[0] ?? "Unable to load config.");
       }
-      client.getConfig().then((legacyResponse) => {
-        if (!active) {
-          return;
-        }
-        if (legacyResponse.success && legacyResponse.data) {
-          setData(legacyResponse.data);
-          setError("");
-        } else {
-          setError("Unable to load config.");
-        }
-        setLoading(false);
-      });
-      return;
-    });
-    return () => {
-      active = false;
-    };
-  }, [apiBaseUrl, refreshIndex]);
+      hasLoadedRef.current = true;
+    } catch (loadError) {
+      setData(null);
+      setError(loadError instanceof Error ? loadError.message : "Unable to load config.");
+      hasLoadedRef.current = true;
+    } finally {
+      setLoading(false);
+      inFlightRef.current = false;
+    }
+  }, [apiBaseUrl, enabled]);
 
-  return { data, loading, error, refresh: () => setRefreshIndex((value) => value + 1) };
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig, refreshIndex]);
+
+  return { data, loading, error, hasLoaded: hasLoadedRef.current, refresh };
 }

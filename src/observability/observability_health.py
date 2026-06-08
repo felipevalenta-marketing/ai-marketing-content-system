@@ -45,6 +45,7 @@ def get_system_status_summary(app: Any | None = None) -> dict[str, str]:
     rbac = services.get("rbac")
     brands = services.get("brands")
     organizations = services.get("organizations")
+    security = services.get("security")
     workflow = services.get("workflow")
     analytics = services.get("analytics")
     if services.get("configuration") is None:
@@ -58,6 +59,13 @@ def get_system_status_summary(app: Any | None = None) -> dict[str, str]:
     storage_health = build_storage_observability(storage)
     workflow_status = get_workflow_monitor().get_metrics()
     observability_enabled = build_observability_configuration(app).get("observability_enabled", True)
+    security_service = services.get("security")
+    security_status = "warning"
+    if security_service is not None and hasattr(security_service, "get_security_status"):
+        security_payload = security_service.get_security_status(app=app) or {}
+        security_status = str(security_payload.get("security_status") or security_payload.get("status") or "warning").lower()
+        if security_status not in {"healthy", "warning", "critical"}:
+            security_status = "warning"
 
     summary = {
         "api": "healthy",
@@ -66,6 +74,7 @@ def get_system_status_summary(app: Any | None = None) -> dict[str, str]:
         "rbac": "healthy" if rbac is not None else "warning",
         "brands": "healthy" if brands is not None else "warning",
         "organizations": "healthy" if organizations is not None else "warning",
+        "security": security_status if security is not None else "warning",
         "workflows": "healthy" if workflow is not None or workflow_status.get("total_workflow_runs", 0) >= 0 else "warning",
         "analytics": "healthy" if analytics is not None else "warning",
         "configuration": "healthy" if config_validation.get("valid", True) else "critical",
@@ -84,6 +93,7 @@ def build_observability_health(app: Any | None = None) -> dict[str, Any]:
     rbac = services.get("rbac")
     workflow = services.get("workflow")
     analytics = services.get("analytics")
+    security = services.get("security")
     if services.get("configuration") is None:
         from src.configuration.config_manager import ConfigManager
 
@@ -107,6 +117,7 @@ def build_observability_health(app: Any | None = None) -> dict[str, Any]:
         "storage": {"status": "healthy" if storage_health.get("storage_root_exists") and storage_health.get("storage_root_writable") else "warning", "detail": "Storage root checked."},
         "authentication": {"status": "healthy" if auth is not None else "warning", "detail": "Authentication service loaded."},
         "rbac": {"status": "healthy" if rbac is not None else "warning", "detail": "RBAC service loaded."},
+        "security": {"status": system_status.get("security", "warning"), "detail": "Security service loaded." if security is not None else "Security service unavailable."},
         "workflows": {"status": "healthy" if workflow is not None else "warning", "detail": "Workflow service loaded.", "workflow_runs": workflow_health.get("total_workflow_runs", 0)},
         "analytics": {"status": "healthy" if analytics is not None else "warning", "detail": "Analytics service loaded."},
         "frontend_build": {"status": "healthy" if frontend_build else "warning", "detail": "Frontend production build present."},

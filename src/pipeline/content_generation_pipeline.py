@@ -640,6 +640,15 @@ class ContentGenerationPipeline:
             )
 
         prompt_payload = prompt_result["prompt_payload"]
+        
+        print("\n===== SYSTEM PROMPT =====")
+        print(prompt_payload.get("system_prompt", "")[:3000])
+
+        print("\n===== USER PROMPT =====")
+        print(prompt_payload.get("user_prompt", "")[:3000])
+        
+        
+        
         metadata = self._build_metadata(normalized_request, context, prompt_payload)
         model_route = self.router.route(
             content_type=normalized_request["content_type"],
@@ -1371,6 +1380,7 @@ class ContentGenerationPipeline:
         normalized["brand_defaults"] = safe_dict(brand_resolution.get("defaults"))
         normalized["platform"] = normalize_key(str(normalized.get("platform") or self.config.default_platform))
         normalized["content_type"] = normalize_key(str(normalized.get("content_type") or self.config.default_content_type))
+        normalized["prompt"] = str(normalized.get("prompt") or normalized.get("extra_notes") or "").strip()
         normalized.setdefault("objective", "")
         normalized.setdefault("audience", "")
         normalized.setdefault("location", "")
@@ -1397,6 +1407,7 @@ class ContentGenerationPipeline:
             "storytelling_context": context.get("storytelling_context", ""),
             "detected_categories": context.get("detected_categories", []),
             "context_warnings": context.get("warnings", []),
+            "prompt": request.get("prompt", ""),
             "extra_notes": request.get("extra_notes", ""),
         }
 

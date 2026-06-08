@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { ErrorState } from "../components/ErrorState";
 import { SectionHeader } from "../components/SectionHeader";
 import { useAuth } from "../hooks/useAuth";
 import type { ApiClient } from "../api/client";
@@ -25,8 +26,18 @@ export function Register({ auth, onNavigate }: RegisterProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const result = await auth.register({ email, password, display_name: displayName });
-    if (result?.access_token) {
+    if (result?.success && result?.access_token) {
+      setEmail("");
+      setDisplayName("");
+      setPassword("");
       onNavigate("dashboard");
+      return;
+    }
+    if (result?.success) {
+      setEmail("");
+      setDisplayName("");
+      setPassword("");
+      onNavigate("login");
     }
   };
 
@@ -46,7 +57,7 @@ export function Register({ auth, onNavigate }: RegisterProps) {
           <span>Password</span>
           <input className="input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
         </label>
-        {auth.error ? <p className="error-text">{auth.error}</p> : null}
+        {auth.error ? <ErrorState title="Registration notice" message={auth.error} /> : null}
         <div className="button-row">
           <Button type="submit" variant="primary">
             Create account

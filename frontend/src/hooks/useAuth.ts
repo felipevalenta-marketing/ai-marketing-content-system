@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import type { ApiClient } from "../api/client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { isUnauthorizedResponse, type ApiClient } from "../api/client";
+import { DEMO_ACCESS, DEMO_USER, IS_DEMO_MODE } from "../utils/demo";
 import type { AccessSummary, AuthResult, LoginRequest, RegisterRequest, UserProfile, UserProfileUpdateRequest } from "../types/api";
 
 const AUTH_TOKEN_KEY = "amcs:auth-token";
@@ -45,94 +46,213 @@ export interface UseAuthResult {
 }
 
 export function useAuth(client: ApiClient): UseAuthResult {
-  const [token, setToken] = useState<string>(() => readToken());
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [access, setAccess] = useState<AccessSummary | null>(null);
-  const [loading, setLoading] = useState<boolean>(Boolean(token));
+  const [token, setToken] = useState<string>(() => (IS_DEMO_MODE ? "demo-token" : readToken()));
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => (IS_DEMO_MODE ? DEMO_USER : null));
+  const [access, setAccess] = useState<AccessSummary | null>(() => (IS_DEMO_MODE ? DEMO_ACCESS : null));
+  const [loading, setLoading] = useState<boolean>(() => !IS_DEMO_MODE && Boolean(readToken()));
   const [error, setError] = useState<string | null>(null);
+  const refreshInFlightRef = useRef(false);
 
-  const refreshAccess = async () => {
-    const response = await client.getMyAccess();
-    if (response.success && response.data) {
-      setAccess(response.data as AccessSummary);
-    } else {
+  const refreshAccess = useCallback(async () => {
+    if (IS_DEMO_MODE) {
+      setAccess(DEMO_ACCESS);
+      return;
+    }
+    if (!readToken()) {
+      setAccess(null);
+      return;
+    }
+    try {
+      const response = await client.getMyAccess();
+      if (response.success && response.data) {
+        setAccess(response.data as AccessSummary);
+      } else {
+        setAccess(null);
+        if (isUnauthorizedResponse(response)) {
+          setError(null);
+        }
+      }
+    } catch {
       setAccess(null);
     }
-  };
+  }, [client]);
 
-  const refreshCurrentUser = async () => {
+  const refreshCurrentUser = useCallback(async () => {
+    if (IS_DEMO_MODE) {
+      setCurrentUser(DEMO_USER);
+      setAccess(DEMO_ACCESS);
+      setError(null);
+      setLoading(false);
+      refreshInFlightRef.current = false;
+      return;
+    }
+    if (refreshInFlightRef.current) {
+      return;
+    }
+    refreshInFlightRef.current = true;
     if (!readToken()) {
       setCurrentUser(null);
       setAccess(null);
       setLoading(false);
+      refreshInFlightRef.current = false;
       return;
     }
     setLoading(true);
-    const response = await client.getCurrentUser();
-    if (response.success && response.data?.user) {
-      setCurrentUser(response.data.user as UserProfile);
-      setError(null);
-      await refreshAccess();
-    } else {
-      setCurrentUser(null);
-      setAccess(null);
-      setError(response.errors?.[0] ?? "Authentication required.");
-      writeToken("");
-      setToken("");
+    try {
+      const response = await client.getCurrentUser();
+      const userData = response.success && response.data ? ((response.data as AuthResult).user ?? response.data) : null;
+      if (response.success && userData) {
+        setCurrentUser(userData as UserProfile);
+        setError(null);
+        await refreshAccess();
+      } else {
+        setCurrentUser(null);
+        setAccess(null);
+        setError(isUnauthorizedResponse(response) ? "Your session expired. Please log in again." : response.errors?.[0] ?? "Authentication required.");
+        writeToken("");
+        setToken("");
+      }
+    } finally {
+      setLoading(false);
+      refreshInFlightRef.current = false;
     }
-    setLoading(false);
-  };
+  }, [client, refreshAccess]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      setCurrentUser(DEMO_USER);
+      setAccess(DEMO_ACCESS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     void refreshCurrentUser();
-  }, [client]);
+  }, [refreshCurrentUser]);
 
-  const login = async (payload: LoginRequest) => {
-    setLoading(true);
-    const response = await client.login(payload);
-    if (response.success && response.data?.access_token) {
-      writeToken(String(response.data.access_token));
-      setToken(String(response.data.access_token));
-      if (response.data.user) {
-        setCurrentUser(response.data.user as UserProfile);
-      }
-      await refreshAccess();
+  const login = useCallback(async (payload: LoginRequest) => {
+    if (IS_DEMO_MODE) {
+      setLoading(false);
+      setCurrentUser(DEMO_USER);
+      setAccess(DEMO_ACCESS);
       setError(null);
-    } else {
-      setError(response.errors?.[0] ?? "Login failed.");
+      return {
+        success: true,
+        data: {
+          access_token: "demo-token",
+          token_type: "bearer",
+          user: DEMO_USER,
+        },
+        warnings: [],
+        errors: [],
+        metadata: {},
+      } as AuthResult;
     }
-    setLoading(false);
-    return (response.data ?? {}) as AuthResult;
-  };
-
-  const register = async (payload: RegisterRequest) => {
     setLoading(true);
-    const response = await client.register(payload);
-    if (response.success && response.data?.access_token) {
-      writeToken(String(response.data.access_token));
-      setToken(String(response.data.access_token));
-      if (response.data.user) {
-        setCurrentUser(response.data.user as UserProfile);
+    try {
+      const response = await client.login(payload);
+      if (response.success && response.data?.access_token) {
+        const nextToken = String(response.data.access_token);
+        writeToken(nextToken);
+        setToken(nextToken);
+        setError(null);
+        await refreshCurrentUser();
+      } else {
+        const message = response.errors?.[0] ?? "Login failed.";
+        setError(message);
+        if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+          console.error("[auth] login failed", { success: response.success, errors: response.errors, warnings: response.warnings });
+        }
       }
-      await refreshAccess();
-      setError(null);
-    } else {
-      setError(response.errors?.[0] ?? "Registration failed.");
+      return {
+        ...(response.data ?? {}),
+        success: response.success,
+        warnings: response.warnings,
+        errors: response.errors,
+        metadata: response.metadata,
+      } as AuthResult;
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    return (response.data ?? {}) as AuthResult;
-  };
+  }, [client, refreshAccess, refreshCurrentUser]);
 
-  const logout = async () => {
+  const register = useCallback(async (payload: RegisterRequest) => {
+    if (IS_DEMO_MODE) {
+      setLoading(false);
+      setCurrentUser(DEMO_USER);
+      setAccess(DEMO_ACCESS);
+      setError(null);
+      return {
+        success: true,
+        data: {
+          access_token: "demo-token",
+          token_type: "bearer",
+          user: DEMO_USER,
+        },
+        warnings: [],
+        errors: [],
+        metadata: {},
+      } as AuthResult;
+    }
+    setLoading(true);
+    try {
+      const response = await client.register(payload);
+      if (response.success && response.data?.access_token) {
+        const nextToken = String(response.data.access_token);
+        writeToken(nextToken);
+        setToken(nextToken);
+        setError(null);
+        await refreshCurrentUser();
+      } else if (response.success) {
+        setError(response.warnings?.[0] ?? "Account created. Please log in.");
+        if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+          console.info("[auth] registration succeeded without token", { warnings: response.warnings });
+        }
+      } else {
+        const message = response.errors?.[0] ?? "Registration failed.";
+        setError(message);
+        if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+          console.error("[auth] registration failed", { success: response.success, errors: response.errors, warnings: response.warnings });
+        }
+      }
+      return {
+        ...(response.data ?? {}),
+        success: response.success,
+        warnings: response.warnings,
+        errors: response.errors,
+        metadata: response.metadata,
+      } as AuthResult;
+    } finally {
+      setLoading(false);
+    }
+  }, [client, refreshAccess]);
+
+  const logout = useCallback(async () => {
+    if (IS_DEMO_MODE) {
+      setCurrentUser(DEMO_USER);
+      setAccess(DEMO_ACCESS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     await client.logout();
     writeToken("");
     setToken("");
     setCurrentUser(null);
     setAccess(null);
     setError(null);
-  };
+  }, [client]);
 
-  const updateProfile = async (payload: UserProfileUpdateRequest) => {
+  const updateProfile = useCallback(async (payload: UserProfileUpdateRequest) => {
+    if (IS_DEMO_MODE) {
+      setCurrentUser((current) => ({
+        ...(current ?? DEMO_USER),
+        ...payload,
+      } as UserProfile));
+      setAccess(DEMO_ACCESS);
+      setError(null);
+      setLoading(false);
+      return { success: true } as AuthResult;
+    }
     const response = await client.updateProfile(payload);
     if (response.success && response.data?.user) {
       setCurrentUser(response.data.user as UserProfile);
@@ -140,7 +260,7 @@ export function useAuth(client: ApiClient): UseAuthResult {
       setError(response.errors?.[0] ?? "Profile update failed.");
     }
     return (response.data ?? {}) as AuthResult;
-  };
+  }, [client]);
 
   return {
     token,

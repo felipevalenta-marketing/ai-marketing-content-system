@@ -16,9 +16,9 @@ def test_image_prompt_engine_generates_structured_prompt(sample_image_prompt_req
     result = engine.generate_image_prompt(sample_image_prompt_request)
 
     assert result["success"] is True
-    assert result["prompt"]
+    assert result["image_prompt"]
     assert result["negative_prompt"]
-    assert result["visual_style"] == "mediterranean_lifestyle"
+    assert result["style"] == "mediterranean_lifestyle"
     assert result["aspect_ratio"] == "4:5"
     assert result["cinematic_rules_applied"]
     assert result["validation"]["valid"] is True
@@ -37,7 +37,7 @@ def test_image_prompt_engine_uses_supported_style_and_fallback():
     }
     result = engine.generate_image_prompt(request)
 
-    assert result["visual_style"] == DEFAULT_VISUAL_STYLE
+    assert result["style"] == DEFAULT_VISUAL_STYLE
     assert result["warnings"]
 
 

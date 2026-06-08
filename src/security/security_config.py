@@ -40,6 +40,8 @@ class SecurityConfig:
     enable_input_sanitization: bool = field(default_factory=lambda: _env_flag("ENABLE_INPUT_SANITIZATION", True))
     enable_output_sanitization: bool = field(default_factory=lambda: _env_flag("ENABLE_OUTPUT_SANITIZATION", True))
     request_size_limit_kb: int = field(default_factory=lambda: _env_int("REQUEST_SIZE_LIMIT_KB", 256))
+    development_rate_limit_per_minute: int = field(default_factory=lambda: _env_int("DEVELOPMENT_RATE_LIMIT_PER_MINUTE", 1000))
+    production_rate_limit_per_minute: int = field(default_factory=lambda: _env_int("PRODUCTION_RATE_LIMIT_PER_MINUTE", 100))
     anonymous_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("ANONYMOUS_RATE_LIMIT_PER_HOUR", 100))
     authenticated_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("AUTHENTICATED_RATE_LIMIT_PER_HOUR", 1000))
     admin_rate_limit_per_hour: int = field(default_factory=lambda: _env_int("ADMIN_RATE_LIMIT_PER_HOUR", 5000))
@@ -64,6 +66,8 @@ def build_security_configuration(app: Any | None = None) -> dict[str, Any]:
         "input_sanitization_enabled": config.enable_input_sanitization,
         "output_sanitization_enabled": config.enable_output_sanitization,
         "request_size_limit_kb": config.request_size_limit_kb,
+        "development_rate_limit_per_minute": config.development_rate_limit_per_minute,
+        "production_rate_limit_per_minute": config.production_rate_limit_per_minute,
         "anonymous_rate_limit_per_hour": config.anonymous_rate_limit_per_hour,
         "authenticated_rate_limit_per_hour": config.authenticated_rate_limit_per_hour,
         "admin_rate_limit_per_hour": config.admin_rate_limit_per_hour,

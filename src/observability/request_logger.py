@@ -14,12 +14,7 @@ from .observability_context import build_context, clear_context
 
 
 class RequestLoggingMiddleware:
-    """Compatibility wrapper for installations that expect middleware-style hooks.
-
-    The local FastAPI shim does not depend on Starlette middleware, so we keep the
-    implementation as a lightweight callable wrapper and patch the app's
-    ``handle_request`` method when installed.
-    """
+    """Request logging middleware compatible with FastAPI's middleware stack."""
 
     def __init__(self, app, logger: Any | None = None) -> None:
         self.app = app
@@ -86,6 +81,9 @@ class RequestLoggingMiddleware:
 
 
 def install_request_logging(app, logger: Any | None = None) -> None:
+    if hasattr(app, "add_middleware"):
+        app.add_middleware(RequestLoggingMiddleware, logger=logger)
+        return
     middleware = RequestLoggingMiddleware(app, logger=logger)
     if hasattr(app, "handle_request"):
         original = app.handle_request
@@ -104,6 +102,3 @@ def install_request_logging(app, logger: Any | None = None) -> None:
             return wrapped(method, path, json_body=json_body, headers=headers, query=query)
 
         app.handle_request = wrapped_handle_request
-        return
-    if hasattr(app, "add_middleware"):
-        app.add_middleware(RequestLoggingMiddleware, logger=logger)

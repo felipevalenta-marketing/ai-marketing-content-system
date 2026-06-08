@@ -3,6 +3,7 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
+import { IS_DEMO_MODE } from "../utils/demo";
 
 interface AuthGuardProps {
   isAuthenticated: boolean;
@@ -21,6 +22,9 @@ function hasPermission(permissions: string[], permission: string): boolean {
 
 export function AuthGuard({ isAuthenticated, loading, permissions = [], permission, anyOf, allOf, onGoLogin, children }: AuthGuardProps) {
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
     if (!loading && !isAuthenticated) {
       onGoLogin();
     }
@@ -42,11 +46,11 @@ export function AuthGuard({ isAuthenticated, loading, permissions = [], permissi
     return true;
   })();
 
-  if (loading) {
+  if (loading && !IS_DEMO_MODE) {
     return <LoadingState label="Checking authentication..." />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !IS_DEMO_MODE) {
     return (
       <Card>
         <EmptyState

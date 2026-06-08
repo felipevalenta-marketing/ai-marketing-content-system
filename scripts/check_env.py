@@ -4,6 +4,31 @@ import json
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal environments
+    def load_dotenv(dotenv_path: Path, override: bool = False) -> bool:
+        if not dotenv_path.exists():
+            return False
+        for line in dotenv_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            key = key.strip()
+            if not key:
+                continue
+            if override or key not in os.environ:
+                os.environ[key] = value.strip().strip('"').strip("'")
+        return True
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DOTENV_PATH = PROJECT_ROOT / ".env"
+
+if DOTENV_PATH.exists():
+    load_dotenv(dotenv_path=DOTENV_PATH, override=False)
+
 
 def _env_flag(name: str, default: bool = False) -> bool:
     raw_value = os.getenv(name)

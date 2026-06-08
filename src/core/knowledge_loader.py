@@ -8,6 +8,7 @@ from typing import Any
 import json
 
 from src.core.context_registry import ContextRegistry
+from src.brands.brand_registry import is_valid_brand_id, normalize_brand_id
 from src.utils.file_utils import (
     MarkdownFileRecord,
     group_by_key,
@@ -73,9 +74,9 @@ class KnowledgeLoader:
             return []
 
         brands = sorted(
-            path.name
+            normalize_brand_id(path.name)
             for path in self.brands_root.iterdir()
-            if path.is_dir() and (path / BRAND_CONFIG_NAME).exists() and (path / KNOWLEDGE_ROOT_NAME).exists()
+            if path.is_dir() and not path.name.startswith(".") and is_valid_brand_id(path.name)
         )
         log_scan(self.logger, f"Detected brands: {brands}")
         return brands
@@ -83,7 +84,7 @@ class KnowledgeLoader:
     def load_brand(self, brand_name: str) -> BrandKnowledge:
         """Load all markdown knowledge for a specific brand."""
 
-        normalized_brand = normalize_key(brand_name)
+        normalized_brand = normalize_brand_id(brand_name or normalize_key(brand_name))
         brand_root = self.brands_root / normalized_brand
         if not brand_root.exists():
             warning = f"Brand folder not found: {brand_root}"

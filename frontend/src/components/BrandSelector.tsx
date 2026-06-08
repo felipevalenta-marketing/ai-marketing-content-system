@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandDefaults, BrandProfile, BrandRegistryEntry } from "../types/api";
-import type { ApiClient } from "../api/client";
+import { isUnauthorizedResponse, type ApiClient } from "../api/client";
 import { Badge } from "./Badge";
 import { LoadingState } from "./LoadingState";
+import { DEMO_BRANDS, DEMO_BRAND_DEFAULTS, DEMO_BRAND_PROFILE, IS_DEMO_MODE } from "../utils/demo";
 
 interface BrandSelectorProps {
   client: ApiClient;
@@ -12,48 +13,91 @@ interface BrandSelectorProps {
   brandProfile?: BrandProfile | null;
   brandValidation?: Record<string, unknown> | null;
   brandDefaults?: BrandDefaults | null;
+  compact?: boolean;
 }
 
-export function BrandSelector({ client, value, onChange, onBrandsLoaded, brandProfile, brandValidation, brandDefaults }: BrandSelectorProps) {
-  const [brands, setBrands] = useState<BrandRegistryEntry[]>([]);
+export function BrandSelector({ client, value, onChange, onBrandsLoaded, brandProfile, brandValidation, brandDefaults, compact = false }: BrandSelectorProps) {
+  const [brands, setBrands] = useState<BrandRegistryEntry[]>(() => (IS_DEMO_MODE ? (DEMO_BRANDS as BrandRegistryEntry[]) : []));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const hasLoadedRef = useRef(IS_DEMO_MODE);
+  const onBrandsLoadedRef = useRef(onBrandsLoaded);
 
   useEffect(() => {
+    onBrandsLoadedRef.current = onBrandsLoaded;
+  }, [onBrandsLoaded]);
+
+  useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
     let active = true;
     setLoading(true);
     setError("");
-    client.getBrands().then((response) => {
-      if (!active) {
-        return;
-      }
-      if (response.success && response.data?.brands) {
-        const entries = response.data.brands as BrandRegistryEntry[];
-        setBrands(entries);
-        onBrandsLoaded?.(entries);
-      } else {
+    (async () => {
+      try {
+        const response = await client.getBrands();
+        if (!active) {
+          return;
+        }
+        if (response.success && response.data?.brands) {
+          const entries = response.data.brands as BrandRegistryEntry[];
+          setBrands(entries);
+          onBrandsLoadedRef.current?.(entries);
+        } else {
+          setBrands([]);
+          setError(isUnauthorizedResponse(response) ? "Your session expired. Please log in again." : response.errors?.[0] ?? "No brands available.");
+        }
+      } catch (loadError) {
+        if (!active) {
+          return;
+        }
         setBrands([]);
-        setError(response.errors?.[0] ?? "No brands available.");
+        setError(loadError instanceof Error ? loadError.message : "No brands available.");
+      } finally {
+        if (active) {
+          hasLoadedRef.current = true;
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    })();
     return () => {
       active = false;
     };
-  }, [client, onBrandsLoaded]);
+  }, [client]);
+
+  useEffect(() => {
+    if (!brands.length) {
+      return;
+    }
+    if (value && brands.some((brand) => brand.brand_id === value)) {
+      return;
+    }
+    const fallback = brands[0]?.brand_id ? String(brands[0].brand_id) : "";
+    if (fallback && fallback !== value) {
+      onChange(fallback);
+    }
+  }, [brands, onChange, value]);
 
   const activeBrand = useMemo(() => brands.find((brand) => brand.brand_id === value) ?? null, [brands, value]);
 
-  if (loading) {
+  if (loading && !hasLoadedRef.current) {
     return <LoadingState label="Loading brands..." />;
   }
 
   if (!brands.length) {
+    if (compact) {
+      return (
+        <select id="brandSelector" className="select topbar__select" value={value || "wenzel_partner"} onChange={(event) => onChange(event.target.value)}>
+          <option value={value || "wenzel_partner"}>{value || "wenzel_partner"}</option>
+        </select>
+      );
+    }
     return (
       <div className="stack">
         <div className="field">
           <label htmlFor="brandSelector">Brand</label>
-          <select id="brandSelector" className="select" value={value} onChange={(event) => onChange(event.target.value)}>
+          <select id="brandSelector" className="select" value={value || "wenzel_partner"} onChange={(event) => onChange(event.target.value)}>
             <option value={value || "wenzel_partner"}>{value || "wenzel_partner"}</option>
           </select>
         </div>
@@ -65,6 +109,23 @@ export function BrandSelector({ client, value, onChange, onBrandsLoaded, brandPr
           </div>
         ) : null}
       </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <select
+        id="brandSelector"
+        className="select topbar__select"
+        value={value || brands[0]?.brand_id || ""}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {brands.map((brand) => (
+          <option key={brand.brand_id ?? brand.knowledge_path ?? brand.display_name} value={String(brand.brand_id ?? "")}>
+            {String(brand.display_name ?? brand.brand_id)}
+          </option>
+        ))}
+      </select>
     );
   }
 

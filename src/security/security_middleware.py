@@ -31,6 +31,33 @@ class SecurityMiddleware:
         self.app = app
         self.logger = logger
 
+    def _should_skip_rate_limit(self, method: str, path_value: str) -> bool:
+        normalized_method = str(method or "").strip().upper()
+        normalized_path = str(path_value or "/").strip().lower().strip("/")
+        if normalized_method == "OPTIONS":
+            return True
+        return normalized_path in {
+            "health",
+            "health/live",
+            "health/ready",
+            "docs",
+            "openapi.json",
+        }
+
+    def _should_skip_bootstrap_rate_limit(self, method: str, path_value: str, environment: str) -> bool:
+        if str(environment or "").strip().lower() != "development":
+            return False
+        normalized_method = str(method or "").strip().upper()
+        normalized_path = str(path_value or "/").strip().lower().strip("/")
+        if normalized_method != "GET":
+            return False
+        if normalized_path in {"brands", "organizations"}:
+            return True
+        if normalized_path.startswith("brands/"):
+            segments = normalized_path.split("/")
+            return len(segments) in {2, 3} and (len(segments) == 2 or segments[2] == "validate")
+        return False
+
     def wrap(self, handler: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(handler)
         def wrapped(method: str, path: str, **kwargs: Any) -> Any:
@@ -64,9 +91,25 @@ class SecurityMiddleware:
             if (body_size_kb + query_size_kb) > float(config.get("request_size_limit_kb", 256)):
                 return self._blocked_response("Request payload is too large.", 413, request_id, headers, query, body, user, path_value, warnings=["Request size limit exceeded."])
             if config.get("rate_limiting_enabled", True):
-                normalized_path = path_value.strip().lower().strip("/")
-                skip_rate_limit = normalized_path in {"health", "health/live", "health/ready"}
-                allowed = {"allowed": True} if skip_rate_limit else get_rate_limiter().allow_request(identity, role, config=None)
+                skip_rate_limit = self._should_skip_rate_limit(method, path_value)
+                skip_bootstrap_limit = self._should_skip_bootstrap_rate_limit(method, path_value, config.get("environment", "development"))
+                if skip_rate_limit or skip_bootstrap_limit:
+                    allowed = {"allowed": True}
+                else:
+                    rate_limit = int(config.get("development_rate_limit_per_minute", 1000) if not config.get("production_mode", False) else config.get("production_rate_limit_per_minute", 100))
+                    if config.get("production_mode", False):
+                        rate_limit = int(config.get("production_rate_limit_per_minute", 100))
+                    else:
+                        rate_limit = int(config.get("development_rate_limit_per_minute", 1000))
+                    allowed = get_rate_limiter().allow_request(
+                        identity,
+                        role,
+                        method=method,
+                        path=path_value,
+                        limit_override=rate_limit,
+                        window_seconds=60,
+                        config=None,
+                    )
                 if not allowed.get("allowed", True):
                     record_security_event(event_type="rate_limit_exceeded", severity="warning", module="security_middleware", message="Rate limit exceeded.", metadata={"path": path_value, "role": role, "request_id": request_id})
                     return self._blocked_response("Rate limit exceeded.", 429, request_id, headers, query, body, user, path_value, warnings=["Rate limit exceeded."])
@@ -155,6 +198,9 @@ class SecurityMiddleware:
 
 
 def install_security_middleware(app, logger: Any | None = None) -> None:
+    if hasattr(app, "add_middleware"):
+        app.add_middleware(SecurityMiddleware, logger=logger)
+        return
     middleware = SecurityMiddleware(app, logger=logger)
     if hasattr(app, "handle_request"):
         original = app.handle_request
@@ -173,6 +219,3 @@ def install_security_middleware(app, logger: Any | None = None) -> None:
             return wrapped(method, path, json_body=json_body, headers=headers, query=query)
 
         app.handle_request = wrapped_handle_request
-        return
-    if hasattr(app, "add_middleware"):
-        app.add_middleware(SecurityMiddleware, logger=logger)

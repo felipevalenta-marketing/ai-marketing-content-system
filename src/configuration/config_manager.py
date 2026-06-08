@@ -175,6 +175,11 @@ class ConfigManager:
         limits = self.get_limits()
         environment = self.get_environment_config()
         health = self.get_configuration_health()
+        ci_configuration = {
+            "enable_ci_security_checks": _env_bool("ENABLE_CI_SECURITY_CHECKS") if _env_bool("ENABLE_CI_SECURITY_CHECKS") is not None else False,
+            "enable_release_validation": _env_bool("ENABLE_RELEASE_VALIDATION") if _env_bool("ENABLE_RELEASE_VALIDATION") is not None else False,
+            "enable_docker_validation": _env_bool("ENABLE_DOCKER_VALIDATION") if _env_bool("ENABLE_DOCKER_VALIDATION") is not None else False,
+        }
         summary = {
             "platform_config": platform,
             "feature_flags": features,
@@ -182,6 +187,23 @@ class ConfigManager:
             "limits": limits,
             "environment": environment,
             "configuration_health": health,
+            "ci_configuration": ci_configuration,
+            "release_configuration": {
+                "enable_release_validation": _env_bool("ENABLE_RELEASE_VALIDATION") if _env_bool("ENABLE_RELEASE_VALIDATION") is not None else False,
+                "enable_mvp_acceptance": _env_bool("ENABLE_MVP_ACCEPTANCE") if _env_bool("ENABLE_MVP_ACCEPTANCE") is not None else True,
+                "enable_readiness_scoring": _env_bool("ENABLE_READINESS_SCORING") if _env_bool("ENABLE_READINESS_SCORING") is not None else True,
+                "enable_release_certification": _env_bool("ENABLE_RELEASE_CERTIFICATION") if _env_bool("ENABLE_RELEASE_CERTIFICATION") is not None else True,
+                "enable_maturity_scoring": _env_bool("ENABLE_MATURITY_SCORING") if _env_bool("ENABLE_MATURITY_SCORING") is not None else True,
+            },
+            "security_configuration": {
+                "enable_security_hardening": _env_bool("ENABLE_SECURITY_HARDENING") if _env_bool("ENABLE_SECURITY_HARDENING") is not None else True,
+                "enable_security_headers": _env_bool("ENABLE_SECURITY_HEADERS") if _env_bool("ENABLE_SECURITY_HEADERS") is not None else True,
+                "enable_rate_limiting": _env_bool("ENABLE_RATE_LIMITING") if _env_bool("ENABLE_RATE_LIMITING") is not None else True,
+                "enable_secret_scanning": _env_bool("ENABLE_SECRET_SCANNING") if _env_bool("ENABLE_SECRET_SCANNING") is not None else True,
+                "enable_dependency_validation": _env_bool("ENABLE_DEPENDENCY_VALIDATION") if _env_bool("ENABLE_DEPENDENCY_VALIDATION") is not None else True,
+                "enable_input_sanitization": _env_bool("ENABLE_INPUT_SANITIZATION") if _env_bool("ENABLE_INPUT_SANITIZATION") is not None else True,
+                "enable_output_sanitization": _env_bool("ENABLE_OUTPUT_SANITIZATION") if _env_bool("ENABLE_OUTPUT_SANITIZATION") is not None else True,
+            },
             "enabled_modules": [module for module in modules if module.get("enabled")],
             "enabled_flags": [flag for flag, enabled in features.items() if enabled],
             "organizations_enabled": _env_bool("ENABLE_ORGANIZATIONS") if _env_bool("ENABLE_ORGANIZATIONS") is not None else True,

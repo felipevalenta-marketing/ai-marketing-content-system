@@ -35,7 +35,7 @@ def validate_brand(brand_id: str, root_path: str = "brands") -> dict[str, Any]:
     checks["brand_folder_exists"] = brand_path.exists() and brand_path.is_dir()
     checks["within_root"] = str(brand_path).startswith(str(root))
     checks["json_serializable"] = _is_json_serializable({"brand_id": brand_key, "brand_path": str(brand_path)})
-    checks["no_hidden_files"] = not any(part.startswith(".") for part in brand_path.parts)
+    checks["no_hidden_files"] = not any(part.startswith(".") for part in Path(brand_key).parts)
     checks["brand_json_scanned"] = False
 
     if not checks["brand_id_present"]:

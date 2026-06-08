@@ -25,6 +25,33 @@ import { SectionHeader } from "./components/SectionHeader";
 import { AuthGuard } from "./components/AuthGuard";
 import { PermissionGate } from "./components/PermissionGate";
 import { EmptyState } from "./components/EmptyState";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Badge } from "./components/Badge";
+import { isUnauthorizedResponse, createApiClient } from "./api/client";
+import {
+  DEMO_ANALYTICS_DASHBOARD,
+  DEMO_ANALYTICS_HEALTH,
+  DEMO_ANALYTICS_SUMMARY,
+  DEMO_BRAND_DEFAULTS,
+  DEMO_BRAND_PROFILE,
+  DEMO_BRANDS,
+  DEMO_CONFIG,
+  DEMO_HEALTH,
+  DEMO_ORGANIZATION_CONTEXT,
+  DEMO_ORGANIZATION_ID,
+  DEMO_ORGANIZATION_PROFILE,
+  DEMO_RELEASE_CERTIFICATION,
+  DEMO_RELEASE_CHECKLIST,
+  DEMO_RELEASE_GOVERNANCE,
+  DEMO_RELEASE_HEALTH,
+  DEMO_RELEASE_MATURITY,
+  DEMO_RELEASE_READINESS,
+  DEMO_RELEASE_REPORT,
+  DEMO_RELEASE_SCORE,
+  DEMO_RELEASE_STATUS,
+  DEMO_SNAPSHOTS,
+  DEMO_TEAMS,
+} from "./utils/demo";
 import type {
   AnalyticsDashboardData,
   AnalyticsHealthData,
@@ -64,7 +91,7 @@ import type {
   ReleaseScoreData,
   ReleaseStatusData,
 } from "./types/api";
-import { createApiClient } from "./api/client";
+import { IS_DEMO_MODE } from "./utils/demo";
 
 type PageKey =
   | "dashboard"
@@ -86,25 +113,25 @@ const SNAPSHOT_DEFAULT: SnapshotStore = {};
 export default function App() {
   const { apiBaseUrl, setApiBaseUrl, client } = useApi();
   const auth = useAuth(client);
-  const { data: health, loading: healthLoading, error: healthError, refresh: refreshHealth } = useHealth(apiBaseUrl);
-  const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl);
-  const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", "dashboard");
+  const { data: health, loading: healthLoading, error: healthError, refresh: refreshHealth } = useHealth(apiBaseUrl, !IS_DEMO_MODE);
+  const { data: config, loading: configLoading, error: configError, refresh: refreshConfig } = useConfig(apiBaseUrl, auth.isAuthenticated && !IS_DEMO_MODE);
+  const [activePage, setActivePage] = useLocalState<PageKey>("amcs:active-page", IS_DEMO_MODE ? "dashboard" : "dashboard");
   const [activeBrand, setActiveBrand] = useLocalState<string>("amcs:active-brand", "wenzel_partner");
-  const [activeOrganizationId, setActiveOrganizationId] = useLocalState<string>("amcs:active-organization", "");
-  const [activeTeamId, setActiveTeamId] = useLocalState<string>("amcs:active-team", "");
-  const [snapshots, setSnapshots] = useLocalState<SnapshotStore>("amcs:snapshots", SNAPSHOT_DEFAULT);
-  const [brands, setBrands] = useState<BrandRegistryEntry[]>([]);
-  const [organizations, setOrganizations] = useState<OrganizationRegistryEntry[]>([]);
-  const [organizationProfile, setOrganizationProfile] = useState<OrganizationProfile | null>(null);
-  const [organizationContext, setOrganizationContext] = useState<OrganizationContext | null>(null);
-  const [organizationTeams, setOrganizationTeams] = useState<TeamProfile[]>([]);
-  const [organizationMembers, setOrganizationMembers] = useState<MembershipProfile[]>([]);
-  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
-  const [brandValidation, setBrandValidation] = useState<Record<string, unknown> | null>(null);
-  const [brandDefaults, setBrandDefaults] = useState<BrandDefaults | null>(null);
-  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(null);
-  const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(null);
-  const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(null);
+  const [activeOrganizationId, setActiveOrganizationId] = useLocalState<string>("amcs:active-organization", IS_DEMO_MODE ? DEMO_ORGANIZATION_ID : "");
+  const [activeTeamId, setActiveTeamId] = useLocalState<string>("amcs:active-team", IS_DEMO_MODE ? "demo_team" : "");
+  const [snapshots, setSnapshots] = useLocalState<SnapshotStore>("amcs:snapshots", IS_DEMO_MODE ? (DEMO_SNAPSHOTS as unknown as SnapshotStore) : SNAPSHOT_DEFAULT);
+  const [brands, setBrands] = useState<BrandRegistryEntry[]>(() => (IS_DEMO_MODE ? (DEMO_BRANDS as BrandRegistryEntry[]) : []));
+  const [organizations, setOrganizations] = useState<OrganizationRegistryEntry[]>(() => (IS_DEMO_MODE ? ([DEMO_ORGANIZATION_PROFILE] as OrganizationRegistryEntry[]) : []));
+  const [organizationProfile, setOrganizationProfile] = useState<OrganizationProfile | null>(() => (IS_DEMO_MODE ? (DEMO_ORGANIZATION_PROFILE as unknown as OrganizationProfile) : null));
+  const [organizationContext, setOrganizationContext] = useState<OrganizationContext | null>(() => (IS_DEMO_MODE ? (DEMO_ORGANIZATION_CONTEXT as unknown as OrganizationContext) : null));
+  const [organizationTeams, setOrganizationTeams] = useState<TeamProfile[]>(() => (IS_DEMO_MODE ? (DEMO_TEAMS as TeamProfile[]) : []));
+  const [organizationMembers, setOrganizationMembers] = useState<MembershipProfile[]>(() => (IS_DEMO_MODE ? ([{ membership_id: "demo-membership", organization_id: DEMO_ORGANIZATION_ID, team_id: "demo_team", user_id: auth.currentUser?.user_id ?? "demo-admin", role: "owner", status: "active", metadata: { demo_mode: true } }] as MembershipProfile[]) : []));
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(() => (IS_DEMO_MODE ? (DEMO_BRAND_PROFILE as BrandProfile) : null));
+  const [brandValidation, setBrandValidation] = useState<Record<string, unknown> | null>(() => (IS_DEMO_MODE ? ({ valid: true, warnings: [], errors: [] } as Record<string, unknown>) : null));
+  const [brandDefaults, setBrandDefaults] = useState<BrandDefaults | null>(() => (IS_DEMO_MODE ? (DEMO_BRAND_DEFAULTS as BrandDefaults) : null));
+  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummaryData | null>(() => (IS_DEMO_MODE ? (DEMO_ANALYTICS_SUMMARY as AnalyticsSummaryData) : null));
+  const [analyticsDashboard, setAnalyticsDashboard] = useState<AnalyticsDashboardData | null>(() => (IS_DEMO_MODE ? (DEMO_ANALYTICS_DASHBOARD as AnalyticsDashboardData) : null));
+  const [analyticsHealth, setAnalyticsHealth] = useState<AnalyticsHealthData | null>(() => (IS_DEMO_MODE ? (DEMO_ANALYTICS_HEALTH as AnalyticsHealthData) : null));
   const [observabilityHealth, setObservabilityHealth] = useState<ObservabilityHealthData | null>(null);
   const [observabilityStatus, setObservabilityStatus] = useState<ObservabilityStatusData | null>(null);
   const [observabilityDomains, setObservabilityDomains] = useState<ObservabilityDomainsData | null>(null);
@@ -121,20 +148,53 @@ export default function App() {
   const [securityFindings, setSecurityFindings] = useState<SecurityFindingsData | null>(null);
   const [securityDependencies, setSecurityDependencies] = useState<SecurityDependencyData | null>(null);
   const [securityConfiguration, setSecurityConfiguration] = useState<SecurityConfigurationData | null>(null);
-  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatusData | null>(null);
-  const [releaseCertification, setReleaseCertification] = useState<ReleaseCertificationData | null>(null);
-  const [releaseMaturity, setReleaseMaturity] = useState<ReleaseMaturityData | null>(null);
-  const [releaseGovernance, setReleaseGovernance] = useState<ReleaseGovernanceData | null>(null);
+  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatusData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_STATUS as ReleaseStatusData) : null));
+  const [releaseCertification, setReleaseCertification] = useState<ReleaseCertificationData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_CERTIFICATION as ReleaseCertificationData) : null));
+  const [releaseMaturity, setReleaseMaturity] = useState<ReleaseMaturityData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_MATURITY as ReleaseMaturityData) : null));
+  const [releaseGovernance, setReleaseGovernance] = useState<ReleaseGovernanceData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_GOVERNANCE as ReleaseGovernanceData) : null));
   const [releaseExecutiveSummary, setReleaseExecutiveSummary] = useState<ReleaseExecutiveSummaryData | null>(null);
-  const [releaseReadiness, setReleaseReadiness] = useState<ReleaseReadinessData | null>(null);
-  const [releaseHealth, setReleaseHealth] = useState<ReleaseHealthData | null>(null);
-  const [releaseChecklist, setReleaseChecklist] = useState<ReleaseChecklistData | null>(null);
-  const [releaseReport, setReleaseReport] = useState<ReleaseReportData | null>(null);
-  const [releaseScore, setReleaseScore] = useState<ReleaseScoreData | null>(null);
+  const [releaseReadiness, setReleaseReadiness] = useState<ReleaseReadinessData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_READINESS as ReleaseReadinessData) : null));
+  const [releaseHealth, setReleaseHealth] = useState<ReleaseHealthData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_HEALTH as ReleaseHealthData) : null));
+  const [releaseChecklist, setReleaseChecklist] = useState<ReleaseChecklistData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_CHECKLIST as ReleaseChecklistData) : null));
+  const [releaseReport, setReleaseReport] = useState<ReleaseReportData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_REPORT as ReleaseReportData) : null));
+  const [releaseScore, setReleaseScore] = useState<ReleaseScoreData | null>(() => (IS_DEMO_MODE ? (DEMO_RELEASE_SCORE as ReleaseScoreData) : null));
+  const [authWarning, setAuthWarning] = useState<string | null>(null);
+  const effectivePage: PageKey = IS_DEMO_MODE && (activePage === "login" || activePage === "register") ? "dashboard" : activePage;
+  const isPublicPage = !IS_DEMO_MODE && (effectivePage === "login" || effectivePage === "register");
+  const shouldLoadPrivateData = !IS_DEMO_MODE && auth.isAuthenticated && !auth.loading && !isPublicPage && !authWarning;
   const permissions = auth.permissions;
   const role = auth.role;
+  const isDemoMode = IS_DEMO_MODE;
+  const resolvedHealth = IS_DEMO_MODE ? DEMO_HEALTH : health;
+  const resolvedHealthLoading = IS_DEMO_MODE ? false : healthLoading;
+  const resolvedHealthError = IS_DEMO_MODE ? "" : healthError;
+  const resolvedConfig = IS_DEMO_MODE ? DEMO_CONFIG : config;
+  const resolvedConfigLoading = IS_DEMO_MODE ? false : configLoading;
+  const resolvedConfigError = IS_DEMO_MODE ? "" : configError;
 
   useEffect(() => {
+    if (!IS_DEMO_MODE) {
+      return;
+    }
+    setActiveBrand("wenzel_partner");
+    setActiveOrganizationId(DEMO_ORGANIZATION_ID);
+    setActiveTeamId("demo_team");
+    if (!auth.isAuthenticated || isPublicPage) {
+      setAuthWarning(null);
+    }
+  }, [activePage, auth.isAuthenticated, isPublicPage, setActiveBrand, setActiveOrganizationId, setActiveTeamId]);
+
+  useEffect(() => {
+    if (IS_DEMO_MODE) {
+      setAuthWarning(null);
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      setAnalyticsSummary(null);
+      setAnalyticsDashboard(null);
+      setAnalyticsHealth(null);
+      return;
+    }
     let active = true;
     const analyticsClient = createApiClient(apiBaseUrl);
     Promise.all([
@@ -158,10 +218,13 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, shouldLoadPrivateData]);
 
   useEffect(() => {
-    if (!auth.isAuthenticated) {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
       setObservabilityHealth(null);
       setObservabilityStatus(null);
       setObservabilityDomains(null);
@@ -250,12 +313,24 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [auth.isAuthenticated, client]);
+  }, [auth.isAuthenticated, client, shouldLoadPrivateData]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      setBrands([]);
+      return;
+    }
     let active = true;
     client.getBrands().then((response) => {
       if (!active) {
+        return;
+      }
+      if (isUnauthorizedResponse(response)) {
+        setAuthWarning("Authentication token is required. Please log in again.");
+        setBrands([]);
         return;
       }
       if (response.success && response.data?.brands) {
@@ -267,12 +342,26 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [client, apiBaseUrl]);
+  }, [client, shouldLoadPrivateData]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      setOrganizations([]);
+      setActiveOrganizationId("");
+      return;
+    }
     let active = true;
     client.getOrganizations().then((response) => {
       if (!active) {
+        return;
+      }
+      if (isUnauthorizedResponse(response)) {
+        setAuthWarning("Authentication token is required. Please log in again.");
+        setOrganizations([]);
+        setActiveOrganizationId("");
         return;
       }
       if (response.success && response.data?.organizations) {
@@ -291,9 +380,19 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [activeOrganizationId, client, setActiveOrganizationId]);
+  }, [client, shouldLoadPrivateData]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      setOrganizationProfile(null);
+      setOrganizationContext(null);
+      setOrganizationTeams([]);
+      setOrganizationMembers([]);
+      return;
+    }
     let active = true;
     if (!activeOrganizationId) {
       setOrganizationProfile(null);
@@ -314,6 +413,14 @@ export default function App() {
       if (!active) {
         return;
       }
+      if ([profileResponse, contextResponse, teamsResponse, membersResponse].some((response) => isUnauthorizedResponse(response))) {
+        setAuthWarning("Authentication token is required. Please log in again.");
+        setOrganizationProfile(null);
+        setOrganizationContext(null);
+        setOrganizationTeams([]);
+        setOrganizationMembers([]);
+        return;
+      }
       setOrganizationProfile(profileResponse.success && profileResponse.data ? (profileResponse.data as OrganizationProfile) : null);
       setOrganizationContext(contextResponse.success && contextResponse.data ? (contextResponse.data as OrganizationContext) : null);
       setOrganizationTeams(teamsResponse.success && teamsResponse.data?.teams ? (teamsResponse.data.teams as TeamProfile[]) : []);
@@ -322,9 +429,18 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [activeOrganizationId, client]);
+  }, [activeOrganizationId, client, shouldLoadPrivateData]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      if (activeTeamId) {
+        setActiveTeamId("");
+      }
+      return;
+    }
     if (!activeOrganizationId || !organizationTeams.length) {
       if (!activeTeamId) {
         return;
@@ -336,9 +452,18 @@ export default function App() {
     if (!selectedTeam) {
       setActiveTeamId(String(organizationTeams[0]?.team_id ?? ""));
     }
-  }, [activeOrganizationId, activeTeamId, organizationTeams, setActiveTeamId]);
+  }, [activeOrganizationId, activeTeamId, organizationTeams, setActiveTeamId, shouldLoadPrivateData]);
 
   useEffect(() => {
+    if (IS_DEMO_MODE) {
+      return;
+    }
+    if (!shouldLoadPrivateData) {
+      setBrandProfile(null);
+      setBrandValidation(null);
+      setBrandDefaults(null);
+      return;
+    }
     let active = true;
     if (!activeBrand) {
       return () => {
@@ -350,6 +475,13 @@ export default function App() {
         if (!active) {
           return;
         }
+        if ([profileResponse, validationResponse, defaultsResponse].some((response) => isUnauthorizedResponse(response))) {
+          setAuthWarning("Authentication token is required. Please log in again.");
+          setBrandProfile(null);
+          setBrandValidation(null);
+          setBrandDefaults(null);
+          return;
+        }
         setBrandProfile(profileResponse.success && profileResponse.data ? (profileResponse.data as BrandProfile) : null);
         setBrandValidation(validationResponse.success && validationResponse.data ? (validationResponse.data as Record<string, unknown>) : null);
         const defaultsPayload = defaultsResponse.success && defaultsResponse.data ? (defaultsResponse.data as Record<string, unknown>) : null;
@@ -359,31 +491,28 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [activeBrand, client]);
+  }, [activeBrand, client, shouldLoadPrivateData]);
 
   useEffect(() => {
-    if (!activeBrand && config?.default_brand) {
-      setActiveBrand(String(config.default_brand));
+    if (IS_DEMO_MODE) {
+      return;
     }
-  }, [activeBrand, config?.default_brand, setActiveBrand]);
+    if (!activeBrand && resolvedConfig?.default_brand) {
+      setActiveBrand(String(resolvedConfig.default_brand));
+    }
+  }, [activeBrand, resolvedConfig?.default_brand, setActiveBrand]);
 
   useEffect(() => {
-    if (!auth.loading && !auth.isAuthenticated && activePage !== "login" && activePage !== "register") {
+    if (!IS_DEMO_MODE && !auth.loading && !auth.isAuthenticated && activePage !== "login" && activePage !== "register") {
       setActivePage("login");
     }
   }, [activePage, auth.isAuthenticated, auth.loading, setActivePage]);
 
   useEffect(() => {
-    if (auth.isAuthenticated && (activePage === "login" || activePage === "register")) {
+    if (!IS_DEMO_MODE && auth.isAuthenticated && (activePage === "login" || activePage === "register")) {
       setActivePage("dashboard");
     }
   }, [activePage, auth.isAuthenticated, setActivePage]);
-
-  useEffect(() => {
-    if (auth.isAuthenticated) {
-      void refreshConfig();
-    }
-  }, [auth.isAuthenticated, refreshConfig]);
 
   useEffect(() => {
     if (organizationProfile?.organization_id && organizationProfile.organization_id !== activeOrganizationId) {
@@ -400,12 +529,12 @@ export default function App() {
     }
     const available = brands.find((brand) => brand.brand_id === activeBrand);
     if (!available) {
-      const fallback = brands.find((brand) => brand.brand_id === config?.default_brand)?.brand_id ?? brands[0]?.brand_id;
+      const fallback = brands.find((brand) => brand.brand_id === resolvedConfig?.default_brand)?.brand_id ?? brands[0]?.brand_id;
       if (fallback && fallback !== activeBrand) {
         setActiveBrand(String(fallback));
       }
     }
-  }, [activeBrand, brands, config?.default_brand, setActiveBrand]);
+  }, [activeBrand, brands, resolvedConfig?.default_brand, setActiveBrand]);
 
   const onSnapshot = (key: string, data: unknown) => {
     setSnapshots((current) => ({
@@ -419,8 +548,8 @@ export default function App() {
       client,
       snapshots,
       onSnapshot,
-      health: health ?? null,
-      config: config ?? null,
+      health: resolvedHealth ?? null,
+      config: resolvedConfig ?? null,
       role,
       permissions,
       activeBrand,
@@ -464,7 +593,7 @@ export default function App() {
       releaseReport,
       releaseScore,
     };
-    switch (activePage) {
+    switch (effectivePage) {
       case "content":
         return <ContentStudio {...pageProps} />;
       case "workflow":
@@ -496,7 +625,7 @@ export default function App() {
   })();
 
   const pagePermission = (() => {
-    switch (activePage) {
+    switch (effectivePage) {
       case "content":
         return "generation:create";
       case "workflow":
@@ -519,7 +648,7 @@ export default function App() {
   })();
 
   const authOnlyPage = (() => {
-    switch (activePage) {
+    switch (effectivePage) {
       case "register":
         return <Register client={client} auth={auth} onNavigate={setActivePage} />;
       case "profile":
@@ -530,17 +659,65 @@ export default function App() {
     }
   })();
 
+  if (isDemoMode) {
+    return (
+      <ErrorBoundary>
+        <AppShell
+          client={client}
+          apiBaseUrl={apiBaseUrl}
+          onApiBaseUrlChange={setApiBaseUrl}
+          authWarning={null}
+          health={resolvedHealth ?? null}
+          config={resolvedConfig ?? null}
+          activeBrand={activeBrand}
+          activeOrganizationId={activeOrganizationId}
+          activeTeamId={activeTeamId}
+          brandProfile={brandProfile}
+          brandValidation={brandValidation}
+          brandDefaults={brandDefaults}
+          currentUser={auth.currentUser}
+          role={role}
+          permissions={permissions}
+          organizations={organizations}
+          organizationProfile={organizationProfile}
+          organizationContext={organizationContext}
+          organizationTeams={organizationTeams}
+          organizationMembers={organizationMembers}
+          onLogout={async () => {
+            await auth.logout();
+          }}
+          onNavigateProfile={() => setActivePage("profile")}
+          onActiveBrandChange={setActiveBrand}
+          onActiveOrganizationChange={setActiveOrganizationId}
+          onActiveTeamChange={setActiveTeamId}
+          activePage={effectivePage}
+          onSelectPage={setActivePage}
+          onRefreshHealth={refreshHealth}
+          onRefreshConfig={refreshConfig}
+        >
+          {currentPage}
+        </AppShell>
+      </ErrorBoundary>
+    );
+  }
+
   if (!auth.loading && !auth.isAuthenticated) {
-    return <div className="auth-layout">{authOnlyPage}</div>;
+    return (
+      <ErrorBoundary>
+        <div className="auth-layout">{authOnlyPage}</div>
+      </ErrorBoundary>
+    );
   }
 
   return (
-      <AppShell
+    <ErrorBoundary>
+    <AppShell
       client={client}
       apiBaseUrl={apiBaseUrl}
       onApiBaseUrlChange={setApiBaseUrl}
-      health={health ?? null}
-      config={config ?? null}
+      authWarning={authWarning}
+      health={resolvedHealth ?? null}
+      config={resolvedConfig ?? null}
       activeBrand={activeBrand}
       activeOrganizationId={activeOrganizationId}
       activeTeamId={activeTeamId}
@@ -570,14 +747,14 @@ export default function App() {
     >
       <AuthGuard isAuthenticated={auth.isAuthenticated} loading={auth.loading} onGoLogin={() => setActivePage("login")}>
         <div className="stack">
-        {healthLoading || configLoading ? (
+        {resolvedHealthLoading || resolvedConfigLoading ? (
           <Card>
             <SectionHeader title="Booting UI" description="Loading system health and configuration from the API." />
           </Card>
         ) : null}
-        {healthError || configError ? (
+        {resolvedHealthError || resolvedConfigError ? (
           <Card>
-            <SectionHeader title="API Warning" description={healthError || configError || ""} />
+            <SectionHeader title="API Warning" description={resolvedHealthError || resolvedConfigError || ""} />
           </Card>
         ) : null}
         <PermissionGate
@@ -596,5 +773,6 @@ export default function App() {
         </div>
       </AuthGuard>
     </AppShell>
+    </ErrorBoundary>
   );
 }

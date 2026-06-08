@@ -30,6 +30,7 @@ class GenerateRequest(BaseApiModel):
     team_id: str = Field(default="")
     campaign_type: str | None = None
     objective: str = Field(default="generate_leads", examples=["generate_leads"])
+    prompt: str = Field(default="")
     audience: str = Field(default="general")
     location: str = Field(default="")
     property_type: str = Field(default="")

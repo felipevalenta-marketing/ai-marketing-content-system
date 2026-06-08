@@ -6,6 +6,7 @@ from typing import Any
 import os
 
 from src.api.api_config import ApiConfig
+from src.auth.jwt_manager import get_secret_status
 from src.pipeline.pipeline_config import PipelineConfig
 from src.security.security_config import build_security_configuration
 
@@ -53,10 +54,11 @@ def build_security_policy(app: Any | None = None) -> dict[str, Any]:
     services = _services(app)
     pipeline = services.get("pipeline_config") or getattr(getattr(app, "state", None), "pipeline_config", None) or PipelineConfig()
     cors = resolve_cors_origins(app)
+    jwt_secret_status = get_secret_status()
     required_checks = {
         "authentication_enabled": bool(getattr(pipeline, "enable_authentication", True)),
         "rbac_enabled": bool(getattr(pipeline, "enable_rbac", True)),
-        "jwt_secret_configured": bool(os.getenv("JWT_SECRET_KEY", "").strip()),
+        "jwt_secret_configured": bool(jwt_secret_status.get("available", False)),
         "password_hashes_protected": True,
         "rate_limiting_enabled": bool(config.get("rate_limiting_enabled", True)),
         "security_headers_enabled": bool(config.get("security_headers_enabled", True)),

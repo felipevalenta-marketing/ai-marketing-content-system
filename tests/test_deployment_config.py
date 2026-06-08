@@ -36,5 +36,12 @@ def test_deployment_config_reads_environment_overrides(monkeypatch) -> None:
     assert summary["configuration"]["ci_configuration"]["enable_ci_security_checks"] is True
 
 
+def test_pipeline_supports_requested_content_types() -> None:
+    pipeline = PipelineConfig()
+
+    for content_type in ("instagram_post", "linkedin_post", "facebook_post", "ad_copy", "property_description"):
+        assert pipeline.supports_content_type(content_type) is True
+
+
 def test_production_smoke_script_runs() -> None:
     assert production_smoke_main() == 0

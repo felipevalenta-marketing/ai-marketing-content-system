@@ -15,7 +15,7 @@ import type { WorkspaceProps } from "./shared";
 
 interface SystemConfigProps extends WorkspaceProps {}
 
-export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands, organizations, organizationProfile, organizationMembers, role }: SystemConfigProps) {
+export function SystemConfig({ client, config, observabilityHealth, observabilityStatus, observabilityDomains, observabilityTokens, observabilityCosts, observabilityConfiguration, observabilityMetrics, runtimeDiagnostics, recentErrors, workflowObservability, storageObservability, securityStatus, securityHealth, securityFindings, securityDependencies, securityConfiguration, releaseStatus, releaseCertification, releaseMaturity, releaseGovernance, releaseExecutiveSummary, releaseReadiness, releaseHealth, releaseChecklist, releaseReport, releaseScore, activeBrand, activeOrganizationId, activeTeamId, brandProfile, brandValidation, brandDefaults, brands = [], organizations = [], organizationProfile, organizationMembers = [], role }: SystemConfigProps) {
   const canManageConfig = Boolean(role === "admin" || role === "manager");
   const [editableFlags, setEditableFlags] = useState<Record<string, boolean>>({});
   const [updateMessage, setUpdateMessage] = useState<string>("");
@@ -49,7 +49,7 @@ export function SystemConfig({ client, config, observabilityHealth, observabilit
   const observabilityTokensData = observabilityTokens?.metrics ?? {};
   const observabilityCostsData = observabilityCosts?.metrics ?? {};
   const observabilityConfigData = observabilityConfiguration ?? {};
-  const brandValidationData = brandValidation as any;
+  const brandValidationData = (brandValidation ?? {}) as any;
 
   function flagsFromConfig(payload: typeof config | null): Record<string, boolean> {
     return (payload?.feature_flags ?? {}) as Record<string, boolean>;

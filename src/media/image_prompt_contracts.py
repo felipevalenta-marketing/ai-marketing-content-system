@@ -87,7 +87,7 @@ class ImagePromptContract:
 IMAGE_PROMPT_REQUEST_CONTRACT = ImagePromptContract(
     name="image_prompt_request",
     required_request_fields=("brand", "platform", "content_type", "image_type", "aspect_ratio", "creative_direction"),
-    required_response_fields=("prompt", "negative_prompt", "visual_style", "lighting_style", "composition_style", "camera_direction", "aspect_ratio", "platform"),
+    required_response_fields=("image_prompt", "style", "camera", "lighting", "negative_prompt"),
     supported_image_types=SUPPORTED_IMAGE_PROMPT_TYPES,
     supported_aspect_ratios=SUPPORTED_ASPECT_RATIOS,
     supported_platforms=SUPPORTED_PLATFORMS,
@@ -126,8 +126,12 @@ IMAGE_PROMPT_RESPONSE_CONTRACT = ImagePromptContract(
     supported_platforms=SUPPORTED_PLATFORMS,
     defaults={
         "success": True,
-        "prompt": "",
+        "image_prompt": "",
+        "style": "",
+        "camera": "",
+        "lighting": "",
         "negative_prompt": "",
+        "prompt": "",
         "visual_style": "",
         "lighting_style": "",
         "composition_style": "",

@@ -45,6 +45,9 @@ ALLOWLIST_VALUES = {
 
 ALLOWLISTED_FINDINGS = {
     ("tests/test_ci_security_check.py", "sk_key"),
+    ("tests/test_secret_scanner.py", "sk_key"),
+    ("tests/test_secret_scanner.py", "bearer_token"),
+    ("tests/test_security_events.py", "bearer_token"),
 }
 
 SECRET_ASSIGNMENT_PATTERNS = {
@@ -62,6 +65,10 @@ PRIVATE_KEY_PATTERN = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")
 def _has_placeholder(value: str) -> bool:
     normalized = value.strip().strip('"').strip("'").lower()
     return any(marker in normalized for marker in ALLOWLIST_VALUES)
+
+
+def _is_allowlisted(path: str, issue: str) -> bool:
+    return (path, issue) in ALLOWLISTED_FINDINGS
 
 
 def _tracked_files(root: Path) -> list[Path]:
@@ -138,30 +145,41 @@ def scan_repository(root: Path | None = None) -> dict[str, Any]:
             if config_like:
                 if match := SECRET_ASSIGNMENT_PATTERNS["OPENAI_API_KEY"].match(stripped):
                     if not _has_placeholder(match.group(1)):
+                        if _is_allowlisted(relative.as_posix(), "openai_api_key"):
+                            continue
                         errors.append(f"Potential OPENAI_API_KEY secret in {relative.as_posix()}:{line_number}")
                         findings.append({"path": relative.as_posix(), "line": line_number, "issue": "openai_api_key", "severity": "critical"})
                 if match := SECRET_ASSIGNMENT_PATTERNS["JWT_SECRET_KEY"].match(stripped):
                     if not _has_placeholder(match.group(1)):
+                        if _is_allowlisted(relative.as_posix(), "jwt_secret_key"):
+                            continue
                         errors.append(f"Potential JWT_SECRET_KEY secret in {relative.as_posix()}:{line_number}")
                         findings.append({"path": relative.as_posix(), "line": line_number, "issue": "jwt_secret_key", "severity": "critical"})
                 if match := SECRET_ASSIGNMENT_PATTERNS["API_KEY"].match(stripped):
                     if not _has_placeholder(match.group(1)):
+                        if _is_allowlisted(relative.as_posix(), "api_key"):
+                            continue
                         errors.append(f"Potential api_key secret in {relative.as_posix()}:{line_number}")
                         findings.append({"path": relative.as_posix(), "line": line_number, "issue": "api_key", "severity": "critical"})
                 if match := SECRET_ASSIGNMENT_PATTERNS["PASSWORD"].match(stripped):
                     if not _has_placeholder(match.group(1)):
+                        if _is_allowlisted(relative.as_posix(), "password"):
+                            continue
                         errors.append(f"Potential password secret in {relative.as_posix()}:{line_number}")
                         findings.append({"path": relative.as_posix(), "line": line_number, "issue": "password", "severity": "critical"})
             if SK_KEY_PATTERN.search(line):
-                finding_key = (relative.as_posix(), "sk_key")
-                if finding_key in ALLOWLISTED_FINDINGS:
+                if _is_allowlisted(relative.as_posix(), "sk_key"):
                     continue
                 errors.append(f"Potential OpenAI-style secret key in {relative.as_posix()}:{line_number}")
                 findings.append({"path": relative.as_posix(), "line": line_number, "issue": "sk_key", "severity": "critical"})
             if BEARER_PATTERN.search(line):
+                if _is_allowlisted(relative.as_posix(), "bearer_token"):
+                    continue
                 errors.append(f"Potential bearer token in {relative.as_posix()}:{line_number}")
                 findings.append({"path": relative.as_posix(), "line": line_number, "issue": "bearer_token", "severity": "critical"})
             if PRIVATE_KEY_PATTERN.search(line):
+                if _is_allowlisted(relative.as_posix(), "private_key"):
+                    continue
                 errors.append(f"Private key block detected in {relative.as_posix()}:{line_number}")
                 findings.append({"path": relative.as_posix(), "line": line_number, "issue": "private_key", "severity": "critical"})
     return {
